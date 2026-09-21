@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "description": "SFML (Software Factory Markup Language) specification and schema",
   "license": "MIT",
-  "author": "Matthew Whittemore",
+  "author": "Plumbline LLC",
   "engines": {
     "node": ">=24"
   },
