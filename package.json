@@ -1,0 +1,44 @@
+{
+  "name": "sfml-specification",
+  "private": true,
+  "version": "0.1.0",
+  "description": "SFML (Software Factory Markup Language) specification and schema",
+  "license": "MIT",
+  "author": "Matthew Whittemore",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "generate": "npm run generate:schema:json && npm run generate:schema:md",
+    "generate:schema:json": "tsx scripts/generate-schemas.ts",
+    "generate:schema:md": "tsx scripts/generate-docs.ts",
+    "format": "npm run format:schema && npm run format:docs",
+    "format:schema": "prettier --write \"schema/**/*.ts\" \"scripts/**/*.ts\"",
+    "format:docs": "prettier --write \"**/*.{md,mdx}\" --ignore-path .prettierignore",
+    "check": "npm run check:schema && npm run check:docs",
+    "check:schema": "npm run check:schema:ts && npm run check:schema:json && npm run check:schema:md",
+    "check:schema:ts": "tsc --noEmit && eslint schema/ scripts/ && prettier --check \"schema/**/*.ts\" \"scripts/**/*.ts\"",
+    "check:schema:json": "tsx scripts/generate-schemas.ts --check",
+    "check:schema:md": "tsx scripts/generate-docs.ts --check",
+    "check:docs": "npm run check:docs:format",
+    "check:docs:format": "prettier --check \"**/*.{md,mdx}\" --ignore-path .prettierignore",
+    "serve:docs": "cd docs && npx mint dev",
+    "prep": "npm run check:schema:ts && npm run generate && npm run format && npm run check:docs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.13.6",
+    "eslint": "^10.11.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.9.8",
+    "tsx": "^4.23.15",
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.13.1",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.70.1",
+    "typescript-json-schema": "0.68.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}

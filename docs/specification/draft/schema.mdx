@@ -1,0 +1,705 @@
+---
+title: Schema Reference
+description: Generated reference for the SFML draft schema.
+---
+
+{/* Generated from schema/draft/schema.ts by npm run generate. Do not edit. */}
+
+SFML — Software Factory Markup Language, draft.
+
+This file is the source of truth for the SFML schema. `schema/draft/schema.json`
+and `docs/specification/draft/schema.mdx` are generated from it; do not edit
+those by hand. See CONTRIBUTING.md.
+
+The types below are a starting point covering the v0.1 core described in
+`PRD.md` §6. They are deliberately incomplete: the RFC-2119 prose and the
+remaining fields land as the specification is drafted.
+
+## Interfaces
+
+### Factory
+
+A software factory: a durable, resumable pipeline that turns an intent into a
+reviewed artifact.
+
+Unknown fields are rejected at every level of an SFML document.
+
+#### Properties
+
+##### sfml
+
+```ts
+sfml: string;
+```
+
+The SFML version this file is written against.
+
+##### description?
+
+```ts
+optional description?: string;
+```
+
+Human-readable description of what this factory does.
+
+##### parameters?
+
+```ts
+optional parameters?: {
+[name: string]: object;
+};
+```
+
+The factory's signature: what a caller must supply to start a run.
+
+Each entry is a JSON Schema. A parameter with no `default` is required,
+and a run that omits one is rejected at admission.
+
+###### Index Signature
+
+```ts
+[name: string]: object
+```
+
+##### start
+
+```ts
+start: string;
+```
+
+The step a run enters first.
+
+Always explicit, never inferred from topology — inference breaks every
+factory that loops back to its first step.
+
+##### steps
+
+```ts
+steps: {
+[name: string]: Step;
+};
+```
+
+The factory's steps, keyed by [StepName](#stepname).
+
+###### Index Signature
+
+```ts
+[name: string]: Step
+```
+
+##### assignee?
+
+```ts
+optional assignee?: string;
+```
+
+The DRI of the run: the fallback owner, and who resolves iteration and
+budget grants.
+
+This does **not** default onto [HumanStep.assignee](#assignee-2).
+
+##### budget?
+
+```ts
+optional budget?: number;
+```
+
+Ceiling for the whole run, across every agent step in it.
+
+***
+
+### AgentStep
+
+A step that runs an agent on a harness.
+
+#### Properties
+
+##### type
+
+```ts
+type: "agent";
+```
+
+##### description?
+
+```ts
+optional description?: string;
+```
+
+Human-readable description of the work this step does.
+
+##### harness
+
+```ts
+harness: string;
+```
+
+The harness that runs this step, as `<name>[@<version>]`.
+
+Portability ends here: everything a runtime may vary lives behind the
+harness name and [AgentStep.harness\_config](#harness_config).
+
+##### harness\_config?
+
+```ts
+optional harness_config?: {
+[key: string]: unknown;
+};
+```
+
+Harness-specific configuration. Opaque to SFML.
+
+###### Index Signature
+
+```ts
+[key: string]: unknown
+```
+
+##### prompt?
+
+```ts
+optional prompt?: string;
+```
+
+An inline prompt template. Mutually exclusive with [AgentStep.prompt\_path](#prompt_path).
+
+##### prompt\_path?
+
+```ts
+optional prompt_path?: string;
+```
+
+Path to a prompt template. Mutually exclusive with [AgentStep.prompt](#prompt).
+
+##### prompt\_vars?
+
+```ts
+optional prompt_vars?: {
+[name: string]: string;
+};
+```
+
+The bindings this step's prompt template may read, as [PromptVars](#promptvars).
+
+Declaring them per step makes the step's dependencies visible to the
+linter and makes the step testable on its own. [FactoryState](#factorystate) is not
+reachable from a prompt template.
+
+###### Index Signature
+
+```ts
+[name: string]: string
+```
+
+##### result\_schema
+
+```ts
+result_schema: object;
+```
+
+JSON Schema the agent's output is validated against before routing.
+
+##### next
+
+```ts
+next: Connection[];
+```
+
+Where control goes on success. Ordered; first match wins.
+
+##### max\_iterations?
+
+```ts
+optional max_iterations?: number;
+```
+
+How many times this step may be entered.
+
+Checked on arrival and counted from `results.<StepName>`, so it survives
+resume for free. A retry is not an iteration.
+
+##### budget?
+
+```ts
+optional budget?: number;
+```
+
+Ceiling for this step, covering all of its iterations.
+
+##### retry?
+
+```ts
+optional retry?: Retry;
+```
+
+How failures the harness marked retryable are retried.
+
+***
+
+### HumanStep
+
+A step that waits for a person.
+
+Human steps have no timeout, no escalation, and no failure mode: a step either
+resumes with valid input or waits.
+
+#### Properties
+
+##### type
+
+```ts
+type: "human";
+```
+
+##### description?
+
+```ts
+optional description?: string;
+```
+
+Human-readable description of the decision or work being asked for.
+
+##### assignee?
+
+```ts
+optional assignee?: string;
+```
+
+Who does this task.
+
+A human step that omits it is unassigned; it does not inherit
+[Factory.assignee](#assignee-1).
+
+##### instructions?
+
+```ts
+optional instructions?: string;
+```
+
+What to show the person, evaluated against [FactoryState](#factorystate).
+
+##### result\_schema
+
+```ts
+result_schema: object;
+```
+
+JSON Schema the resume payload is validated against.
+
+##### next
+
+```ts
+next: Connection[];
+```
+
+Where control goes once the step has a result. Ordered; first match wins.
+
+##### max\_iterations?
+
+```ts
+optional max_iterations?: number;
+```
+
+How many times this step may be entered.
+
+***
+
+### ParallelStep
+
+A region that runs named child steps concurrently and joins when every one of
+them has produced a result.
+
+The join is `all`, implicitly, and the join is the parallel step itself. A
+child cannot route, so a region contains no edges and deadlock is
+unrepresentable. Regions do not nest in v0.1.
+
+#### Properties
+
+##### type
+
+```ts
+type: "parallel";
+```
+
+##### description?
+
+```ts
+optional description?: string;
+```
+
+Human-readable description of what runs concurrently here.
+
+##### steps
+
+```ts
+steps: {
+[name: string]: ParallelChild;
+};
+```
+
+The region's children, keyed by a name unique within this step.
+
+A child is addressed elsewhere by its qualified name, `<parallel>.<child>`.
+
+###### Index Signature
+
+```ts
+[name: string]: ParallelChild
+```
+
+##### next
+
+```ts
+next: Connection[];
+```
+
+Where control goes once every child has produced a result.
+
+##### max\_iterations?
+
+```ts
+optional max_iterations?: number;
+```
+
+How many times this region may be entered.
+
+Iterations belong to the region, not to its children: a child runs exactly
+once per crossing.
+
+***
+
+### ResultStep
+
+A terminal step. A run that reaches one cannot be restarted.
+
+#### Properties
+
+##### type
+
+```ts
+type: "result";
+```
+
+##### description?
+
+```ts
+optional description?: string;
+```
+
+Human-readable description of what this outcome means.
+
+##### outcome
+
+```ts
+outcome: "complete" | "terminal_failure";
+```
+
+Whether the run ended having done the work, or having given up.
+
+##### value?
+
+```ts
+optional value?: string;
+```
+
+The run's result, evaluated against [FactoryState](#factorystate).
+
+When omitted, `complete` yields `{ "ok": true }` and `terminal_failure`
+yields `{ "ok": false }`.
+
+***
+
+### Connection
+
+One edge out of a step. Every edge in an SFML graph is a success edge; there is
+no `on_error` and no `on_timeout`.
+
+#### Properties
+
+##### when?
+
+```ts
+optional when?: string;
+```
+
+The condition under which this edge is taken, evaluated against
+[FactoryState](#factorystate).
+
+Absent means unconditional. There is no `else` key: the fallback is a
+connection with no `when`, and routing must be total, so the last
+connection of any non-result step omits it.
+
+##### to
+
+```ts
+to: string;
+```
+
+The single step control moves to.
+
+Fan-out is a [ParallelStep](#parallelstep), never a connection.
+
+***
+
+### Retry
+
+How a step retries failures the harness reported as retryable.
+
+There is no `retry.on`: the harness classifies each failure, so there is
+nothing left for an author to list.
+
+#### Properties
+
+##### max\_attempts
+
+```ts
+max_attempts: number;
+```
+
+Total attempts, including the first.
+
+##### backoff?
+
+```ts
+optional backoff?: "none" | "linear" | "exponential";
+```
+
+How to wait between attempts.
+
+***
+
+### FactoryState
+
+What routing conditions, human `instructions`, and result `value`s are
+evaluated against.
+
+#### Properties
+
+##### parameters
+
+```ts
+parameters: {
+[name: string]: unknown;
+};
+```
+
+The run's parameters, validated against [Factory.parameters](#parameters) and
+defaulted. Constant for the life of the run.
+
+###### Index Signature
+
+```ts
+[name: string]: unknown
+```
+
+##### results
+
+```ts
+results: {
+[name: string]: StepResult[];
+};
+```
+
+Results by step name, oldest to newest. Read the latest with `last()`.
+
+###### Index Signature
+
+```ts
+[name: string]: StepResult[]
+```
+
+***
+
+### PromptVars
+
+What an agent step's prompt template is evaluated against.
+
+A template writes `${ prompt_vars.issue }`, not `${ issue }`. The extra word
+buys a namespace, so a later version can add a sibling field here without
+every existing template becoming ambiguous.
+
+#### Properties
+
+##### prompt\_vars
+
+```ts
+prompt_vars: {
+[name: string]: unknown;
+};
+```
+
+The evaluated [AgentStep.prompt\_vars](#prompt_vars) of the step being run.
+
+###### Index Signature
+
+```ts
+[name: string]: unknown
+```
+
+## Type Aliases
+
+### SfmlVersion
+
+```ts
+type SfmlVersion = string;
+```
+
+The SFML version a factory file declares, e.g. `"v0.1"`.
+
+The `v` prefix is part of the value, and the value is a string rather than a
+number so that `v0.1` and `v1.1` are both expressible and distinct.
+
+***
+
+### StepName
+
+```ts
+type StepName = string;
+```
+
+The key a step is declared under in [Factory.steps](#steps).
+
+`.` is reserved as the qualifier separator for the children of a
+[ParallelStep](#parallelstep), so it cannot appear in a name itself.
+
+***
+
+### Expression
+
+```ts
+type Expression = string;
+```
+
+An expression in SFML's narrow expression language.
+
+Every SFML expression parses as valid CEL. The grammar is closed and small:
+field selection, indexing, comparison and boolean operators, literals, and
+calls into the closed standard function library (`last`, `empty`, `notEmpty`).
+
+What an expression is evaluated against depends on where it appears: routing
+conditions, human `instructions`, and result `value`s see [FactoryState](#factorystate);
+prompt templates see [PromptVars](#promptvars).
+
+***
+
+### JsonSchema
+
+```ts
+type JsonSchema = object;
+```
+
+A JSON Schema, used to declare factory parameters and step results.
+
+SFML does not constrain the dialect beyond requiring a valid schema, so
+ordinary keywords such as `description` and `default` carry their usual
+meaning rather than being reinvented by SFML.
+
+***
+
+### Budget
+
+```ts
+type Budget = number;
+```
+
+A ceiling in United States dollars, at most two decimal places.
+
+`0.00` means *this cost nothing*, not *this was not measured*. Absent means
+unbounded. Implementations should hold budgets and accumulated consumption as
+integer cents.
+
+***
+
+### Assignee
+
+```ts
+type Assignee = string;
+```
+
+An opaque identifier for a person, team, rotation, group, or queue.
+
+SFML defines no syntax for the value beyond it being a string, and never
+resolves, grants, or routes one.
+
+***
+
+### Step
+
+```ts
+type Step = 
+  | AgentStep
+  | HumanStep
+  | ParallelStep
+  | ResultStep;
+```
+
+Any step a factory can declare at the top level.
+
+***
+
+### ParallelChild
+
+```ts
+type ParallelChild = 
+  | Omit<AgentStep, "next" | "max_iterations">
+| Omit<HumanStep, "next" | "max_iterations">;
+```
+
+A child of a [ParallelStep](#parallelstep): a single agent or human step with no `next`.
+
+A child carries its own [AgentStep.budget](#budget-2), because a lint pass and a
+full test run have no business sharing a number, and a parallel step has no
+budget of its own.
+
+***
+
+### StepResult
+
+```ts
+type StepResult = {
+[key: string]: unknown;
+};
+```
+
+The observable contract of a step, and the thing conformance tests compare.
+
+A `StepResult` *is* the validated result object itself. One is created by a
+step on success only; a failed attempt appends nothing. Nothing about *how* a
+step ran — attempt counts, timings, cost — is part of it.
+
+#### Index Signature
+
+```ts
+[key: string]: unknown
+```
+
+***
+
+### FactoryException
+
+```ts
+type FactoryException = 
+  | "schema_violation"
+  | "harness_error"
+  | "iteration_limit"
+  | "budget_exceeded";
+```
+
+The classes of exception a step can raise.
+
+A step failure is a factory exception, not a route. All four are resumable;
+nothing in v0.1 is inherently fatal except reaching a [ResultStep](#resultstep).
+
+***
+
+### BranchStatus
+
+```ts
+type BranchStatus = "running" | "awaiting_input" | "errored" | "done";
+```
+
+The state of one live branch of a run.
+
+A run has one branch, except while inside a [ParallelStep](#parallelstep), where it has
+one per child. Run status is derived from branch states rather than stored.

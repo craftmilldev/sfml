@@ -1,0 +1,497 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$defs": {
+        "AgentStep": {
+            "additionalProperties": false,
+            "description": "A step that runs an agent on a harness.",
+            "properties": {
+                "budget": {
+                    "description": "Ceiling for this step, covering all of its iterations.",
+                    "minimum": 0,
+                    "type": "number"
+                },
+                "description": {
+                    "description": "Human-readable description of the work this step does.",
+                    "type": "string"
+                },
+                "harness": {
+                    "description": "The harness that runs this step, as `<name>[@<version>]`.\n\nPortability ends here: everything a runtime may vary lives behind the\nharness name and {@link AgentStep.harness_config}.",
+                    "type": "string"
+                },
+                "harness_config": {
+                    "additionalProperties": {},
+                    "description": "Harness-specific configuration. Opaque to SFML.",
+                    "type": "object"
+                },
+                "max_iterations": {
+                    "description": "How many times this step may be entered.\n\nChecked on arrival and counted from `results.<StepName>`, so it survives\nresume for free. A retry is not an iteration.",
+                    "minimum": 1,
+                    "type": "integer"
+                },
+                "next": {
+                    "description": "Where control goes on success. Ordered; first match wins.",
+                    "items": {
+                        "$ref": "#/$defs/Connection"
+                    },
+                    "type": "array"
+                },
+                "prompt": {
+                    "description": "An inline prompt template. Mutually exclusive with {@link AgentStep.prompt_path}.",
+                    "type": "string"
+                },
+                "prompt_path": {
+                    "description": "Path to a prompt template. Mutually exclusive with {@link AgentStep.prompt}.",
+                    "type": "string"
+                },
+                "prompt_vars": {
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "The bindings this step's prompt template may read, as {@link PromptVars}.\n\nDeclaring them per step makes the step's dependencies visible to the\nlinter and makes the step testable on its own. {@link FactoryState} is not\nreachable from a prompt template.",
+                    "type": "object"
+                },
+                "result_schema": {
+                    "additionalProperties": true,
+                    "description": "JSON Schema the agent's output is validated against before routing.",
+                    "properties": {},
+                    "type": "object"
+                },
+                "retry": {
+                    "$ref": "#/$defs/Retry",
+                    "description": "How failures the harness marked retryable are retried."
+                },
+                "type": {
+                    "const": "agent",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "harness",
+                "next",
+                "result_schema",
+                "type"
+            ],
+            "type": "object"
+        },
+        "Assignee": {
+            "description": "An opaque identifier for a person, team, rotation, group, or queue.\n\nSFML defines no syntax for the value beyond it being a string, and never\nresolves, grants, or routes one.",
+            "type": "string"
+        },
+        "BranchStatus": {
+            "description": "The state of one live branch of a run.\n\nA run has one branch, except while inside a {@link ParallelStep}, where it has\none per child. Run status is derived from branch states rather than stored.",
+            "enum": [
+                "awaiting_input",
+                "done",
+                "errored",
+                "running"
+            ],
+            "type": "string"
+        },
+        "Budget": {
+            "description": "A ceiling in United States dollars, at most two decimal places.\n\n`0.00` means *this cost nothing*, not *this was not measured*. Absent means\nunbounded. Implementations should hold budgets and accumulated consumption as\ninteger cents.",
+            "minimum": 0,
+            "type": "number"
+        },
+        "Connection": {
+            "additionalProperties": false,
+            "description": "One edge out of a step. Every edge in an SFML graph is a success edge; there is\nno `on_error` and no `on_timeout`.",
+            "properties": {
+                "to": {
+                    "description": "The single step control moves to.\n\nFan-out is a {@link ParallelStep}, never a connection.",
+                    "type": "string"
+                },
+                "when": {
+                    "description": "The condition under which this edge is taken, evaluated against\n{@link FactoryState}.\n\nAbsent means unconditional. There is no `else` key: the fallback is a\nconnection with no `when`, and routing must be total, so the last\nconnection of any non-result step omits it.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "to"
+            ],
+            "type": "object"
+        },
+        "Expression": {
+            "description": "An expression in SFML's narrow expression language.\n\nEvery SFML expression parses as valid CEL. The grammar is closed and small:\nfield selection, indexing, comparison and boolean operators, literals, and\ncalls into the closed standard function library (`last`, `empty`, `notEmpty`).\n\nWhat an expression is evaluated against depends on where it appears: routing\nconditions, human `instructions`, and result `value`s see {@link FactoryState};\nprompt templates see {@link PromptVars}.",
+            "type": "string"
+        },
+        "Factory": {
+            "additionalProperties": false,
+            "description": "A software factory: a durable, resumable pipeline that turns an intent into a\nreviewed artifact.\n\nUnknown fields are rejected at every level of an SFML document.",
+            "properties": {
+                "assignee": {
+                    "description": "The DRI of the run: the fallback owner, and who resolves iteration and\nbudget grants.\n\nThis does **not** default onto {@link HumanStep.assignee}.",
+                    "type": "string"
+                },
+                "budget": {
+                    "description": "Ceiling for the whole run, across every agent step in it.",
+                    "minimum": 0,
+                    "type": "number"
+                },
+                "description": {
+                    "description": "Human-readable description of what this factory does.",
+                    "type": "string"
+                },
+                "parameters": {
+                    "additionalProperties": {
+                        "additionalProperties": true,
+                        "properties": {},
+                        "type": "object"
+                    },
+                    "description": "The factory's signature: what a caller must supply to start a run.\n\nEach entry is a JSON Schema. A parameter with no `default` is required,\nand a run that omits one is rejected at admission.",
+                    "type": "object"
+                },
+                "sfml": {
+                    "description": "The SFML version this file is written against.",
+                    "type": "string"
+                },
+                "start": {
+                    "description": "The step a run enters first.\n\nAlways explicit, never inferred from topology — inference breaks every\nfactory that loops back to its first step.",
+                    "type": "string"
+                },
+                "steps": {
+                    "additionalProperties": {
+                        "$ref": "#/$defs/Step"
+                    },
+                    "description": "The factory's steps, keyed by {@link StepName}.",
+                    "type": "object"
+                }
+            },
+            "required": [
+                "sfml",
+                "start",
+                "steps"
+            ],
+            "type": "object"
+        },
+        "FactoryException": {
+            "description": "The classes of exception a step can raise.\n\nA step failure is a factory exception, not a route. All four are resumable;\nnothing in v0.1 is inherently fatal except reaching a {@link ResultStep}.",
+            "enum": [
+                "budget_exceeded",
+                "harness_error",
+                "iteration_limit",
+                "schema_violation"
+            ],
+            "type": "string"
+        },
+        "FactoryState": {
+            "additionalProperties": false,
+            "description": "What routing conditions, human `instructions`, and result `value`s are\nevaluated against.",
+            "properties": {
+                "parameters": {
+                    "additionalProperties": {},
+                    "description": "The run's parameters, validated against {@link Factory.parameters} and\ndefaulted. Constant for the life of the run.",
+                    "type": "object"
+                },
+                "results": {
+                    "additionalProperties": {
+                        "items": {
+                            "additionalProperties": {},
+                            "description": "The observable contract of a step, and the thing conformance tests compare.\n\nA `StepResult` *is* the validated result object itself. One is created by a\nstep on success only; a failed attempt appends nothing. Nothing about *how* a\nstep ran — attempt counts, timings, cost — is part of it.",
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "description": "Results by step name, oldest to newest. Read the latest with `last()`.",
+                    "type": "object"
+                }
+            },
+            "required": [
+                "parameters",
+                "results"
+            ],
+            "type": "object"
+        },
+        "HumanStep": {
+            "additionalProperties": false,
+            "description": "A step that waits for a person.\n\nHuman steps have no timeout, no escalation, and no failure mode: a step either\nresumes with valid input or waits.",
+            "properties": {
+                "assignee": {
+                    "description": "Who does this task.\n\nA human step that omits it is unassigned; it does not inherit\n{@link Factory.assignee}.",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "Human-readable description of the decision or work being asked for.",
+                    "type": "string"
+                },
+                "instructions": {
+                    "description": "What to show the person, evaluated against {@link FactoryState}.",
+                    "type": "string"
+                },
+                "max_iterations": {
+                    "description": "How many times this step may be entered.",
+                    "minimum": 1,
+                    "type": "integer"
+                },
+                "next": {
+                    "description": "Where control goes once the step has a result. Ordered; first match wins.",
+                    "items": {
+                        "$ref": "#/$defs/Connection"
+                    },
+                    "type": "array"
+                },
+                "result_schema": {
+                    "additionalProperties": true,
+                    "description": "JSON Schema the resume payload is validated against.",
+                    "properties": {},
+                    "type": "object"
+                },
+                "type": {
+                    "const": "human",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "next",
+                "result_schema",
+                "type"
+            ],
+            "type": "object"
+        },
+        "JsonSchema": {
+            "additionalProperties": true,
+            "description": "A JSON Schema, used to declare factory parameters and step results.\n\nSFML does not constrain the dialect beyond requiring a valid schema, so\nordinary keywords such as `description` and `default` carry their usual\nmeaning rather than being reinvented by SFML.",
+            "properties": {},
+            "type": "object"
+        },
+        "Omit<AgentStep,\"next\"|\"max_iterations\">": {
+            "additionalProperties": false,
+            "properties": {
+                "budget": {
+                    "description": "Ceiling for this step, covering all of its iterations.",
+                    "minimum": 0,
+                    "type": "number"
+                },
+                "description": {
+                    "description": "Human-readable description of the work this step does.",
+                    "type": "string"
+                },
+                "harness": {
+                    "description": "The harness that runs this step, as `<name>[@<version>]`.\n\nPortability ends here: everything a runtime may vary lives behind the\nharness name and {@link AgentStep.harness_config}.",
+                    "type": "string"
+                },
+                "harness_config": {
+                    "additionalProperties": {},
+                    "description": "Harness-specific configuration. Opaque to SFML.",
+                    "type": "object"
+                },
+                "prompt": {
+                    "description": "An inline prompt template. Mutually exclusive with {@link AgentStep.prompt_path}.",
+                    "type": "string"
+                },
+                "prompt_path": {
+                    "description": "Path to a prompt template. Mutually exclusive with {@link AgentStep.prompt}.",
+                    "type": "string"
+                },
+                "prompt_vars": {
+                    "additionalProperties": {
+                        "type": "string"
+                    },
+                    "description": "The bindings this step's prompt template may read, as {@link PromptVars}.\n\nDeclaring them per step makes the step's dependencies visible to the\nlinter and makes the step testable on its own. {@link FactoryState} is not\nreachable from a prompt template.",
+                    "type": "object"
+                },
+                "result_schema": {
+                    "additionalProperties": true,
+                    "description": "JSON Schema the agent's output is validated against before routing.",
+                    "properties": {},
+                    "type": "object"
+                },
+                "retry": {
+                    "$ref": "#/$defs/Retry",
+                    "description": "How failures the harness marked retryable are retried."
+                },
+                "type": {
+                    "const": "agent",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "harness",
+                "result_schema",
+                "type"
+            ],
+            "type": "object"
+        },
+        "Omit<HumanStep,\"next\"|\"max_iterations\">": {
+            "additionalProperties": false,
+            "properties": {
+                "assignee": {
+                    "description": "Who does this task.\n\nA human step that omits it is unassigned; it does not inherit\n{@link Factory.assignee}.",
+                    "type": "string"
+                },
+                "description": {
+                    "description": "Human-readable description of the decision or work being asked for.",
+                    "type": "string"
+                },
+                "instructions": {
+                    "description": "What to show the person, evaluated against {@link FactoryState}.",
+                    "type": "string"
+                },
+                "result_schema": {
+                    "additionalProperties": true,
+                    "description": "JSON Schema the resume payload is validated against.",
+                    "properties": {},
+                    "type": "object"
+                },
+                "type": {
+                    "const": "human",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "result_schema",
+                "type"
+            ],
+            "type": "object"
+        },
+        "ParallelChild": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/Omit%3CAgentStep%2C%22next%22%7C%22max_iterations%22%3E"
+                },
+                {
+                    "$ref": "#/$defs/Omit%3CHumanStep%2C%22next%22%7C%22max_iterations%22%3E"
+                }
+            ],
+            "description": "A child of a {@link ParallelStep}: a single agent or human step with no `next`.\n\nA child carries its own {@link AgentStep.budget}, because a lint pass and a\nfull test run have no business sharing a number, and a parallel step has no\nbudget of its own."
+        },
+        "ParallelStep": {
+            "additionalProperties": false,
+            "description": "A region that runs named child steps concurrently and joins when every one of\nthem has produced a result.\n\nThe join is `all`, implicitly, and the join is the parallel step itself. A\nchild cannot route, so a region contains no edges and deadlock is\nunrepresentable. Regions do not nest in v0.1.",
+            "properties": {
+                "description": {
+                    "description": "Human-readable description of what runs concurrently here.",
+                    "type": "string"
+                },
+                "max_iterations": {
+                    "description": "How many times this region may be entered.\n\nIterations belong to the region, not to its children: a child runs exactly\nonce per crossing.",
+                    "minimum": 1,
+                    "type": "integer"
+                },
+                "next": {
+                    "description": "Where control goes once every child has produced a result.",
+                    "items": {
+                        "$ref": "#/$defs/Connection"
+                    },
+                    "type": "array"
+                },
+                "steps": {
+                    "additionalProperties": {
+                        "$ref": "#/$defs/ParallelChild"
+                    },
+                    "description": "The region's children, keyed by a name unique within this step.\n\nA child is addressed elsewhere by its qualified name, `<parallel>.<child>`.",
+                    "type": "object"
+                },
+                "type": {
+                    "const": "parallel",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "next",
+                "steps",
+                "type"
+            ],
+            "type": "object"
+        },
+        "PromptVars": {
+            "additionalProperties": false,
+            "description": "What an agent step's prompt template is evaluated against.\n\nA template writes `${ prompt_vars.issue }`, not `${ issue }`. The extra word\nbuys a namespace, so a later version can add a sibling field here without\nevery existing template becoming ambiguous.",
+            "properties": {
+                "prompt_vars": {
+                    "additionalProperties": {},
+                    "description": "The evaluated {@link AgentStep.prompt_vars} of the step being run.",
+                    "type": "object"
+                }
+            },
+            "required": [
+                "prompt_vars"
+            ],
+            "type": "object"
+        },
+        "ResultStep": {
+            "additionalProperties": false,
+            "description": "A terminal step. A run that reaches one cannot be restarted.",
+            "properties": {
+                "description": {
+                    "description": "Human-readable description of what this outcome means.",
+                    "type": "string"
+                },
+                "outcome": {
+                    "description": "Whether the run ended having done the work, or having given up.",
+                    "enum": [
+                        "complete",
+                        "terminal_failure"
+                    ],
+                    "type": "string"
+                },
+                "type": {
+                    "const": "result",
+                    "type": "string"
+                },
+                "value": {
+                    "description": "The run's result, evaluated against {@link FactoryState}.\n\nWhen omitted, `complete` yields `{ \"ok\": true }` and `terminal_failure`\nyields `{ \"ok\": false }`.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "outcome",
+                "type"
+            ],
+            "type": "object"
+        },
+        "Retry": {
+            "additionalProperties": false,
+            "description": "How a step retries failures the harness reported as retryable.\n\nThere is no `retry.on`: the harness classifies each failure, so there is\nnothing left for an author to list.",
+            "properties": {
+                "backoff": {
+                    "description": "How to wait between attempts.",
+                    "enum": [
+                        "exponential",
+                        "linear",
+                        "none"
+                    ],
+                    "type": "string"
+                },
+                "max_attempts": {
+                    "description": "Total attempts, including the first.",
+                    "minimum": 1,
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "max_attempts"
+            ],
+            "type": "object"
+        },
+        "SfmlVersion": {
+            "description": "The SFML version a factory file declares, e.g. `\"v0.1\"`.\n\nThe `v` prefix is part of the value, and the value is a string rather than a\nnumber so that `v0.1` and `v1.1` are both expressible and distinct.",
+            "type": "string"
+        },
+        "Step": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/AgentStep"
+                },
+                {
+                    "$ref": "#/$defs/HumanStep"
+                },
+                {
+                    "$ref": "#/$defs/ParallelStep"
+                },
+                {
+                    "$ref": "#/$defs/ResultStep"
+                }
+            ],
+            "description": "Any step a factory can declare at the top level."
+        },
+        "StepName": {
+            "description": "The key a step is declared under in {@link Factory.steps}.\n\n`.` is reserved as the qualifier separator for the children of a\n{@link ParallelStep}, so it cannot appear in a name itself.",
+            "type": "string"
+        },
+        "StepResult": {
+            "additionalProperties": {},
+            "description": "The observable contract of a step, and the thing conformance tests compare.\n\nA `StepResult` *is* the validated result object itself. One is created by a\nstep on success only; a failed attempt appends nothing. Nothing about *how* a\nstep ran — attempt counts, timings, cost — is part of it.",
+            "type": "object"
+        }
+    }
+}
