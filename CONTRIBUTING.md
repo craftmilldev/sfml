@@ -2,14 +2,25 @@
 
 Thanks for your interest in the SFML specification.
 
-## Prerequisites
+## Setup
 
-- Node.js 24 or above (`nvm install` reads `.nvmrc`)
-- npm
+Node.js 24 or above, and npm.
 
 ```bash
+nvm install   # reads .nvmrc
 npm install
 ```
+
+## Commands
+
+| Command                   | What it does                                               |
+| ------------------------- | ---------------------------------------------------------- |
+| `npm run check:schema:ts` | Typecheck, lint, and format-check the schema and scripts   |
+| `npm run generate`        | Regenerate `schema.json` and `schema.mdx`                  |
+| `npm run format`          | Format the schema, scripts, and markdown                   |
+| `npm run prep`            | Check, generate, and format in one go. Run before pushing. |
+| `npm run check`           | What CI runs. Fails if generated files are stale.          |
+| `npm run serve:docs`      | Preview the docs site locally                              |
 
 ## Schema changes
 

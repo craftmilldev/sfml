@@ -21,13 +21,6 @@ This repository holds the specification, the schema, and the docs site.
 | `scripts/`                            | The generators behind `npm run generate`.                   |
 | `PRD.md`                              | The v0.1 product requirements this spec is drafted from.    |
 
-## Getting started
-
-```bash
-nvm install   # Node 24, per .nvmrc
-npm install
-```
-
 ## The workflow
 
 **Edit `schema/draft/schema.ts` → run `npm run generate` → commit the generated files alongside
@@ -37,36 +30,9 @@ it.**
 hand is always wrong: the next `npm run generate` discards the edit, and `npm run check` fails in CI
 until it does.
 
-```bash
-npm run check:schema:ts   # typecheck, lint, and format-check the schema
-npm run generate          # regenerate schema.json and schema.mdx
-npm run prep              # check, generate, and format in one go
-npm run check             # what CI runs; fails if generated files are stale
-npm run serve:docs        # preview the docs site locally
-```
-
-A pull request that changes `schema.ts` without regenerating fails `check:schema:json` or
-`check:schema:md`. Run `npm run prep` before pushing and that does not happen.
-
-### Resolving conflicts in generated files
-
-Do not resolve them by hand. Merge `main`, fix the conflict in `schema.ts`, then regenerate:
-
-```bash
-git merge main
-npm run generate
-git add .
-git commit
-```
-
-## Changing the specification
-
-Substantive changes go through a proposal: copy `proposals/TEMPLATE.md`, fill in every section, and
-open a pull request. See [`proposals/README.md`](./proposals/README.md) for what makes one likely to
-land — the short version is that a proposal argues from a prototype, and ships a decision procedure
-with every validation rule it adds.
-
-Typos, clarifications, and wording fixes need no proposal. Open the pull request.
+[`CONTRIBUTING.md`](./CONTRIBUTING.md) has the setup steps, the full command reference, and what to
+do when a generated file conflicts. Substantive changes to the format go through a proposal —
+[`proposals/README.md`](./proposals/README.md).
 
 ## Status
 
