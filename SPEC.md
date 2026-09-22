@@ -69,13 +69,9 @@ does not describe how it works.)_
 
 #### 4.1.3 Runner
 
-_(Owns what an agent step must achieve regardless of which harness it binds: continuing the same
-session across a resume, and classifying a failure as retryable or not. How it gets either from a
-harness is its own business.)_
-
-#### 4.1.4 Harness
-
-_(A conforming harness MUST report what each step cost, in USD. Deliberately nothing further.)_
+_(Owns what an agent step must achieve regardless of which harness it binds: reporting cost,
+continuing the same session across a resume, and classifying a failure as retryable or not. How it
+gets any of them from a harness is its own business.)_
 
 ### 4.2 Requirements by class
 
