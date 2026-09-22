@@ -22,7 +22,7 @@
     "check:schema:md": "tsx scripts/generate-docs.ts --check",
     "check:docs": "npm run check:docs:format",
     "check:docs:format": "prettier --check \"**/*.{md,mdx}\" --ignore-path .prettierignore",
-    "serve:docs": "cd docs && npx mint dev",
+    "serve:docs": "cd docs && mint dev",
     "prep": "npm run check:schema:ts && npm run generate && npm run format && npm run check:docs"
   },
   "devDependencies": {
@@ -30,6 +30,7 @@
     "@types/node": "^24.13.6",
     "eslint": "^10.11.0",
     "eslint-config-prettier": "^10.1.8",
+    "mint": "^4.2.917",
     "prettier": "^3.9.8",
     "tsx": "^4.23.15",
     "typedoc": "^0.28.20",
