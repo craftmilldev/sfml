@@ -54,6 +54,9 @@ _(RFC 2119, RFC 8174, RFC 8259, YAML 1.2, JSON Schema, CEL, ISO 4217.)_
 
 #### 3.3.4 Harness
 
+_(The component that executes an agent step and returns a result. SFML names it, bounds it, and
+does not describe how it works.)_
+
 #### 3.3.5 Implementation
 
 ## 4. Conformance
@@ -67,6 +70,8 @@ _(RFC 2119, RFC 8174, RFC 8259, YAML 1.2, JSON Schema, CEL, ISO 4217.)_
 #### 4.1.3 Runner
 
 #### 4.1.4 Harness
+
+_(A conforming harness MUST report what each step cost, in USD. Deliberately nothing further.)_
 
 ### 4.2 Requirements by class
 
