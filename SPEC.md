@@ -152,21 +152,21 @@ _(Parse, lint, admission.)_
 
 ### 8.6 Reference validity by reachability
 
-TODO: Don't get this section
+TODO (was 8.7 Region constraints): Don't get this section
 
-### 8.8 Expression binding rules
+### 8.7 Expression binding rules
 
 TODO: I don't get what this section is. What does expression binding have to do with graph validity? Are you thinking we need to say that an expression must not refference something that is unreachable due to force in the graph? What cool, that feels like the job of a factory author or tooling that could be built ontop of the specification not something an implementation must enforce.
 
-### 8.9 Value domain rules
+### 8.8 Value domain rules
 
 TODO: Don't get this section
 
-### 8.10 Diagnostics and error identifiers
+### 8.9 Diagnostics and error identifiers
 
 TODO: Don't get this section
 
-### 8.11 What lint cannot check
+### 8.10 What lint cannot check
 
 ## 9. Execution model
 
