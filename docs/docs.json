@@ -1,0 +1,28 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "SFML",
+  "description": "Software Factory Markup Language — a file format for describing agent pipelines.",
+  "colors": {
+    "primary": "#1f2933",
+    "light": "#fafafa",
+    "dark": "#1f2933"
+  },
+  "navigation": {
+    "groups": [
+      {
+        "group": "Specification (draft)",
+        "pages": [
+          "specification/draft/overview",
+          "specification/draft/terminology",
+          "specification/draft/schema"
+        ]
+      }
+    ]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/craftmilldev/sfml"
+    }
+  }
+}
