@@ -265,8 +265,13 @@ _(Points to `sfml.schema.json` in this repository, with the precedence rule of 4
 _(Points to `conformance/` in this repository. States what the suite must cover and the file layout
 a case uses; the cases themselves are files. A negative lint case names the 8.7 identifier it is
 expected to raise. A run case pairs a factory, its canned step results, and the routing trace it
-must produce.)_
+must produce. Defines the `mock` harness's observable contract — canned results, canned costs, and
+both retryable and non-retryable failures — so that a case means the same thing on any
+implementation.)_
 
 ## Annex C (informative) — Worked example
+
+_(The prose is informative; the factory it walks through is a case in `conformance/`, run on the
+`mock` harness, so the example cannot drift from the clauses it illustrates.)_
 
 ## Annex D (informative) — Deferred to v0.2
