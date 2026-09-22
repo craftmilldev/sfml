@@ -1,7 +1,6 @@
 # Software Factory Markup Language (SFML)
 
-**Version:** v0.1 **Status:** Pre-draft **Copyright:** TBD **License:** TBD — see §Licensing note
-below.
+**Version:** v0.1 **Status:** Pre-draft **Copyright:** 2026 Craftmill **License:** MIT
 
 > **This is an outline, not a draft.** Every clause below is a placeholder. The structure follows
 > the Community Specification 1.0 template (ISO drafting conventions: mandatory Scope, Normative
@@ -240,45 +239,3 @@ _(Suite structure; positive and negative cases; routing-trace assertions.)_
 ## Annex E (informative) — Deferred to v0.2
 
 ## Bibliography
-
----
-
-## Open structural questions
-
-Recorded here rather than left to be discovered mid-draft.
-
-1. **The harness contract is not a clause here.** It is the interface a second implementation needs
-   and a factory author does not, and it will version on a different clock than the file format.
-   Proposed: a sibling document, referenced normatively from §6.12, §10.3, and §11.7. The
-   alternative is a clause 14.
-2. **Conformance is stated before the data model** so that every later requirement can name which
-   class it binds. `PRD.md` §6.9 (assignee posture) and §6.12 (the `schema_violation` SHOULD) are
-   conformance-class statements currently written as data-model prose, and need to move.
-3. **Graph validity (§8) is separated from execution (§9).** A linter implementor should be able to
-   read §§5–8 and stop. `PRD.md` places validation inside the data model instead.
-4. **§11 of `PRD.md` lists two rules that will not survive RFC-2119 drafting unchanged:** the
-   conditional MUST on factory-level `assignee`, and the deliberate SHOULD on `schema_violation`
-   retry.
-
-## Licensing note
-
-Not yet decided, and it is a prerequisite for an AAIF submission rather than a detail. The precedent
-set by the accepted TRACE specification proposal is a tiered split:
-
-| Material                      | License                             |
-| ----------------------------- | ----------------------------------- |
-| Specification text and schema | Community Specification License 1.0 |
-| Code, SDK, tests, examples    | Apache-2.0                          |
-| Documentation                 | CC BY 4.0                           |
-
-The Community Specification (CS) process is a Linux Foundation / Joint Development Foundation
-framework for developing a specification in the open. Adopting it means adding a defined set of
-files to this repository alongside the spec: `LICENSE` (CSL 1.0), `CONTRIBUTING.md`,
-`GOVERNANCE.md`, `NOTICES.md`, `CODE_OF_CONDUCT.md`, and `scope.md`. Its substance is the patent and
-copyright grant: contributors license the patents needed to implement the spec, on royalty-free
-terms, to anyone building a conforming implementation. That grant is what makes a second
-implementation (`PRD.md` §8.4) safe for someone else to write.
-
-Sources: [AAIF project submission](https://aaif.io/submit-a-project) ·
-[TRACE specification proposal](https://github.com/aaif/project-proposals/issues/42) ·
-[Community Specification 1.0](https://github.com/CommunitySpecification/1.0)
