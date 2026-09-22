@@ -163,7 +163,9 @@ environment per 7.5, and reaching outside it is a static error.)_
 
 ### 8.7 Diagnostics and error identifiers
 
-TODO: open. Do lint failures carry stable machine-readable identifiers, or only prose?
+_(Every rule in this clause has a stable, unique identifier that a conforming linter MUST report on
+failure. Message text is implementation-defined. Holds the registry of identifiers; identifiers are
+never reused or renumbered.)_
 
 ### 8.8 What lint cannot check
 
