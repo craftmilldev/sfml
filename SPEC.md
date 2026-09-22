@@ -1,23 +1,24 @@
 # Software Factory Markup Language (SFML)
 
-**Version:** v0.1 **Status:** Pre-draft **Copyright:** 2026 Plumbline LLC **License:** MIT
+**Version:** v0.1 **Status:** Draft **Copyright:** 2026 Plumbline LLC **License:** MIT
 
 ---
 
 ## Foreword
 
 This document has no known essential patent claims against it. "Software Factory Markup Language"
-and "SFML" are used here as descriptive names, not asserted as trade names. This is a pre-draft:
-clause numbering, examples, and normative wording may still change before v0.1 is tagged. Feedback
-on this draft should be submitted against the repository that hosts it. No warranty of any kind is
-made about this document or the conformance of any implementation of it; see the accompanying
-license for the applicable disclaimer of liability.
+and "SFML" are used here as descriptive names, not asserted as trade names. This is a draft: clause
+numbering, examples, and normative wording are subject to change before v0.1 is tagged, and any such
+change will be recorded in the repository's history rather than made silently. Feedback on this
+draft should be submitted against the repository that hosts it. No warranty of any kind is made
+about this document or the conformance of any implementation of it; see the accompanying license
+for the applicable disclaimer of liability.
 
 ## Introduction
 
 A software factory is a durable, resumable, mostly-autonomous pipeline that turns an intent, such as
 an issue to implement, into a reviewed artifact. SFML is the file format that describes one: a graph
-of steps connected by routing that an author writes down, a linter can check and teams can share.
+of steps connected by routing that an author writes down, a linter can check, and a team can share.
 
 The graph is defined separately from the agent runtime that executes it. A step that calls an agent
 names a harness and hands it configuration, but SFML does not describe what the harness does, how it
@@ -52,13 +53,15 @@ SFML defines:
 
 SFML does not define:
 
-- An agent framework. While tool definitions, memory, and context management can be tracked via a SFML file, their configuration is harness specific and manged via the harness config which is a object in SFML.
+- An agent framework. Tool definitions, memory, and context management belong to the harness a step
+  names, not to this document. A factory file MAY track that a step used one of these, as free text
+  or through `harness_config` (§6.12), but SFML assigns no meaning to what it tracks.
 - A scheduler. SFML describes a run once it exists; what starts a run — a webhook, a cron job, a
   person — is out of scope.
 - A general-purpose computation model. The expression language (clause 7) has no user-defined
   functions and no arithmetic on step results; a factory that needs logic expresses it as a step.
-- Sub-factory composition. `type: factory` is reserved (§13.3) so it can be defined in a future
-  version without a breaking change.
+- Sub-factory composition. `type: factory` is not a value this version of the data model (§6.4)
+  accepts; a future version may assign it a meaning.
 - A workspace format. Repository, branch, worktree, and what an agent may read or write are bound
   entirely inside `harness_config` (§6.12); SFML does not model them.
 - An identity system. `assignee` (§6.11) is carried as an opaque string; SFML never resolves,
@@ -68,15 +71,13 @@ SFML does not define:
 
 ## 2. Normative references
 
-TODO: Provide links here.
-
-- RFC 2119, *Key words for use in RFCs to Indicate Requirement Levels*.
-- RFC 8174, *Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words*.
-- RFC 8259, *The JavaScript Object Notation (JSON) Data Interchange Format*.
-- YAML 1.2, *YAML Ain't Markup Language*.
-- JSON Schema (2020-12 core and validation specifications).
-- Common Expression Language (CEL) language specification.
-- ISO 4217, *Currency codes*.
+- RFC 2119, *Key words for use in RFCs to Indicate Requirement Levels*. <https://www.rfc-editor.org/rfc/rfc2119>
+- RFC 8174, *Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words*. <https://www.rfc-editor.org/rfc/rfc8174>
+- RFC 8259, *The JavaScript Object Notation (JSON) Data Interchange Format*. <https://www.rfc-editor.org/rfc/rfc8259>
+- YAML 1.2, *YAML Ain't Markup Language*. <https://yaml.org/spec/1.2.2/>
+- JSON Schema, 2020-12 core and validation specifications. <https://json-schema.org/specification-links#2020-12>
+- Common Expression Language (CEL) language specification. <https://github.com/google/cel-spec/blob/master/doc/langdef.md>
+- ISO 4217, *Currency codes*. <https://www.iso.org/iso-4217-currency-codes.html>
 
 ## 3. Terms and definitions
 
@@ -108,17 +109,27 @@ A live line of control within a run. A run has exactly one branch except while c
 #### 3.2.5 Iteration
 
 A single traversal of a step from entry to success that is counted toward a step's `max_iterations`.
+[OPEN: see the question list — §9.4's step lifecycle speaks of "on each iteration" for the
+in-progress traversal, before success is known, which this definition (success-scoped) does not
+strictly cover.]
 
 #### 3.2.6 Attempt
 
 A single try at executing a step within one iteration. An attempt that fails does not append to
 `results`; an iteration may consist of several attempts when `retry` (§6.10) applies.
 
+#### 3.2.7 Prompt template
+
+The content named by an agent step's `prompt_path` or `prompt` (§6.5), rendered against that step's
+`PromptVars` (§7.5.2, §9.9) to produce the text sent to the harness. This specification does not
+define a template syntax; it defines only the value — `PromptVars` — a template renders against and
+the binding environment (§7.5) that value belongs to.
+
 ### 3.3 Roles
 
 #### 3.3.1 Author
 
-The persons and or systems that write a factory file.
+The person or persons, or the system, that writes a factory file.
 
 #### 3.3.2 Caller
 
@@ -129,8 +140,6 @@ The person or system that starts a run and supplies the values bound to `paramet
 The person or system that resumes a blocked run: supplying a human step's result, granting
 additional iterations or budget, or supplying an operator-authored result in place of a wedged
 agent step (§11.4).
-
-QUESTION: Should Caller and Operator be merged into one role?
 
 #### 3.3.4 Harness
 
@@ -170,11 +179,11 @@ constrains.
 
 | Requirement                                                         | Parser | Linter | Runner |
 | -------------------------------------------------------------------- | :----: | :----: | :----: |
-| Reject documents violating clause 5 (encoding, unknown/reserved keys) |  MUST  |  MUST  |  MUST  |
+| Reject documents violating clause 5 (encoding, unknown keys)          |  MUST  |  MUST  |  MUST  |
 | Produce the clause 6 data model from a valid document                |  MUST  |  MUST  |  MUST  |
 | Report every clause 8 diagnostic with its §8.7 identifier             |   —    |  MUST  |  MUST  |
 | Refuse to start a run of a factory with any clause 8 violation        |   —    |   —    |  MUST  |
-| Implement admission (§9.1), including assignee posture (§6.11)        |   —    |   —    |  MUST  |
+| Implement admission (§9.1)                                            |   —    |   —    |  MUST  |
 | Implement the execution model of clause 9                             |   —    |   —    |  MUST  |
 | Raise the exception classes of clause 10 under their stated conditions|   —    |   —    |  MUST  |
 | Implement resume addressing and payloads of clause 11                 |   —    |   —    |  MUST  |
@@ -183,14 +192,6 @@ constrains.
 A single piece of software MAY implement more than one conformance class. An implementation that
 claims the Runner class MUST also satisfy the Parser and Linter requirements, since a Runner MUST
 refuse to start a run of a factory that fails linting.
-
-### 4.3 Declared postures and the documentation obligation
-
-Where this specification allows an implementation to choose among stated postures — for example, the
-`assignee` postures of §6.11 — a conforming implementation MUST document which posture it has taken.
-An implementation that accepts a field, or a value for it, without documenting the posture governing
-that acceptance does not conform, regardless of what it does at runtime, because a factory file's
-meaning under such an implementation cannot be determined by reading this specification alone.
 
 ### 4.4 Precedence of this document over Annex A
 
@@ -234,19 +235,6 @@ every level of the data model: the factory's top level, every step, every connec
 nested object this specification defines. This is a hard error, not a warning, and it applies
 regardless of whether the unrecognized field's name resembles a future or vendor-specific extension.
 
-### 5.5 Reserved keys
-
-TODO: This section is weird after 5.4 which says unknown values must be rejected. I think we can drop this section and other comments in the SPEC.md that are like this.
-
-The following keys are reserved and MUST be rejected by a v0.1 implementation wherever they appear,
-even though this specification does not yet define their meaning:
-
-- `workspace`, as a top-level factory field.
-- `factory`, as a value of a step's `type` field.
-
-Reserving these keys now allows a future version of this specification to define them without a
-breaking change to v0.1 documents.
-
 ### 5.6 Duplicate keys
 
 A YAML or JSON mapping with a duplicate key at any level of a factory document (for example, two
@@ -286,60 +274,63 @@ Unknown fields MUST be rejected (§5.4).
 
 ### 6.3 Parameters
 
-`parameters` is the factory's signature: the contract between a factory and whatever starts a run of it. Each entry is a JSON Schema.
+`parameters` is the factory's signature: the contract between a factory and whatever starts a run of
+it. Each entry is a JSON Schema.
 
 - A parameter with no `default` is REQUIRED. A run started without a value for it MUST be rejected
   at admission (§9.1), before a run id is minted and before any step has run.
 - The values a caller supplies are bound as `parameters` on `FactoryState` (§9.2) and are readable
-  from the expressions of every step. An Arthor MUST transalate these to `prompt_vars` via a `FactoryState Expression` when values are used for prompt templating.
+  from the expressions of every step. Since `FactoryState` is not reachable from a prompt template
+  (§7.5.2), an Author who wants a parameter's value inside a prompt MUST bind it into that step's own
+  `prompt_vars` (§6.4) via a `FactoryState Expression` (§7.5.1); a prompt template MUST NOT reference
+  `parameters` directly.
 
 ### 6.4 Step: common fields
 
-TODO: If a field is only used by one step type, its not really common and could be documented in the specific step types section. Lets make those edits.
-
 Every step has a `type` of `agent`, `human`, `parallel`, or `result`. The following fields are
-common to some or all of these types.
+common to two or more of these types; a field used by exactly one step type is documented in that
+type's own subclause (§6.5–§6.8) instead.
 
-| Field                     | Type                                              | Required     | Applies to             |
-| ------------------------- | -------------------------------------------------- | ------------ | ----------------------- |
-| `type`                    | enum `agent` \| `human` \| `parallel` \| `result`  | yes          | all                     |
-| `description`             | String                                              | no           | all                     |
-| `prompt_vars`             | Record<Name, Expression>                            | no           | agent                   |
-| `next`                    | List\<Connection\>                                  | yes          | agent, human, parallel  |
-| `max_iterations`          | Integer                                             | no           | agent, human, parallel  |
-| `budget`                  | Decimal USD                                         | no           | agent (§9.7)            |
-| `retry`                   | `{ max_attempts, backoff }`                         | no           | agent (§6.10)           |
-| `assignee`                | String                                              | no           | human (§6.11)           |
-| `instructions`            | Expression                                          | no           | human                   |
-| `harness`                 | `<name>[@<version>]`                                | yes          | agent (§6.12)           |
-| `harness_config`          | Record<Key, Any>                                    | no           | agent (§6.12)           |
-| `prompt_path` \| `prompt` | path \| String                                      | yes (one of) | agent                   |
-| `result_schema`           | JSON Schema                                         | yes          | agent, human            |
-| `steps`                   | Record<Name, Step>                                  | yes          | parallel (§6.7)         |
-| `outcome`                 | enum `complete` \| `terminal_failure`               | yes          | result (§6.8)           |
-| `value`                   | Expression                                          | no           | result (§6.8)           |
+| Field            | Type                                              | Required | Applies to             |
+| ---------------- | -------------------------------------------------- | -------- | ----------------------- |
+| `type`           | enum `agent` \| `human` \| `parallel` \| `result`  | yes      | all                     |
+| `description`    | String                                              | no       | all                     |
+| `next`           | List\<Connection\>                                  | yes      | agent, human, parallel  |
+| `max_iterations` | Integer                                             | no       | agent, human, parallel  |
+| `result_schema`  | JSON Schema                                         | yes      | agent, human            |
 
-A field applied to a step type it does not apply to MUST be rejected (§5.4).
+A field present on a step of a type it does not apply to MUST be rejected (§5.4). This applies both
+to the fields above and to the type-specific fields documented in §6.5–§6.8.
 
 `result_schema`, where present, validates the object an `agent` or `human` step produces, before
 routing (§9.5) is evaluated for that step. A `parallel` step MUST NOT declare `result_schema`: its
 result is computed from its children, not authored (§6.7).
 
-`prompt_vars` is declared per agent step. This makes a step's data dependencies visible to a linter
-without evaluating expressions, and lets a step be exercised in isolation from the rest of the
-factory.
-
 ### 6.5 Agent step
 
-An `agent` step invokes a harness loop once per attempt (§3.2.6) and produces a result validated against `result_schema`.
+An `agent` step invokes a harness loop once per attempt (§3.2.6) and produces a result validated
+against `result_schema`.
+
+| Field                     | Type                         | Required     |
+| ------------------------- | ----------------------------- | ------------ |
+| `harness`                 | `<name>[@<version>]`          | yes          |
+| `harness_config`          | Record<Key, Any>              | no           |
+| `prompt_path` \| `prompt` | path \| String                | yes (one of) |
+| `prompt_vars`             | Record<Name, Expression>      | no           |
+| `budget`                  | Decimal USD                   | no           |
+| `retry`                   | `{ max_attempts, backoff }`   | no           |
 
 - `harness` is REQUIRED and names, per §6.12, the harness that executes the step.
 - Exactly one of `prompt_path` or `prompt` MUST be present.
 - `prompt_vars` is evaluated as a set of `FactoryState Expression`s (§7.5.1) before the step runs,
   and the resulting bindings are what the prompt template renders against, as `PromptVars` (§7.5.2,
-  §9.9). `FactoryState` itself is not reachable from the template.
-- On success, the step's output is validated against `result_schema`; a failure to validate raises
-  `schema_violation` (§10.4) once retry, if configured, is exhausted. (TODO: starting with on success is a bit weird here as failure to parse means it not a success).
+  §9.9). `FactoryState` itself is not reachable from the template. Declaring `prompt_vars` per step
+  makes a step's data dependencies visible to a linter without evaluating expressions, and lets a
+  step be exercised in isolation from the rest of the factory.
+- A successful attempt's output is validated against `result_schema`; a failure to validate raises
+  `schema_violation` (§10.4) once retry, if configured, is exhausted. Validation failure and harness
+  failure are distinct: an attempt fails to validate only after the harness has already produced
+  output, which is why this is `schema_violation` and not `harness_error`.
 - `budget` (§9.7) and `max_iterations` (§9.6), where present, bound the step's cost and iterations
   respectively.
 - `retry` (§6.10) governs re-attempting a harness failure the harness has classified as retryable.
@@ -349,8 +340,14 @@ An `agent` step invokes a harness loop once per attempt (§3.2.6) and produces a
 A `human` step blocks its branch (§11.1) until an operator supplies a payload validated against
 `result_schema`.
 
-- `assignee`, where present, names who is expected to act on this step. It is not inherited from
-  the factory-level `assignee`; a human step with no `assignee` of its own is unassigned (§6.11). If an implementaion wishes to raise unassigned human steps to the factory-level `assignee` that is acceptable though not required.
+| Field          | Type                       | Required |
+| -------------- | --------------------------- | -------- |
+| `assignee`     | String                       | no       |
+| `instructions` | Expression                  | no       |
+
+- `assignee`, where present, names who is expected to act on this step (§6.11). A human step that
+  omits `assignee` is unassigned; this specification does not define whether an implementation
+  treats an unassigned human step as falling back to the factory-level `assignee` (§6.2, §6.11).
 - `instructions`, where present, is a `FactoryState Expression` evaluated to produce the content
   shown to whoever performs the step.
 - A human step has no timeout, no escalation, and no failure mode of its own (§11.1). It either
@@ -364,6 +361,10 @@ A `human` step blocks its branch (§11.1) until an operator supplies a payload v
 A `parallel` step declares a map of named child steps in its own `steps` field, runs them
 concurrently, and joins once every child has produced a result.
 
+| Field   | Type                | Required |
+| ------- | -------------------- | -------- |
+| `steps` | Record<Name, Step>    | yes      |
+
 - A child MUST be a single `agent` or `human` step. A child MUST NOT declare `next`: a child cannot
   route, so a region contains no internal edges. A child MUST NOT itself be `type: parallel`.
 - The join is `all`, implicitly, and the join is the `parallel` step itself.
@@ -372,9 +373,9 @@ concurrently, and joins once every child has produced a result.
 - The step's result is an object keyed by child name, holding each child's result.
 - A child's name is unique only within its own `parallel` step; a child is addressed outside its
   step definition by its qualified name (§5.3).
-- `max_iterations`, where present on the `parallel` step, bounds iterations of the `parallel` step as a whole
-  (§9.6). `budget` is declared per child (§9.7), not on the `parallel` step itself, which MUST NOT
-  declare `budget`.
+- `max_iterations`, where present on the `parallel` step, bounds iterations of the `parallel` step as
+  a whole (§9.6). `budget` is declared per child (§9.7), not on the `parallel` step itself, which
+  MUST NOT declare `budget`.
 
 ### 6.8 Result step
 
@@ -387,14 +388,14 @@ resumed or restarted.
 | `value`   | Expression                              | no       |
 
 A `result` step MUST NOT declare `next`, `result_schema`, `harness`, or any field specific to
-another step type. 
+another step type.
 
-Where `value` is omitted, the step's result defaults by `outcome`:
+`value`, where present, is a `FactoryState Expression` (§7.5.1), evaluated against `FactoryState`
+(§9.2) to produce the step's result. Where `value` is omitted, the step's result defaults by
+`outcome`:
 
 - `complete` → `{ "ok": true }`
 - `terminal_failure` → `{ "ok": false }`
-
-TODO: Make it clear that a value is bound to `FactoryState` when its `expression` is being evaluated.
 
 ### 6.9 Connection
 
@@ -414,34 +415,41 @@ A `Connection` is one entry of a step's `next` list.
 
 ### 6.10 Retry
 
-`retry`, on an `agent` step, governs re-attempting any and all harness failures the harness itself has classified as retryable (§10.3).
+`retry`, on an `agent` step, governs re-attempting a harness failure that the harness itself has
+classified as retryable (§10.3), for as many attempts as `max_attempts` allows within one iteration
+of the step.
 
 | Field          | Type    | Notes                                                                 |
 | -------------- | ------- | ----------------------------------------------------------------------- |
-| `max_attempts` | Integer | The maximum number of attempts within one interation of the step.         |
+| `max_attempts` | Integer | The maximum number of attempts within one iteration of the step.         |
 | `backoff`      | —       | How to space attempts; an implementation MAY honor a backoff the harness states and MUST NOT invent one the harness did not. |
 
-A failed attempt does not append to `results` (§9.3); exhausting `max_attempts`, or encountering a non-retryable failure, raises `harness_error` (§10.3).
-
-TODO: `backoff` must have a type...
+A failed attempt does not append to `results` (§9.3); exhausting `max_attempts`, or encountering a
+non-retryable failure, raises `harness_error` (§10.3).
 
 ### 6.11 Assignee
 
-TODO: I did a major rewrite here. This field keeps getting to complicated. The intent of my prose below is the purpose of this field. Ensure the rest of the document follows this and improve my prose to have clearer spec like lanague.
+`assignee` is declared at two levels: on the `Factory` (§6.2) and on a `human` step (§6.6). Both
+exist so an Author can record, in the file, who this specification calls the DRI of the run or the
+worker on a step — in whatever terms the implementation's own systems use for ownership.
 
-`assignee` on the `Factory` and `human` step are SFML defined values to allow `implementations` to empower `authors` to document assignment in ocordience with how the `implementations` broader system works. The value is a String, opaque to SFML. This specification does not define wheather it denotes a person, a team, a rotation or even if its a person or how this field is used in anyway within the implementations broder system.
+The value of either field is a String, opaque to SFML. This specification does not define what it
+denotes — a person, a team, a rotation, a queue — and does not define how, or whether, an
+implementation acts on it. `assignee` is a place for an Author to record ownership; it is not a
+mechanism SFML uses to resolve, notify, or route to anyone.
 
 ### 6.12 Harness reference and harness configuration
 
-TODO: Clean up paragraph below after my edits.
-
 `harness`, REQUIRED on an `agent` step, is a String of the form `<name>[@<version>]` naming the
-harness that executes the step. Resolution of `<name>` and `<version>` to an executable harness are implementation-defined. If the addressed harness at the specficied version cannot be found within the implemenation-defined resolution logic, the run must not be started.
+harness that executes the step. Resolution of `<name>` and `<version>` to an executable harness is
+implementation-defined, except that resolution MUST be deterministic for a given implementation and
+configuration. Where a step's `harness` does not resolve to an executable harness, a run using that
+step MUST NOT be started; an implementation MUST reject it at admission (§9.1).
 
-`harness_config` is an OPTIONAL record of harness-defined keys and values, passed through to the named harness unexamined by the rest of this specification. Everything about a run's workspace — repository, branch, worktree, and what an agent may read or write — is confined to `harness_config`; portability of a factory file, as promised by this specification, ends at this
-boundary.
-
-An implemenation SHOULD make the `harness_config` conform with the standard configuration options of the defined harness.
+`harness_config` is an OPTIONAL record of harness-defined keys and values, passed through to the
+named harness unexamined by the rest of this specification. Everything about a run's workspace —
+repository, branch, worktree, and what an agent may read or write — is confined to `harness_config`;
+portability of a factory file, as promised by this specification, ends at this boundary.
 
 ## 7. Expression language
 
@@ -497,20 +505,17 @@ first be named in that step's own `prompt_vars`.
 
 ### 7.6 Type checking
 
-TODO: Maybe this is a later change. I don't think my initial implemenation example is going to do this.
-
 An implementation SHOULD statically type-check an expression against the schema of the values it
 resolves against — `result_schema` of the steps it references, and the JSON Schema of any referenced
 parameter — and SHOULD report a type error before a run starts rather than at evaluation time.
 
 ### 7.7 Evaluation errors
 
-TODO: This can't be a `harness_error`. It has nothing to do with a harness... We might need a new error type here.
-
 An expression that is well-typed per §7.6 but fails at evaluation time (for example, indexing past
-the end of a list) is a runtime evaluation error. An implementation MUST treat this the same as a
-harness failure that is not retryable: it raises `harness_error` (§10.3) rather than silently
-producing a value.
+the end of a list) is a runtime evaluation error. An implementation MUST raise an exception rather
+than silently producing a value. [OPEN: see the question list — this currently reuses
+`harness_error` (§10.3), but an evaluation error is not a harness failure and this specification may
+need to name it as its own exception class.]
 
 ### 7.8 Prohibited constructs
 
@@ -530,7 +535,9 @@ conforming implementation.
 
 ### 8.2 Structural rules
 
-TODO: This section seems to say a lot of things that are said in the types...
+Each of the following restates a constraint the data model of clause 6 already states normatively.
+Restating it here is deliberate: it obligates a Linter to detect a violation and report it with the
+diagnostic identifier registered in §8.7 (§4.1.2), a duty clause 6 does not itself impose.
 
 A Linter MUST enforce:
 
@@ -542,17 +549,28 @@ A Linter MUST enforce:
 
 ### 8.3 Totality of routing
 
-TODO: This section seems wrongly named. The content is about how to lint `when`. Is there a way to do this via JSON schema so type checks get it? If so, lets move this to that like my comment in 8.2. If not, lets make this section about how to lint when.
+This is a Linter rule, not a schema rule: it constrains the *last item of an ordered list*
+positionally, which JSON Schema (Annex A) can only express awkwardly and which is, in any case, the
+class of graph-level reasoning §4.4 reserves for clause 8 rather than for the schema. Its name
+describes the property it establishes — that routing is total — not the mechanism, which is why it
+stays here rather than moving under §8.2.
 
 The last `Connection` of every non-`result` step MUST omit `when` (§6.9). A Linter MUST reject a
 step whose `next` list does not end this way. This is what makes the reachability check of §8.4
-sound: since every step always has somewhere to go, "no path forward" can only be a lint-time defect, never a runtime condition to detect.
+sound: since every step always has somewhere to go, "no path forward" can only be a lint-time
+defect, never a runtime condition to detect.
 
 ### 8.4 Reachability
 
-TODO: I've reworded this to be clearer and allow crazy implementors to attempt to validate expressions at linting time if they want.
+Every step MUST be reachable from `start`, and every path from `start` MUST reach a `result` step; a
+Linter MUST reject a factory violating either condition.
 
-All steps must be reacheable from `start` and all routes from `start` must conclude with a `result` step. Any exception to this is a lint error. When confirming this a linter a Linter MAY ignore condition semantics and treat every `Connection` as traversable.
+A Linter MAY check this syntactically: ignore `when` semantics, treat every `Connection` as
+traversable, and rely on totality of routing (§8.3) to make graph reachability the correct check.
+This is sufficient and is the minimum a conforming Linter must do. A Linter MAY instead perform a
+semantic analysis of `when` conditions to detect a step that is reachable syntactically but
+unreachable given what its guards can evaluate to; doing so MUST NOT cause it to accept a factory the
+syntactic check would reject.
 
 ### 8.5 Termination
 
@@ -562,37 +580,56 @@ step.
 
 ### 8.6 Reference and binding validity
 
-TODO: This section is getting into forcing implementors to parse CEL. What is the CEL AST support? How straight forward is what we are asking here?
-
-TODO: `Each expression site resolves` this starts to get into template rendering which may be an under specified back of thsi spec right now. I don't think we have a `template` term, for instance.
-
-TODO: I removed things that should be covered by type checks as that does not seem to have anything to do with references or binding validatiy.
+Every check in this subclause is a walk of an expression's parse tree looking for field-selection
+chains (`results.X`, `parameters.<name>`, and so on) — the kind of structural traversal any CEL AST
+exposes without evaluating the expression. None of them require evaluating the expression itself,
+and none require more of a CEL implementation than parsing to an AST already does.
 
 - An unknown parameter name — `parameters.<name>` where `<name>` is not declared in the factory's
   `parameters` — is a hard error, for the same reason as an unknown step name below.
 - An unknown step name — `results.<name>` where `<name>` is not declared in `steps` — is a hard
-  error. Once such a reference cannot parse.
+  error.
 - A reference is checked by reachability, not by ancestry. A reference from step `Y` to
-  `results.X` is legal if and only if some path `X → … → Y` exists in the graph, following loop-back edges.
+  `results.X` is legal if and only if some path `X → … → Y` exists in the graph, following loop-back
+  edges.
 - Each expression site resolves against exactly one binding environment, per §7.5. A Linter MUST
   reject an expression that reaches outside the environment bound to its site — for example, a
-  `PromptVars Expression` referencing `results`.
+  `PromptVars Expression` (§7.5.2), evaluated against the `PromptVars` of the prompt template
+  (§3.2.7) it appears in, referencing `results`.
+
+This subclause governs references and binding environments only. A field's own value type — for
+example, that `budget` (§9.7) has at most two decimal places, or that `assignee` (§6.11) is a String
+— is validated as part of the data model of clause 6 rather than checked here.
 
 ### 8.7 Diagnostics and error identifiers
-
-TODO: Where are these `stable, unique identifier` values documented?
 
 Every rule in this clause has a stable, unique identifier that a conforming Linter MUST report on
 failure. Message text accompanying an identifier is implementation-defined. This subclause holds the
 registry of identifiers for this specification; an identifier, once assigned, MUST NOT be reused or
 renumbered by a later version of this document.
 
+| Identifier                        | Clause | Rule                                                                 |
+| ---------------------------------- | ------ | --------------------------------------------------------------------- |
+| `unknown-step-reference`           | §8.2   | `start` or a `Connection`'s `to` names a step not declared in `steps`. |
+| `invalid-parallel-child-type`      | §8.2   | A `parallel` step's child is not an `agent` or `human` step.           |
+| `parallel-child-has-next`          | §8.2   | A `parallel` step's child declares `next`.                             |
+| `nested-parallel`                  | §8.2   | A `parallel` step's child is itself `type: parallel`.                  |
+| `field-not-applicable-to-type`     | §8.2   | A step declares a field this specification does not assign to its `type` (§6.4). |
+| `non-total-routing`                | §8.3   | The last `Connection` of a non-`result` step does not omit `when`.     |
+| `unreachable-step`                 | §8.4   | A step is not reachable from `start`.                                  |
+| `no-path-to-result`                | §8.4   | A path from `start` does not reach a `result` step.                    |
+| `unbounded-cycle`                  | §8.5   | A cycle contains no step with a finite `max_iterations`.               |
+| `unknown-parameter-reference`      | §8.6   | An expression references `parameters.<name>` for an undeclared `<name>`. |
+| `unknown-step-result-reference`    | §8.6   | An expression references `results.<name>` for an undeclared `<name>`.  |
+| `unreachable-reference`            | §8.6   | An expression references `results.X` from step `Y` with no path `X → … → Y`. |
+| `binding-environment-violation`    | §8.6   | An expression references a value outside the binding environment bound to its site (§7.5). |
+
 ### 8.8 What lint cannot check
 
-Lint operates on the graph's shape and cannot evaluate expression semantics, cannot know an identity
-system's membership rules (§6.11), and cannot know what a harness will report about cost or
-retryability at runtime. A rule that would require any of these is not a lint rule; where such a
-rule exists in this specification, it is checked at admission (clause 9) or raised as a runtime
+Lint operates on the graph's shape and cannot evaluate expression semantics, cannot know whatever an
+implementation checks `assignee` (§6.11) against, and cannot know what a harness will report about
+cost or retryability at runtime. A rule that would require any of these is not a lint rule; where
+such a rule exists in this specification, it is checked at admission (clause 9) or raised as a runtime
 exception (clause 10) instead.
 
 ## 9. Execution model
@@ -603,7 +640,12 @@ Before a run is given an id, an implementation MUST:
 
 - Validate every supplied parameter value against its declared JSON Schema, and reject the run if a
   required parameter (one with no `default`) is missing or a supplied value fails validation.
-- Validate the factory's and any step's declared `assignee` work within the implementers broder eco system and match its requirements on these fields.
+- Resolve every agent step's `harness` reference (§6.12) to an executable harness, and reject the
+  run if any step names one that does not resolve.
+
+An implementation MAY perform additional checks of its own at admission — for example, against
+`assignee` (§6.11) or against its own identity system — but this specification imposes none beyond
+the two above.
 
 A run rejected at admission has no run id, no recorded results, and raises no exception class of
 clause 10; rejection at admission is distinct from, and precedes, everything clause 10 describes.
@@ -621,7 +663,9 @@ clause 10; rejection at admission is distinct from, and precedes, everything cla
 
 A `StepResult` is the validated result object a step produces. `last(results.review).approved` reads `approved` directly off the object the `review` step produced.
 
-A `StepResult` is appended to `results` only on the success of an iteration; a failed attempt appends nothing. Each step type produces its result differently. Each step type defines how their result is created.
+A `StepResult` is appended to `results` only on the success of an iteration; a failed attempt appends
+nothing. Each step type defines how its own result is created: see §6.5 for an `agent` step, §6.6
+for a `human` step, §6.7 for a `parallel` step, and §6.8 for a `result` step.
 
 ### 9.4 Step lifecycle
 
@@ -654,15 +698,16 @@ in declared order (§6.9) and transitions control to the target of the first `Co
 
 - Iterations are counted from `results.<StepName>`.
 - A retry (§6.10) is not an iteration: a failed attempt does not append to `results`, so
-  `max_iterations: 3` means three inteartions of the step, not three attempts at it.
+  `max_iterations: 3` means three iterations of the step, not three attempts at it.
 - Exceeding the bound raises `iteration_limit` (§10.5).
 - The bound is per step, not per edge into the step: it reflects the ceiling on the work a step may do, independent of who routed into it.
 - There is no factory-level iteration ceiling.
 
 ### 9.7 Budgets and monetary arithmetic
 
-`budget` is a Decimal USD value, at most two decimal places. `5.00`, `0.25`, and `12` are legal
-values; `1.005` MUST be rejected by a Linter (§8.6).
+`budget` is a Decimal USD value, at most two decimal places (§6.1). `5.00`, `0.25`, and `12` are
+legal values; `1.005` is not a legal Decimal USD value and MUST be rejected wherever `budget`
+appears.
 
 - The harness MUST report consumption in USD, accurately; it MAY report at finer precision than
   cents. The two-decimal-place constraint applies only to a value an author writes in the file, not
@@ -671,10 +716,13 @@ values; `1.005` MUST be rejected by a Linter (§8.6).
 - A `budget` field that is absent means unbounded. `budget: 0.00` raises `budget_exceeded` (§10.6)
   on arrival, and is a legitimate way to disable a step pending a grant (§11.6).
 - There are two scopes. A step's `budget` covers every iteration of that step: a step with
-  `max_iterations: 3` and `budget: 5.00` has five dollars across its three inteartions. A factory's
+  `max_iterations: 3` and `budget: 5.00` has five dollars across its three iterations. A factory's
   `budget` (§6.2) covers every agent iteration across every step in the run, and is the ceiling for
   the run as a whole. A grant, when made, is applied at whichever scope raised the exception.
-- A factory-level overrun is attributed to the run, not to any one step. All agent steps MUST stop at the next possible momenent when this is reached and must be resumed together if and when a grant is applied.
+- A factory-level overrun is attributed to the run, not to any one step. Every running agent step
+  MUST stop at the next point it would report consumption. [OPEN: see the question list — whether
+  they MUST then be resumed together, as a single unit, is unresolved, and the per-branch resume
+  addressing of §11.3 does not currently express a multi-branch resume.]
 
 ### 9.8 Concurrency and join
 
@@ -782,7 +830,8 @@ A run-level overrun is resumed at the step that was being entered when the ceili
 the grant applies to the run as a whole (§9.7): the resume address says where execution continues,
 while the exception itself says what was exceeded.
 
-When a run resumes from `budget_exceeded`, the same harness session MUST be used for Agent Steps, so that session state is continued (§11.7).
+When a run resumes from `budget_exceeded`, the same harness session MUST be used for the agent step
+being resumed, so that session state is continued (§11.7).
 
 An exception raised by a child of a `parallel` step names that child's qualified name (§5.3), and
 only that child re-runs on resume; siblings that already produced a result keep it. A resume of this kind is therefore addressed to the child, for example `checks.audit`, never to the enclosing `parallel` step.
@@ -799,7 +848,7 @@ branch is `running`, `awaiting_input`, `errored`, or `done`.
 - A branch is `errored` where an exception of any class in clause 10 has been raised and not yet
   resolved by a resume.
 - `awaiting_input` and `errored` are both **blocked**: the branch is stopped, nothing has been
-  appended to `results` for that inteartion, and the branch advances only on a resume (§11.3).
+  appended to `results` for that iteration, and the branch advances only on a resume (§11.3).
 - A branch is `done` once it has reached a `result` step, or, inside a `parallel` step, once its
   child has produced a result.
 
@@ -839,7 +888,9 @@ step is resumed; this specification requires no more of the mechanism than that.
 
 ### 11.4 Payloads by branch state
 
-TODO: harness_error should have a payload as well. Two options in my head are 1) a message to the harness for retry and 2) a result_schema payload like `schema_violation`.
+[OPEN: see the question list — whether a resume from `harness_error` should carry a payload (either
+a message fed back to the harness, or a `result_schema`-validated result as `schema_violation`
+allows) is unresolved; the table below currently gives it none.]
 
 The payload a resume carries depends on what blocked the branch:
 
@@ -873,19 +924,19 @@ A grant — additional iterations (§10.5) or additional budget (§10.6) — is 
 
 Where clause 10 or this clause states that a resume MUST use the same harness session — from
 `harness_error` (§10.3) and from `budget_exceeded` (§10.6) — a conforming Runner MUST re-invoke the
-same harness session that was active for the inteartion being resumed, rather than starting a new one,
+same harness session that was active for the iteration being resumed, rather than starting a new one,
 so that any state the harness holds for that session (for example, prior turns of a conversation) is
 continued rather than discarded. If that is not possible, an implementation MUST reject the resume.
 
 ## 12. Run records
 
-TODO: I wonder if this should just be a simple "you figure this out" but "make resume equibalance happen" comment. The title would be wrong then.
+[OPEN: see the question list — this clause's scope, and whether §12.1's specific observability
+requirements survive or collapse into §12.2's resume-equivalence requirement, is unresolved.]
 
 ### 12.1 Observability requirements
 
-TODO: This section need a big reword. Really its about stoarge not observiablity.
-
-An implementation's storage mechanism for the data required to full the Runner requirements are its own domain.
+An implementation's storage mechanism for the data required to satisfy the Runner requirements
+(§4.1.3) — how it is stored, indexed, or queried — is its own business.
 
 ### 12.2 Resume equivalence
 
@@ -897,7 +948,8 @@ the same equivalence guarantee.
 
 ### 12.3 Operator-supplied results
 
-TODO: I don't know if I agree here. Seems beyond the scope of this spec.
+[OPEN: see the question list — whether this requirement belongs in this specification at all is
+unresolved.]
 
 Where a resume supplies a result in place of one a step would otherwise have produced — the
 `schema_violation` escape hatch of §10.4 — an implementation MUST record that the result was
@@ -905,8 +957,6 @@ operator-supplied. Nothing in `StepResult` or `FactoryState` carries this distin
 recorded history is the only place it survives.
 
 ### 12.4 What is not specified
-
-TODO: Seems dumb.
 
 Whether a run's owner may change mid-run, and by whom, is a matter for whatever identity system an
 implementation uses; this specification records nothing about it and imposes no requirement on it.
@@ -941,10 +991,23 @@ repository. Where it conflicts with the normative text of this document, this do
 
 ## Annex B (normative) — Conformance test suite
 
-TODO: Rework please.
+The conformance test suite is the `conformance/` directory of this repository. It is organized into
+top-level categories by what a case exercises — `lint/` for the static checks of clause 8, `runner/`
+for the execution-model behavior of clauses 9–11, [OPEN: see the question list — a third category is
+referenced but not yet named or scoped] — each holding one subdirectory per case.
 
-The conformance test suite is the `conformance/` directory of this repository with `lint`, `runner`, `other-one` tests each in their own directory and each test as its own subdirectory. Each test directory supplies a valid or invalid SFML file, an expected FactoryState object at the end of the test, result file with either success or the expected error of the test and agent message scripts to be used by a `mock` harness. Conformance is acknowledged by reviewing the test suite of an implementation passes all tests. To achive this, all conforming implemenations must have mock harness which can use the agent messages. Details on these file formats can be found in `conformance/README.md`.
+A case's directory supplies: the SFML file under test, valid or invalid as the case requires; for a
+`runner/` case, the `FactoryState` (§9.2) the case MUST produce, and a result file stating whether
+the case is expected to succeed or to raise a named exception (clause 10); and, where the case
+invokes an agent step, a script of canned agent messages for the mock harness to play back. A
+conforming implementation MUST supply a mock harness capable of consuming these scripts and,
+against them, reproducing the routing trace and `FactoryState` a case declares. An implementation
+conforms with respect to Annex B once its test suite passes every case in `conformance/`. The exact
+file formats are documented in `conformance/README.md`, not in this document.
 
 ## Annex C (informative) — Worked example
 
-TODO: Rewrite. Point to `example/`.
+The worked example lives in `example/`, not in this document and not in `conformance/`: it is
+maintained separately so it can prioritize being a clear, readable factory over being an exhaustive
+conformance case. It runs on the mock harness of Annex B. This annex is informative; nothing in
+`example/` is itself normative, though the clauses it illustrates are.
