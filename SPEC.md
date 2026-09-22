@@ -262,7 +262,10 @@ _(Points to `sfml.schema.json` in this repository, with the precedence rule of 4
 
 ## Annex B (normative) — Conformance test suite
 
-_(Suite structure; positive and negative cases; routing-trace assertions.)_
+_(Points to `conformance/` in this repository. States what the suite must cover and the file layout
+a case uses; the cases themselves are files. A negative lint case names the 8.7 identifier it is
+expected to raise. A run case pairs a factory, its canned step results, and the routing trace it
+must produce.)_
 
 ## Annex C (informative) — Worked example
 
