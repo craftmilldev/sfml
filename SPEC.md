@@ -66,6 +66,8 @@ _(RFC 2119, RFC 8174, RFC 8259, YAML 1.2, JSON Schema, CEL, ISO 4217.)_
 
 #### 4.1.3 Runner
 
+#### 4.1.4 Harness
+
 ### 4.2 Requirements by class
 
 ### 4.3 Declared postures and the documentation obligation
@@ -144,29 +146,26 @@ _(Parse, lint, admission.)_
 
 ### 8.2 Structural rules
 
+_(Includes the parallel step's constraints: a child is an agent or human step, a child has no
+`next`, a child may not itself be parallel.)_
+
 ### 8.3 Totality of routing
 
 ### 8.4 Reachability
 
 ### 8.5 Termination
 
-### 8.6 Reference validity by reachability
+### 8.6 Reference and binding validity
 
-TODO (was 8.7 Region constraints): Don't get this section
+_(Unknown parameter and step names are hard errors; a reference from Y to `results.X` is legal iff
+some path X -> ... -> Y exists; each expression site resolves against exactly one binding
+environment per 7.5, and reaching outside it is a static error.)_
 
-### 8.7 Expression binding rules
+### 8.7 Diagnostics and error identifiers
 
-TODO: I don't get what this section is. What does expression binding have to do with graph validity? Are you thinking we need to say that an expression must not refference something that is unreachable due to force in the graph? What cool, that feels like the job of a factory author or tooling that could be built ontop of the specification not something an implementation must enforce.
+TODO: open. Do lint failures carry stable machine-readable identifiers, or only prose?
 
-### 8.8 Value domain rules
-
-TODO: Don't get this section
-
-### 8.9 Diagnostics and error identifiers
-
-TODO: Don't get this section
-
-### 8.10 What lint cannot check
+### 8.8 What lint cannot check
 
 ## 9. Execution model
 
@@ -214,6 +213,9 @@ TODO: Don't get this section
 
 ### 11.3 Resume address
 
+_(Qualified `<parallel>.<child>` addressing; a resume names the failed child, not its parent, so
+only that child re-runs and siblings keep the results they already produced.)_
+
 ### 11.4 Payloads by branch state
 
 ### 11.5 Rejected resumes
@@ -246,18 +248,12 @@ TODO: Don't get this section
 
 ## Annex A (normative) — JSON Schema
 
-TODO: Is this just a term we need to define and let it be that?
+_(Points to `sfml.schema.json` in this repository, with the precedence rule of 4.4.)_
 
-## Annex B (normative) — Expression grammar and function signatures
-
-TODO: is this resolved by Expression language?
-
-_(ABNF grammar; signature of each standard library function.)_
-
-## Annex C (normative) — Conformance test suite
+## Annex B (normative) — Conformance test suite
 
 _(Suite structure; positive and negative cases; routing-trace assertions.)_
 
-## Annex D (informative) — Worked example
+## Annex C (informative) — Worked example
 
-## Annex E (informative) — Deferred to v0.2
+## Annex D (informative) — Deferred to v0.2
