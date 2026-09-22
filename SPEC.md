@@ -1,12 +1,6 @@
 # Software Factory Markup Language (SFML)
 
-**Version:** v0.1 **Status:** Pre-draft **Copyright:** 2026 Craftmill **License:** MIT
-
-> **This is an outline, not a draft.** Every clause below is a placeholder. The structure follows
-> the Community Specification 1.0 template (ISO drafting conventions: mandatory Scope, Normative
-> references, and Terms and definitions clauses; numbered clauses; informative annexes). Normative
-> content is drawn from `PRD.md`, which remains the source of decisions until this document
-> supersedes it.
+**Version:** v0.1 **Status:** Pre-draft **Copyright:** 2026 Plumbline LLC **License:** MIT
 
 ---
 
@@ -38,17 +32,39 @@ _(RFC 2119, RFC 8174, RFC 8259, YAML 1.2, JSON Schema, CEL, ISO 4217.)_
 
 ### 3.2 Terms
 
-_(Factory, run, branch, step, region, crossing, iteration, attempt.)_
+#### 3.2.1 Factory
+
+#### 3.2.2 Run
+
+#### 3.2.3 Branch
+
+#### 3.2.4 Crossing
+
+#### 3.2.5 Iteration
+
+#### 3.2.6 Attempt
 
 ### 3.3 Roles
 
-_(Author, caller, operator, harness, implementation.)_
+#### 3.3.1 Author
+
+#### 3.3.2 Caller
+
+#### 3.3.3 Operator
+
+#### 3.3.4 Harness
+
+#### 3.3.5 Implementation
 
 ## 4. Conformance
 
 ### 4.1 Conformance classes
 
-_(Parser, linter, runner, harness.)_
+#### 4.1.1 Parser
+
+#### 4.1.2 Linter
+
+#### 4.1.3 Runner
 
 ### 4.2 Requirements by class
 
@@ -74,7 +90,7 @@ _(Parser, linter, runner, harness.)_
 
 ### 6.1 Value types
 
-_(String, integer, decimal USD, JSON Schema, Expression, StepName.)_
+_(String, integer, decimal USD, JSON Schema, Expression, StepName, SFMLVersionString)_
 
 ### 6.2 Factory
 
@@ -136,13 +152,19 @@ _(Parse, lint, admission.)_
 
 ### 8.6 Reference validity by reachability
 
-### 8.7 Region constraints
+TODO: Don't get this section
 
 ### 8.8 Expression binding rules
 
+TODO: I don't get what this section is. What does expression binding have to do with graph validity? Are you thinking we need to say that an expression must not refference something that is unreachable due to force in the graph? What cool, that feels like the job of a factory author or tooling that could be built ontop of the specification not something an implementation must enforce.
+
 ### 8.9 Value domain rules
 
+TODO: Don't get this section
+
 ### 8.10 Diagnostics and error identifiers
+
+TODO: Don't get this section
 
 ### 8.11 What lint cannot check
 
@@ -184,8 +206,6 @@ _(Parse, lint, admission.)_
 
 ### 10.6 Budget exceeded
 
-### 10.7 Exceptions within a region
-
 ## 11. Pause and resume
 
 ### 11.1 Branch states
@@ -226,7 +246,11 @@ _(Parse, lint, admission.)_
 
 ## Annex A (normative) — JSON Schema
 
+TODO: Is this just a term we need to define and let it be that?
+
 ## Annex B (normative) — Expression grammar and function signatures
+
+TODO: is this resolved by Expression language?
 
 _(ABNF grammar; signature of each standard library function.)_
 
@@ -237,5 +261,3 @@ _(Suite structure; positive and negative cases; routing-trace assertions.)_
 ## Annex D (informative) — Worked example
 
 ## Annex E (informative) — Deferred to v0.2
-
-## Bibliography
