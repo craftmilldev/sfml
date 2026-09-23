@@ -4,8 +4,8 @@ This is a PRD, not a specification. It states what SFML must do, what it must re
 has been decided. Where it shows syntax, the syntax is illustrative — the requirement is the
 behaviour underneath it.
 
-This document is the input to phase 2: writing the spec in RFC-2119 language with a JSON Schema. §11
-lists what phase 2 must get right rather than transcribe.
+`SPEC.md` is the normative text and governs where the two disagree. This document keeps the
+reasoning behind the decisions.
 
 ---
 
@@ -46,8 +46,8 @@ and so an ecosystem can emerge as the industry explores how to work with factori
 - **Not a scheduler.** No cron, no triggers, no webhooks. Something else starts a factory run.
 - **Not general-purpose compute.** No expression-language escape hatch that becomes a programming
   language. If a step needs logic, it is a step.
-- **Not composable yet.** Sub-factories are deferred; `type: factory` is reserved so they can land
-  in v0.2 without a breaking change.
+- **Not composable yet.** Sub-factories are deferred; `type: factory` is rejected in v0.1 so they
+  can land in v0.2 without a breaking change.
 - **Not a workspace format.** Repo, branch, worktree, and what an agent may read or write are
   harness territory. **Portability ends at `harness_config`**.
 - **Not an identity system.** SFML carries an assignee; it never resolves, grants, or routes one.
@@ -82,8 +82,7 @@ exceptional, and a human is a normal participant in the graph rather than an esc
 5. **A ceiling the author owns belongs in the file; the mechanism that enforces it, and the people
    it is enforced on, do not.**
 6. **Where a value has a universal unit, SFML names it. Where it does not, SFML names the field and
-   makes the implementor declare what they do with it.** Money has a universal unit; identity does
-   not.
+   leaves its meaning to the implementor.** Money has a universal unit; identity does not.
 
 ---
 
@@ -106,7 +105,7 @@ run of it. Each entry is a JSON Schema, the same machinery `result_schema` alrea
 `description` and `default` are ordinary schema keywords rather than SFML invention.
 
 - **A parameter with no `default` is required.** A run that omits one is rejected at admission,
-  alongside the `assignee` checks in §6.9 — before a run id exists, before anything has run.
+  alongside a `harness` that does not resolve — before a run id exists, before anything has run.
 - The supplied values are bound as `parameters` on `FactoryState` (§6.5) and are **readable from any
   step**, not only from `start`. This is the whole reason the signature is declared at the top level
   rather than on the entry step: a parameter that only a later step consumes has no business
@@ -115,12 +114,15 @@ run of it. Each entry is a JSON Schema, the same machinery `result_schema` alrea
   sees_ when rendering a prompt template. They are different objects and a factory of any size has
   them diverge.
 
-`workspace` is a **reserved** top-level key that a v0.1 implementation MUST reject, so v0.2 can
-define it without a breaking change.
-
 **Unknown fields are rejected** at every level. This is the only thing that stops implementations
 quietly accreting private extensions, and it is what keeps the top level forward-compatible for the
 v0.2 list in §10.
+
+**There is no maximum graph size.** A limit would be a runtime's constraint leaking into the format,
+and a file that runs on one implementation would fail admission on another.
+
+**Comments carry no meaning.** SFML defines what a file says, not how tools edit it. Whether a
+formatter or editor preserves comments is that tool's choice.
 
 ### 6.2 Step (common fields)
 
@@ -132,7 +134,7 @@ v0.2 list in §10.
 | `next`                    | List\<Connection\>                                | yes          | agent, human, parallel |
 | `max_iterations`          | integer                                           | no           | agent, human, parallel |
 | `budget`                  | decimal USD                                       | no           | agent (see §6.8)       |
-| `retry`                   | `{ max_attempts, backoff }`                       | no           | agent                  |
+| `retry`                   | integer (max attempts)                            | no           | agent                  |
 | `assignee`                | string                                            | no           | human                  |
 | `instructions`            | Expression                                        | no           | human                  |
 | `harness`                 | `<name>[@<version>]`                              | yes          | agent                  |
@@ -148,8 +150,6 @@ where to route `next`.
 
 A `parallel` step has no `result_schema`: its result is computed from its children, not authored.
 Its children have no `next` — a child cannot route. See §6.11.
-
-`type: factory` is **reserved** for v0.2 sub-factories.
 
 `prompt_vars` are declared per step. It makes dependencies visible to the linter, gives the prompt
 template a small named object instead of all of state, and makes steps individually testable.
@@ -217,9 +217,13 @@ agent step's prompt template. Types come from the `Agent Step` definition.
 | ------------- | ----------------- | ----------------------------------------------- |
 | `prompt_vars` | Record<Name, Any> | The evaluated `prompt_vars` of the `Agent Step` |
 
-A template therefore writes `${ prompt_vars.issue }`, not `${ issue }`. The extra word buys a
+A template therefore writes `«« prompt_vars.issue »»`, not `«« issue »»`. The extra word buys a
 namespace: a later version can add a sibling field here without every existing template becoming
 ambiguous about what a bare name refers to.
+
+Placeholders are delimited by doubled guillemets, not `${ }` or `{{ }}`, because prompts routinely
+contain real shell, Go-template, Helm, and Jinja samples that already use those sequences. A doubled
+guillemet essentially never collides, so there is no escape mechanism.
 
 `FactoryState` is **not** reachable from a prompt template. Anything a prompt needs is named in
 `prompt_vars` first, which is what makes a step's dependencies visible to the linter and the step
@@ -246,7 +250,8 @@ testable on its own.
 
 **`budget` is a decimal number of United States dollars, at most two decimal places.**
 
-- `budget: 5.00`, `budget: 0.25`, `budget: 12` are legal. `budget: 1.005` is a **lint error**.
+- `budget: 5.00`, `budget: 0.25`, `budget: 12` are legal. `budget: 1.005` is **rejected when the
+  file is parsed**, before lint runs.
 - **Implementations SHOULD hold budgets and accumulated consumption as integer cents.** Binary
   floating point cannot represent `0.10` exactly, and a ceiling compared against accumulated floats
   is the oldest bug in money handling. The behaviour it protects — `budget: 0.30` is not exceeded by
@@ -266,61 +271,36 @@ testable on its own.
   the error.
 - **A factory-level overrun is attributed to the run, not to a step.** Concurrent children of a
   `parallel` step (§6.11) draw on the same run-level pool, so which of them pushes it over depends
-  on completion order — but the exception names the run, the grant applies at the run level, and the
-  routing trace is unaffected either way. This is why a ceiling may be shared at the run level and
-  must not be shared at the region level: one stops everything, the other would have to pick a
-  victim.
+  on completion order. So no child is named: once the ceiling is reached every child still drawing
+  on it stops, the exception names the `parallel` step itself, and one grant there re-enters every
+  child that had not yet produced a result. The routing trace is unaffected either way. This is why
+  a ceiling may be shared at the run level and must not be shared at the region level: one stops
+  everything, the other would have to pick a victim.
 
 ### 6.9 Assignee
 
-Two fields, naming two different relationships. **Neither defaults to the other.**
+Two fields, naming two different relationships.
 
 > **Factory-level `assignee` is the DRI of the run. Step-level `assignee` is a person working on the
 > run.**
 
 - The value is **opaque to SFML** — a string. SFML does not say whether it denotes a person, a team,
   a rotation, a group, or a queue, and defines no syntax for it beyond being a string.
-- **A human step that omits `assignee` is unassigned.** It does _not_ inherit the factory-level
-  value. Inheriting would mean that dropping the `assignee` line on a review step silently puts the
-  run's DRI in the reviewer queue — a worse default than no default, and invisible in a diff.
+- **SFML does not define what an implementation does with either field** — whether it validates,
+  notifies, routes, or ignores it, and whether an unassigned human step falls back to the
+  factory-level value. Those are the implementation's product decisions.
 - The factory-level field exists because **exceptions have no step to hang an owner on.**
   `iteration_limit` and `budget_exceeded` stop a run needing a human to grant something, and there
-  is no human step there. It also gives implementors a way to know who to escalate to if a human
-  step is taking longer than their implementation would expect.
+  is no human step there.
 
-**If an implementation supports the factory-level `assignee`:**
+An earlier draft of this section had implementors declare a posture (optional, required,
+unsupported), forbade inheritance, and required admission-time rejection. All of it was cut: each
+rule was SFML reaching into an identity system it has no view of, and none of it was testable
+without one.
 
-- It **MUST** use it as the owner of the run **when no owner is otherwise provided.** A run may be
-  created with an owner supplied out of band — by the caller, the job system, the person who pressed
-  the button. SFML does not define how, and does not care. The factory-level `assignee` is the
-  declared fallback, not an override.
-- It **MAY** use it to constrain who can be assigned within the run — requiring, say, that step
-  assignees resolve within the DRI's team. A step assignee falling outside that constraint is an
-  admission-time rejection.
-
-**The implementor declares a posture**, per level, and they may differ:
-
-| Posture             | `assignee` present                                              | `assignee` absent       |
-| ------------------- | --------------------------------------------------------------- | ----------------------- |
-| Supported, optional | Validate against the identity system; reject the run if invalid | Run proceeds unassigned |
-| Supported, required | Validate; reject the run if invalid                             | **Reject the run**      |
-| Unsupported         | **Reject the run**                                              | Run proceeds            |
-
-- A conforming implementation **MUST document which posture it takes.**
-- All three conform. Treating assignment as required is a legitimate product decision; so is
-  refusing the field because assignment lives elsewhere.
-- **What does not conform is silence** — accepting an `assignee` and ignoring it. A field read but
-  not honoured is worse than one refused, because the file then documents a routing that does not
-  happen.
-
-**Rejection is at admission**, before the run starts: no run id, no results, no exception class.
-**The linter cannot do this check** — it has no identity system, so it validates only that the value
-is a string. These are two stages and the spec must name both, so a file that passes lint is not
-mistaken for a file that will run.
-
-**The point of the field:** to give implementors a place to track ownership, not to let a factory
-file control assignment. A factory file can say who is accountable and who does a task. It cannot
-_grant_ anyone anything or override a real identity system's rules.
+**The point of the field:** to give an author a place to record ownership, not to let a factory file
+control assignment. A factory file can say who is accountable and who does a task. It cannot _grant_
+anyone anything or override a real identity system's rules.
 
 ### 6.10 Validation rules
 
@@ -342,8 +322,12 @@ rule that cannot be checked is a comment and should be written as one.**
 - **Region balance needs no check.** A `parallel` child has no `next`, so there are no edges inside
   a region to leave it. This is not a rule the linter enforces; it is a shape the file cannot
   express.
-- Lint also checks: `budget` has at most two decimal places; `assignee`, where present, is a string;
-  every cycle is bounded; every non-result step ends in an unconditional connection.
+- Lint also checks: every cycle is bounded; every non-result step ends in an unconditional
+  connection. Value-domain checks (`budget`'s two decimal places, `assignee` being a string) belong
+  to the data model, not to lint.
+- **Every lint rule has a stable identifier** the linter reports on failure, never reused or
+  renumbered. Message text is the implementation's. This is what lets the conformance suite assert
+  _which_ rule rejected a file, not only that it was rejected.
 
 ### 6.11 Concurrency
 
@@ -392,8 +376,10 @@ cannot race.
 | `harness_error`    | The harness fails to produce a result for reasons outside the agent's output contract |
 | `iteration_limit`  | Entering a step would exceed its effective iteration budget                           |
 | `budget_exceeded`  | A step's reported consumption reaches or exceeds its effective budget                 |
+| `expression_error` | An expression or prompt template fails at evaluation time, anywhere but a `when`      |
+| `routing_error`    | A connection's `when` fails at evaluation time                                        |
 
-**All four are resumable. Nothing in v0.1 is inherently fatal except reaching a result step.**
+**All six are resumable. Nothing in v0.1 is inherently fatal except reaching a result step.**
 
 **`harness_error`.** SFML deliberately does **not** enumerate causes. Rate limits, auth failures,
 network faults, capacity, and the harness's own execution timeouts are all one class, because SFML
@@ -403,13 +389,15 @@ wrong for the next one.
 - **The harness classifies.** A conforming harness MUST report, with each failure, whether it is
   retryable, and MAY state a backoff. A rate limit is retryable; invalid credentials or a malformed
   `harness_config` is not.
-- `retry` supplies `max_attempts` and `backoff`; **the harness supplies the judgment.** Retry
-  applies only to failures the harness marked retryable. This is why `retry.on` does not exist —
-  there is nothing left for an author to list.
+- `retry` supplies the maximum attempts; **the harness supplies the judgment**, and any backoff.
+  Retry applies only to failures the harness marked retryable. This is why `retry.on` does not exist
+  — there is nothing left for an author to list — and why `retry` is a bare integer: backoff was
+  never the author's to state.
 - Exhausting retries, or a non-retryable failure, raises the exception.
 
 When resuming from a `harness_error` error the same harness session MUST be used so that session
-state is continued.
+state is continued; if it cannot be, the resume is rejected. **A resume MAY instead carry a
+result**, the same escape hatch `schema_violation` has, for a harness that will never produce one.
 
 **`schema_violation`.** This class is **agent-only**, though `result_schema` is declared on human
 steps too. A human step's payload is validated when a resume arrives and an invalid one is
@@ -417,20 +405,19 @@ steps too. A human step's payload is validated when a resume arrives and an inva
 appended. There is no failed attempt to record and no exception to resume from, because the run
 never left the state it was already in.
 
-- Implementations **SHOULD** permit retry of this class, and **SHOULD** default to one automatic
+- Implementations **MUST** permit retry of this class, and **SHOULD** default to one automatic
   attempt with the validator's error fed back into the reprompt.
-- This is deliberately SHOULD, not MUST. The normative content is not the number — it is _do not
-  make this class immediately fatal_. Zero or three is a defensible local choice; fatal-on-first is
-  a defect, because an implementor who treats a mis-formatted answer as the end of the run has built
-  something that cannot run unattended.
+- The split is deliberate. The normative content is not the number — it is _do not make this class
+  immediately fatal_, and that is the MUST. Zero or three default attempts is a defensible local
+  choice; fatal-on-first is a defect, because an implementor who treats a mis-formatted answer as
+  the end of the run has built something that cannot run unattended.
 - A resume re-runs the step as a new agent turn. It may succeed or fail the same way again. The
   failure mode is repeatable; the attempt is not — which is precisely why retrying is worth doing.
 - **A resume MAY instead carry a result**, validated against the step's `result_schema` (§6.13). It
   is appended as the step's result and the agent is not re-run. This is the escape hatch for an
   agent that cannot produce valid output no matter how many times it is asked: without it the only
   way past a wedged step is to abandon the run. A result supplied this way is a normal `StepResult`
-  and routing cannot tell the difference — implementations **MUST** record that it was
-  operator-supplied (§6.14), because the run history is the only place the distinction survives.
+  and routing cannot tell the difference.
 
 **`iteration_limit`.** Checked on arrival, so nothing has run and the state is clean. **Resume takes
 a payload: a number of additional iterations to grant that step.**
@@ -438,8 +425,16 @@ a payload: a number of additional iterations to grant that step.**
 
 **`budget_exceeded`.** **Resume takes a payload: a decimal dollar amount to grant.**
 `effective_budget(X) = X.budget + granted_budget(X)`. A run-level overrun is resumed at the step
-that was entered when the ceiling was reached, but the grant applies to the run (§6.8) — the address
-says where to continue, the exception says what was exceeded.
+that was entered when the ceiling was reached — or, inside a region, at the `parallel` step itself —
+but the grant applies to the run (§6.8). The address says where to continue, the exception says what
+was exceeded.
+
+**`expression_error` and `routing_error`.** An expression that is well-typed can still fail at
+evaluation, and that failure must not become a silent value or a misfiled `harness_error`. They are
+two classes because they are resumed past differently, and a caller should know which payload
+applies from the class alone. `expression_error` fires before the step's result exists, so a resume
+re-runs the entry or carries a result. `routing_error` fires after the result is appended, so a
+resume re-evaluates `when` or carries a target from the step's own `next`.
 
 When resuming from a `budget_exceeded` error the same harness session MUST be used so that session
 state is continued.
@@ -466,7 +461,8 @@ asks them to.
   per child. A branch is `running`, `awaiting_input`, `errored`, or `done`.
 - A branch is `awaiting_input` at a human step that has not been resumed, and `errored` where an
   exception of any class in §6.12 was raised. Both are **blocked**: the branch is stopped, nothing
-  has been appended to `results`, and it advances only on a resume.
+  has been appended to `results` (except for `routing_error`, where the step's result already was),
+  and it advances only on a resume.
 - **Run status is derived, not stored:** `running` if any branch is running; otherwise `errored` if
   any branch is errored; otherwise `awaiting_input` if any branch is awaiting; terminal when a
   result step is reached. `errored` outranks `awaiting_input` because a run needing a grant needs
@@ -487,6 +483,8 @@ asks them to.
 - **The address is total: it always names exactly one blocked step.** Concurrent blocks exist only
   as children of a `parallel` step, each child has a distinct name within it, and regions do not
   nest — so no two live branches are ever blocked at the same qualified name, whatever blocked them.
+  The one exception is a run-level `budget_exceeded` inside a region (§6.8): the unfinished children
+  collapse into one blocked branch addressed by the `parallel` step's name.
 - **A conforming implementation MUST document how a run id is obtained and how a blocked run at a
   named step is resumed.** That is the end of the requirement.
 
@@ -497,8 +495,10 @@ asks them to.
 | `awaiting_input` | a human step       | object matching `result_schema`                 | appended as the step's result                                                |
 | `errored`        | `iteration_limit`  | integer, additional iterations                  | grant recorded, step is entered                                              |
 | `errored`        | `budget_exceeded`  | decimal USD, at most two places                 | grant recorded, step is entered                                              |
-| `errored`        | `harness_error`    | none                                            | step re-runs on the same harness session                                     |
+| `errored`        | `harness_error`    | none, **or** an object matching `result_schema` | re-runs on the same harness session; with a payload, that result is appended |
 | `errored`        | `schema_violation` | none, **or** an object matching `result_schema` | re-runs as a new agent turn; with a payload, that result is appended instead |
+| `errored`        | `expression_error` | none, **or** an object matching `result_schema` | entry re-runs; with a payload, that result is appended instead               |
+| `errored`        | `routing_error`    | none, **or** a step name from the step's `next` | `when` list re-evaluates; with a payload, that target is taken instead       |
 
 - **A payload that does not match is rejected at the call.** The branch keeps the state it had and
   nothing is appended — the rule §6.12 states for a human step's invalid input, holding for every
@@ -510,21 +510,16 @@ asks them to.
 ### 6.14 What a run must record
 
 The journal is **not** in the spec: no event types, no required fields, no sequence numbering, no
-encoding. The requirement is capability, not format.
-
-> A run's recorded data MUST make every attempt observable, including failed ones, with its attempt
-> number and failure class; MUST record iteration and budget grants; MUST record any result supplied
-> by an operator rather than produced by its step (§6.13); and MUST record the run's owner.
+encoding. The requirement is capability, not format, and the only capability required is resume.
 
 - A run MUST be resumable after process death to a state **equivalent** to the state it had, where
   equivalence is defined over `FactoryState`: same `results`, same routing decisions, same attempt
   counts.
 - A run MUST be resumable after a human-shaped pause of arbitrary duration.
-- Whether a run's owner may change mid-run, and by whom, is the identity system's business; SFML
-  records nothing about it.
 
-A runtime's storage remains its own business. What SFML guarantees is what an operator can learn
-about a run.
+An earlier draft also required recording every attempt, every grant, any caller-supplied result, and
+the run's owner. That was cut: it is operational tooling, not the file format, and SFML has no way
+to test it. A runtime's storage and observability remain its own business.
 
 ### 6.15 Result steps
 
@@ -540,19 +535,11 @@ Default values when `value` is omitted:
 
 A run that reaches a result step is terminal and cannot be restarted.
 
-### 6.16 Still unspecified, and deliberately listed
-
-`StepName` charset and reserved names — noting that `.` is the qualifier separator for parallel
-children (§6.11) and so cannot appear in a name itself; case sensitivity of step keys; maximum graph
-size; behaviour on duplicate keys; whether comments survive a round-trip; `harness: name@version`
-resolution and what happens when the requested version is unavailable. These are spec-drafting
-details, not open product questions.
-
 ---
 
 ## 7. Illustrative shape
 
-Syntax is a strawman; the point is the shape of the information.
+This is a valid v0.1 factory. The prompt files it names are not shown.
 
 ```yaml
 sfml: "v0.1"
@@ -560,20 +547,20 @@ description: implement a github issue with review
 
 parameters:
   issue_url: { type: string, description: the issue to implement }
-  priority:  { type: string, default: p2 }
+  priority: { type: string, default: p2 }
 
 start: plan
 budget: 20.00
-assignee: eng-platform          # DRI of the run; the fallback owner, and who
-                                # resolves iteration and budget grants
+assignee: eng-platform # DRI of the run; opaque to SFML
 
 steps:
   plan:
     type: agent
     description: read the issue and produce an implementation plan
+    harness: claude
     budget: 1.00
     prompt_vars:
-      issue: ${ parameters.issue_url }
+      issue: parameters.issue_url
     prompt_path: prompts/plan.md
     result_schema:
       type: object
@@ -584,12 +571,13 @@ steps:
   implement:
     type: agent
     description: write the code
+    harness: claude
     max_iterations: 3
     budget: 5.00
     prompt_vars:
-      plan: ${ last(results.plan).plan }
-      priority: ${ parameters.priority }             # a parameter `plan` never sees
-      prior_review: ${ last(results.review).notes }   # null on first pass
+      plan: last(results.plan).plan
+      priority: parameters.priority # a parameter `plan` never sees
+      prior_review: last(results.review).notes # null on first pass
     prompt_path: prompts/implement.md
     result_schema:
       type: object
@@ -604,9 +592,9 @@ steps:
       lint:
         type: agent
         harness: claude
-        budget: 0.25             # cheap
+        budget: 0.25 # cheap
         prompt_vars:
-          branch: ${ last(results.implement).branch }
+          branch: last(results.implement).branch
         prompt_path: prompts/lint.md
         result_schema:
           type: object
@@ -614,9 +602,9 @@ steps:
       test:
         type: agent
         harness: claude
-        budget: 2.00             # not cheap; its own ceiling, not a shared one
+        budget: 2.00 # not cheap; its own ceiling, not a shared one
         prompt_vars:
-          branch: ${ last(results.implement).branch }
+          branch: last(results.implement).branch
         prompt_path: prompts/test.md
         result_schema:
           type: object
@@ -627,8 +615,8 @@ steps:
   review:
     type: human
     description: approve, request changes, or abandon
-    assignee: eng-reviewers      # who does this task — not inherited, not a default
-    instructions: ${ last(results.implement).branch }
+    assignee: eng-reviewers # who does this task; opaque to SFML
+    instructions: last(results.implement).branch
     # check outcomes are on the region: last(results.checks).lint.passed
     result_schema:
       type: object
@@ -637,16 +625,16 @@ steps:
         abandon: { type: boolean }
         notes: { type: string }
     next:
-      - when: ${ last(results.review).approved }
+      - when: last(results.review).approved
         to: shipped
-      - when: ${ last(results.review).abandon }
+      - when: last(results.review).abandon
         to: give_up
       - to: implement
 
   shipped:
     type: result
     outcome: complete
-    value: { branch: ${ last(results.implement).branch } }
+    value: last(results.implement) # { branch: ... }
 
   give_up:
     type: result
@@ -660,22 +648,19 @@ every path reaches a result; `checks` fans out and joins in one place and its ch
 path and nothing else.
 
 **What the file says out loud:** `implement` gets three passes at five dollars each, `lint` and
-`test` run concurrently, each under its own ceiling, review goes to `eng-reviewers`, and anything
-that stops the run goes to `eng-platform`. Every expression parses as CEL; the only non-base-CEL
-construct is `last()`, a registered function rather than new syntax.
+`test` run concurrently, each under its own ceiling, review is owned by `eng-reviewers`, and the run
+is owned by `eng-platform`. Every expression parses as CEL; the only non-base-CEL construct is
+`last()`, a registered function rather than new syntax.
 
 **What is deliberately absent:** `implement` failing three times does not appear in this file. It
 raises `iteration_limit`, the run stops resumably, and a human grants more iterations or lets it
 die. **The file describes the work, not the weather.**
 
-Note also that `review` would be _unassigned_ if its `assignee` line were dropped, rather than
-quietly landing on `eng-platform`. The file says both things or it says neither.
-
 ## 8. Success criteria for v0.1
 
 1. A newcomer reads §7 and predicts its behaviour correctly.
-2. The reference linter rejects every negative case in the conformance suite and accepts every
-   positive one.
+2. The reference linter rejects every negative case in the conformance suite, with the rule
+   identifier the case names, and accepts every positive one.
 3. A non-trivial factory (≥8 steps, one loop, one human step, one `parallel` step) runs end-to-end
    on the `mock` harness in under a second, in CI.
 4. A second implementation, written from the spec alone, passes the conformance suite.
@@ -697,23 +682,20 @@ quietly landing on `eng-platform`. The file says both things or it says neither.
 10. A `parallel` step with two human children accepts a resume addressed to either qualified name,
     in either order, joins once both arrive, and reaches the same terminal state regardless of
     order.
-11. A human step with no `assignee`, in a factory that declares a factory-level `assignee`, is
-    **not** assigned to it. This is a default value statement, not a routing of notifications
-    statement.
-12. An implementation states its `assignee` posture for steps and for the factory. A run carrying an
-    `assignee` an unsupported implementation cannot honour is **rejected at admission** — no run id,
-    no results, no exception.
 
 ## 9. Sequencing
 
-| Phase | Output                                                    | Status                   |
-| ----- | --------------------------------------------------------- | ------------------------ |
-| 1     | Freeze the v0.1 core field set                            | **Done** — this document |
-| 2     | Spec document with RFC-2119 language + JSON Schema        | **Done** — at spec.md    |
-| 3     | **Harness contract**: the interface a harness implements  | **Next**                 |
-| 4     | Reference linter + `mock` harness + conformance suite     |                          |
-| 5     | One real harness binding; port two real pipelines to SFML |                          |
-| 6     | v0.1 tag; collect what v0.2 must fix                      |                          |
+| Phase | Output                                                                           | Status                   |
+| ----- | -------------------------------------------------------------------------------- | ------------------------ |
+| 1     | Freeze the v0.1 core field set                                                   | **Done** — this document |
+| 2     | Spec document with RFC-2119 language                                             | **Done** — `SPEC.md`     |
+| 3     | `sfml.schema.json`, reference linter, `mock` harness, `conformance/`, `example/` | **Next**                 |
+| 4     | One real harness binding; port two real pipelines to SFML                        |                          |
+| 5     | v0.1 tag; collect what v0.2 must fix                                             |                          |
+
+There is no separate harness contract. The spec bounds the harness to what an agent step must
+achieve — report cost, classify a failure as retryable, continue a session across a resume — and
+makes those the Runner's obligations. How a Runner gets them from a harness is its own business.
 
 ## 10. Deferred to v0.2
 
@@ -724,24 +706,8 @@ quietly landing on `eng-platform`. The file says both things or it says neither.
    generalize from, and a wrong abstraction is far more expensive to remove than a missing one is to
    add.
 3. **`any` / `n_of_m` joins**, with the cancellation semantics they require.
-4. **Sub-factories** — `type: factory` is reserved.
+4. **Sub-factories** — `type: factory`.
 5. **Multi-step branches** — a parallel branch is exactly one step in v0.1. Branches that are
    sequences need region-membership rules, and the whole point of the v0.1 shape is that it needs
    none.
 6. **Nested regions** — a `parallel` child may not itself be `parallel`.
-
-## 11. What phase 2 must get right
-
-One thing this PRD does **not** hand phase 2 a ready answer for. It is flagged here rather than left
-to be discovered mid-draft.
-
-### 11.1 The MUST/SHOULD/MAY pass will force precision
-
-Several rules read fine as prose and will not survive RFC-2119 drafting unchanged. The two to watch:
-
-- **§6.9's MUST/MAY split.** "MUST use it as the owner when no owner is otherwise provided" depends
-  on "otherwise provided," which SFML deliberately does not define. The MUST is conditional on
-  something outside the spec, and that needs careful wording to be testable rather than vacuous.
-- **§6.12's deliberate SHOULD.** The `schema_violation` retry rule is the one requirement in this
-  document that is intentionally advisory, and the reason — _the normative content is not the
-  number, it is "do not make this class immediately fatal"_ — must survive into the spec text.
