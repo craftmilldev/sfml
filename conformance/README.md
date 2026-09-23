@@ -1,5 +1,7 @@
 # SFML conformance suite
 
+TODO: Note, this might be going to far for how aligned we are on harness contract. Some of my comments are being cuased by jumping to makeing conformance tests before agreeing on the harness contract.
+
 This directory is the conformance test suite that SPEC.md Annex B refers to. Annex B defers the
 exact file formats to this document. The mock harness that `runner/` cases run against has its own
 contract, [`mock-harness.md`](mock-harness.md).
