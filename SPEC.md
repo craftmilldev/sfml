@@ -722,11 +722,12 @@ appears.
   a `parallel` step (§6.7) draw on the same run-level pool while they run, so a factory-level
   `budget_exceeded` is a property of the pool, not of whichever child's report happened to cross it.
   Each child MAY independently exceed its own child-level `budget` (§10.6); that is a per-step
-  overrun like any other. But once the shared, run-level ceiling is reached, every agent step
-  currently drawing on that pool MUST stop at the next point it would report consumption and raise
-  `budget_exceeded`, naming the run — an implementation MUST NOT let some continue past the ceiling
-  while others have already stopped. Resuming this shared overrun is addressed per branch, per
-  §11.3; §10.6 states how one grant covers every branch it stopped.
+  overrun like any other, addressed to that child. But once the shared, run-level ceiling is
+  reached, every agent step currently drawing on that pool MUST stop at the next point it would
+  report consumption and raise `budget_exceeded`; where this happens inside a `parallel` step's
+  region, the exception is addressed to the `parallel` step itself, not to whichever child's report
+  crossed the ceiling (§10.6) — an implementation MUST NOT let some children continue past the
+  ceiling while others have already stopped.
 
 ### 9.8 Concurrency and join
 
@@ -799,8 +800,12 @@ would be wrong for the next harness bound to it.
   judgment and, where it states one, the backoff. Retry applies only to a failure the harness has
   marked retryable.
 - Exhausting `retry`'s attempts, or receiving a failure marked non-retryable, raises `harness_error`.
-- When a run resumes from `harness_error`, the same harness session MUST be used, so that session
-  state is continued (§11.7).
+- A resume from `harness_error` re-runs the step as a new agent turn on the same harness session,
+  which MUST be used so that session state is continued (§11.7).
+- A resume from `harness_error` MAY instead carry a result, validated against the step's
+  `result_schema`, in place of re-running the harness (§11.4) — the same escape hatch §10.4 gives
+  `schema_violation`, for the same reason: a harness that cannot produce a result no matter how many
+  times it is invoked would otherwise wedge the run permanently.
 
 ### 10.4 Schema violation
 
@@ -832,34 +837,55 @@ budget (§9.7). A resume from `budget_exceeded` carries a payload: a Decimal USD
 decimal places, to grant. The effective ceiling becomes
 `effective_budget(X) = X.budget + granted_budget(X)`.
 
-A run-level overrun is resumed at the step that was being entered when the ceiling was reached, but
-the grant applies to the run as a whole (§9.7): the resume address says where execution continues,
-while the exception itself says what was exceeded.
+A resume from `budget_exceeded` uses the same harness session that was running when the ceiling was
+reached, per §11.7.
 
-When a run resumes from `budget_exceeded`, the same harness session MUST be used for the agent step
-being resumed, so that session state is continued (§11.7).
+The address a resume uses depends on the scope that was exceeded and where control was:
 
-An exception raised by a child of a `parallel` step names that child's qualified name (§5.3), and
-only that child re-runs on resume; siblings that already produced a result keep it. A resume of this
-kind is therefore addressed to the child, for example `checks.audit`, never to the enclosing
-`parallel` step.
+- A **step-level** overrun — a step's own `budget` (§6.7, §6.4) reaches or exceeds its effective
+  ceiling — names that step, qualified (§5.3) if it is a `parallel` step's child, and only that step
+  re-runs on resume; every other step, sibling or not, is unaffected. A resume of this kind is
+  addressed to the step itself, for example `checks.audit`.
+- A **factory-level** overrun outside any `parallel` region names the single step that was being
+  entered when the run-level ceiling was reached; the grant applies to the run as a whole (§9.7)
+  even though the address is that one step.
+- A **factory-level** overrun reached while control is inside a `parallel` step's region is
+  different again: it is not any one child's failure, since the children only collectively draw the
+  shared pool down (§9.7). This exception names the enclosing `parallel` step itself — unqualified,
+  never a child's qualified name — and a resume is addressed there, not to any child. Every child
+  that has not yet produced a result when the region stops is included in this single block; a
+  child that already produced a result before the region stopped keeps it, untouched. A resume
+  addressed to the `parallel` step, carrying a grant, raises the run's `effective_budget` and
+  re-enters every one of its still-incomplete children together, each re-invoking its own harness
+  session per §11.7 as though individually resumed. A caller never addresses a factory-level
+  overrun to a child, even though it was a child's report that crossed the ceiling — the address
+  names the region that was spending, not the report that happened to trip it.
 
-Where a factory-level overrun stops more than one branch at once — as it does for the concurrent
-children of a `parallel` step (§9.7) — each stopped child is its own `errored` branch, addressed
-individually (§11.3). A grant recorded (§11.6) against any one of their resumes raises the run's
-`effective_budget` for the run as a whole, not for that child alone; an implementation MUST let
-every other branch stopped by the same overrun proceed once `effective_budget` covers it, without
-requiring a separate grant addressed to each. A resume addressed to a sibling already covered by an
-earlier grant MAY carry a zero grant (§11.5).
+In every case, the resume address says where execution continues, while the exception itself says
+what was exceeded; these need not be the same scope, as the factory-level cases show.
 
 ### 10.7 Expression error
 
 `expression_error` is raised when an expression (§7.7) — a `FactoryState Expression` or a
-`PromptVars Expression`, wherever either is evaluated: a `Connection`'s `when` (§6.9), a human
-step's `instructions` (§6.6), a `result` step's `value` (§6.8), an agent step's `prompt_vars`
-(§6.5), or a prompt template rendering against `PromptVars` (§9.9) — fails at evaluation or render
-time despite being well-typed. Nothing has been appended to `results` for the entry in which it is
-raised.
+`PromptVars Expression`, wherever either is evaluated — fails at evaluation or render time despite
+being well-typed. Where it is raised depends on whether the step's own `StepResult` (§9.3) has
+already been appended (§9.4) at that point, and this governs both what remains blocked and what a
+resume can supply.
+
+- **Before the step's own result exists** — an agent step's `prompt_vars` (§6.5) or prompt template
+  (§3.2.7), a human step's `instructions` (§6.6), or a `result` step's `value` (§6.8) — nothing has
+  been appended to `results` for the entry, exactly as for any other exception raised before a
+  step's own entry completes (§11.1). A resume re-attempts the entry from the start. A resume MAY
+  instead carry a result in place of re-attempting: an object validated against `result_schema` for
+  a step type that declares one (agent, human), or, for a `result` step, which declares no
+  `result_schema` (§6.4), any JSON value. Either way the supplied value is appended as the step's
+  `StepResult`, exactly as the escape hatches of §10.3 and §10.4 work.
+- **After the step's own result exists** — a `Connection`'s `when` (§6.9), evaluated once routing
+  begins (§9.4, §9.5) — the step's `StepResult` is already appended and is not reconsidered; only
+  the routing decision is missing. A resume re-evaluates the `when` list from the start. A resume
+  MAY instead carry a payload naming one `StepName` from that step's own declared `next` list, taken
+  as the routing decision in place of re-evaluating `when`; an implementation MUST reject a payload
+  naming a target the step's `next` does not declare (§11.5).
 
 ## 11. Pause and resume
 
@@ -872,14 +898,23 @@ branch is `running`, `awaiting_input`, `errored`, or `done`.
 - A branch is `awaiting_input` at a `human` step that has not yet been resumed.
 - A branch is `errored` where an exception of any class in clause 10 has been raised and not yet
   resolved by a resume.
-- `awaiting_input` and `errored` are both **blocked**: the branch is stopped, nothing has been
-  appended to `results` for that entry, and the branch advances only on a resume (§11.3).
+- `awaiting_input` and `errored` are both **blocked**: the branch is stopped, and it advances only
+  on a resume (§11.3). For every exception class but one, nothing has been appended to `results` for
+  that entry. The one exception is `expression_error` raised evaluating a `Connection`'s `when`
+  (§10.7): there, the step's own `StepResult` was already appended before routing — the routing
+  decision is what failed, not the step's own entry.
 - A branch is `done` once it has reached a `result` step, or, inside a `parallel` step, once its
   child has produced a result.
 
 A `parallel` step with four children, one of them a `human` step still waiting, is a run with one
 `awaiting_input` branch and three `done` or `running` branches; there is no separate notion of a
 partially blocked run.
+
+A factory-level `budget_exceeded` (§10.6) reached inside a `parallel` step's region is the one
+exception to "one branch per child": every child that has not yet produced a result collapses into
+a single `errored` branch, addressed by the `parallel` step's own name rather than by any child's
+qualified name, until a resume there re-forks them back into their own running branches. A child
+that already produced a result before the region stopped keeps its own `done` branch, unaffected.
 
 ### 11.2 Derived run status
 
@@ -903,41 +938,46 @@ follows from the state of the branch it addresses, not from a mode the caller se
 A resume addressed to a step whose branch is neither `awaiting_input` nor `errored` in that run MUST
 be rejected.
 
-The address is total: it always names exactly one blocked branch. Concurrent blocks exist only as
-children of a `parallel` step, each child has a distinct name within it (§5.3), and regions do not
-nest, so no two live branches are ever blocked under the same qualified name regardless of what
-blocked them.
+The address is total: it always names exactly one blocked branch — except a factory-level
+`budget_exceeded` inside a `parallel` step's region (§10.6, §11.1), whose single address, the
+`parallel` step's own name, represents every one of that region's still-incomplete children at
+once. Outside that case, concurrent blocks exist only as children of a `parallel` step, each child
+has a distinct name within it (§5.3), and regions do not nest, so no two live branches are ever
+blocked under the same qualified name regardless of what blocked them.
 
 A conforming implementation MUST document how a run id is obtained and how a blocked run at a named
 step is resumed; this specification requires no more of the mechanism than that.
 
 ### 11.4 Payloads by branch state
 
-[OPEN: see the question list — whether `harness_error` and `expression_error` should carry a resume
-payload of their own, rather than none, is unresolved. The general shape under discussion is: each
-resumable class gets an implementation-defined default reaction unless this specification states
-one, with a `result_schema`-validated result as the universal escape hatch past any of them — which
-would generalize what `schema_violation` alone currently does. The table below reflects the current,
-narrower state of the specification, not that direction.]
+Every class that can be resumed past by re-attempting can also be resumed past by supplying the
+value the automatic path would otherwise have produced: `schema_violation` (§10.4), `harness_error`
+(§10.3), and `expression_error` raised before a step's own result exists (§10.7) all accept an
+override of the step's `StepResult` in place of re-attempting; `expression_error` raised evaluating
+`when`, where the step's own result already exists, instead accepts an override of the routing
+decision (§10.7). `iteration_limit` and `budget_exceeded` are different in kind — they take a grant,
+not a substitute value, since what is missing is not a result but permission to keep spending
+(§10.5, §10.6).
 
 The payload a resume carries depends on what blocked the branch:
 
-| Branch state     | Raised by          | Payload                                         | Effect                                                                          |
-| ----------------- | ------------------- | ------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `awaiting_input`  | a `human` step       | object matching `result_schema`                   | appended as the step's `StepResult`                                                |
-| `errored`         | `iteration_limit`   | integer, additional iterations                    | grant recorded (§11.6); the step is entered                                       |
-| `errored`         | `budget_exceeded`   | Decimal USD, at most two decimal places           | grant recorded (§11.6); the step is entered                                       |
-| `errored`         | `harness_error`     | none                                               | the step re-runs on the same harness session (§11.7)                              |
-| `errored`         | `schema_violation`  | none, or an object matching `result_schema`       | the step re-runs as a new agent turn; if a payload is given, that result is appended instead |
-| `errored`         | `expression_error`  | none                                                | the step is re-entered (§9.4)                                                      |
+| Branch state     | Raised by          | Payload                                                     | Effect                                                                          |
+| ----------------- | ------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `awaiting_input`  | a `human` step       | object matching `result_schema`                               | appended as the step's `StepResult`                                                |
+| `errored`         | `iteration_limit`   | integer, additional iterations                                | grant recorded (§11.6); the step is entered                                       |
+| `errored`         | `budget_exceeded`   | Decimal USD, at most two decimal places                       | grant recorded (§11.6); the step is entered                                       |
+| `errored`         | `harness_error`     | none, or an object matching `result_schema`                   | the step re-runs on the same harness session; if a payload is given, that result is appended instead (§11.7) |
+| `errored`         | `schema_violation`  | none, or an object matching `result_schema`                   | the step re-runs as a new agent turn; if a payload is given, that result is appended instead |
+| `errored`         | `expression_error`  | none, or (before the step's result exists) an object matching `result_schema`, or (routing) a `StepName` from the step's own `next` | the entry re-attempts, or the given result is appended, or the given target is routed to (§10.7) |
 
 ### 11.5 Rejected resumes
 
 A payload that does not match the row it is addressed to — an object that fails `result_schema`
-validation, a grant of the wrong type, or a resume addressed to a class it does not apply to — MUST
-be rejected at the call. The branch keeps the state it had, and nothing is appended: this is the
-same rule §10.4 states for a `human` step's invalid input, generalized to every row of the table in
-§11.4. A rejected resume is not an attempt and not a failure; the run has not moved.
+validation, a grant of the wrong type, a `StepName` not among the addressed step's own declared
+`next` targets (§10.7), or a resume addressed to a class it does not apply to — MUST be rejected at
+the call. The branch keeps the state it had, and nothing is appended: this is the same rule §10.4
+states for a `human` step's invalid input, generalized to every row of the table in §11.4. A
+rejected resume is not an attempt and not a failure; the run has not moved.
 
 A grant payload of zero is legal and is a no-op grant: the step is entered and immediately raises
 the same exception again, since its effective bound or budget is unchanged. There is deliberately no
@@ -956,6 +996,8 @@ Where clause 10 or this clause states that a resume MUST use the same harness se
 same harness session that was active for the entry being resumed, rather than starting a new one,
 so that any state the harness holds for that session (for example, prior turns of a conversation) is
 continued rather than discarded. If that is not possible, an implementation MUST reject the resume.
+Where a resume from `harness_error` or `schema_violation` instead supplies a result (§11.4), no
+harness invocation occurs and this subclause does not apply.
 
 ## 12. Resumability
 
