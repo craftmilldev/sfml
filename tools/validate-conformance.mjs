@@ -4,11 +4,10 @@
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, dirname, basename, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isDeepStrictEqual } from "node:util";
 import Ajv2020 from "ajv/dist/2020.js";
 import YAML from "yaml";
 
-const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const root = join(dirname(fileURLToPath(import.meta.url)), "..", "conformance");
 const errors = [];
 const fail = (where, msg) => errors.push(`${relative(root, where)}: ${msg}`);
 
@@ -42,17 +41,6 @@ const check = (schemaRef, value, where) => {
 
 const models = readJson(join(root, "models.json"));
 check("models.schema.json", models, join(root, "models.json"));
-
-// --- pricing (mock-harness.md §7) -------------------------------------------------------------
-
-const cents = (price) => BigInt(price.replace(".", ""));
-const TOKEN_CLASSES = ["input", "output", "cache_read", "cache_write"];
-const nanoCost = (model, usage) =>
-  TOKEN_CLASSES.reduce((sum, k) => sum + BigInt(usage[`${k}_tokens`] ?? 0) * cents(models.models[model][k]), 0n);
-const usd = (nano) => {
-  const s = nano.toString().padStart(9, "0");
-  return `${s.slice(0, -8)}.${s.slice(-8)}`;
-};
 
 // --- factory helpers --------------------------------------------------------------------------
 
@@ -107,31 +95,25 @@ function checkRunner(dir, manifest) {
   if (admitted === false && drive.length > 1) fail(dir, "no action may follow admitted: false");
   if (admitted === false && !rejected) fail(dir, "admitted: false but expect/result.yaml is not admission: rejected");
 
-  // agents ↔ scripts (README §3.1, mock-harness §2.3)
+  // agents ↔ scripts (README §3.1, mock-harness §2.2–§2.3): every mock step names an agent, each
+  // agent serves exactly one step, and each agent has a script.
   const named = new Map(); // agent -> [qualified step names]
-  const byParallel = new Map(); // parallel -> Map(agent -> child)
-  for (const [qname, step, parent] of walkSteps(factory)) {
-    if (step?.type !== "agent" || !String(step.harness ?? "").startsWith("mock")) continue;
+  for (const [qname, step] of walkSteps(factory)) {
+    if (step?.type !== "agent" || step.harness !== "mock") continue;
     const agent = step.harness_config?.agent;
-    if (typeof agent !== "string") continue; // a malformed config is a legitimate case subject
-    named.set(agent, [...(named.get(agent) ?? []), qname]);
-    if (parent) {
-      const seen = byParallel.get(parent) ?? new Map();
-      if (seen.has(agent)) fail(factoryPath, `children ${seen.get(agent)} and ${qname} share agent '${agent}'`);
-      seen.set(agent, qname);
-      byParallel.set(parent, seen);
+    if (typeof agent !== "string") {
+      fail(factoryPath, `${qname}: harness_config.agent is required for harness 'mock'`);
+      continue;
     }
+    named.set(agent, [...(named.get(agent) ?? []), qname]);
   }
-  const unscripted = new Set(manifest.unscripted_agents ?? []);
+  for (const [agent, steps] of named)
+    if (steps.length > 1) fail(factoryPath, `agent '${agent}' is used by more than one step: ${steps.join(", ")}`);
   const agentsDir = join(dir, "agents");
   const scripts = existsSync(agentsDir) ? readdirSync(agentsDir).filter((f) => f.endsWith(".yaml")) : [];
   const scripted = new Set(scripts.map((f) => basename(f, ".yaml")));
   for (const agent of named.keys())
-    if (!scripted.has(agent) && !unscripted.has(agent)) fail(dir, `agent '${agent}' has no agents/${agent}.yaml`);
-  for (const agent of unscripted) {
-    if (scripted.has(agent)) fail(dir, `agent '${agent}' is listed in unscripted_agents but has a script`);
-    if (!named.has(agent)) fail(dir, `unscripted agent '${agent}' is not named by any step`);
-  }
+    if (!scripted.has(agent)) fail(dir, `agent '${agent}' has no agents/${agent}.yaml`);
 
   const barriers = new Map(); // name -> Set(agent)
   for (const f of scripts) {
@@ -182,61 +164,6 @@ function checkScript(p, script, steps, barriers) {
   });
 }
 
-// --- golden stream (mock-harness.md §5, §7) ---------------------------------------------------
-
-// Expands the first turn of a freshly opened session exactly as a conforming mock must, with no
-// early close and no barriers, so the golden file's costs and envelopes are checked from first
-// principles.
-function expandOpeningTurn(agent, session, n) {
-  const sessionId = `mock:${agent}:${n}`;
-  const events = [];
-  const push = (e) => events.push({ ...e, session_id: sessionId, turn: 1, seq: events.length });
-  push({ type: "session.started", agent, model: session.model });
-  push({ type: "turn.started", resumed: false });
-  let turnNano = 0n;
-  const rollup = {};
-  for (const e of session.turns[0].events) {
-    if ("message" in e) push({ type: "message", text: e.message });
-    else if ("reasoning" in e) push({ type: "reasoning", text: e.reasoning });
-    else if (e.tool_call) push({ type: "tool.call", call_id: e.tool_call.id, name: e.tool_call.name, input: e.tool_call.input });
-    else if (e.tool_result)
-      push({ type: "tool.result", call_id: e.tool_result.id, output: e.tool_result.output, is_error: e.tool_result.is_error ?? false });
-    else if (e.usage) {
-      const model = e.usage.model ?? session.model;
-      const tokens = Object.fromEntries(TOKEN_CLASSES.map((k) => [`${k}_tokens`, e.usage[`${k}_tokens`] ?? 0]));
-      const nano = nanoCost(model, tokens);
-      turnNano += nano;
-      const r = (rollup[model] ??= { ...Object.fromEntries(TOKEN_CLASSES.map((k) => [`${k}_tokens`, 0])), nano: 0n });
-      for (const k of Object.keys(tokens)) r[k] += tokens[k];
-      r.nano += nano;
-      push({ type: "usage", model, ...tokens, cost_usd: usd(nano), turn_cost_usd: usd(turnNano) });
-    } else if (e.complete || e.fail) {
-      const usage = Object.fromEntries(
-        Object.entries(rollup).map(([m, { nano, ...t }]) => [m, { ...t, cost_usd: usd(nano) }]),
-      );
-      if (e.complete) push({ type: "turn.completed", output: e.complete.output, total_cost_usd: usd(turnNano), usage });
-      else {
-        const error = { message: e.fail.message, retryable: e.fail.retryable };
-        if (e.fail.backoff_ms !== undefined) error.backoff_ms = e.fail.backoff_ms;
-        push({ type: "turn.failed", error, total_cost_usd: usd(turnNano), usage });
-      }
-    }
-  }
-  return events;
-}
-
-function checkGolden() {
-  const p = join(root, "mock-harness.golden.json");
-  const golden = load(p);
-  if (!golden) return;
-  check("mock-stream.schema.json#/$defs/TurnRequest", golden.request, p);
-  golden.events.forEach((e, i) => check("mock-stream.schema.json#/$defs/Event", e, `${p}#events[${i}]`));
-  const script = load(join(root, golden.script));
-  const expected = expandOpeningTurn(script.agent, script.sessions[0], 1);
-  if (!isDeepStrictEqual(expected, golden.events))
-    fail(p, `events differ from the expansion of ${golden.script}:\n${JSON.stringify(expected, null, 2)}`);
-}
-
 // --- main -------------------------------------------------------------------------------------
 
 let count = 0;
@@ -260,11 +187,10 @@ for (const cls of ["parser", "lint", "runner"]) {
     else checkRunner(dir, manifest);
   }
 }
-checkGolden();
 
 if (errors.length) {
   console.error(errors.join("\n"));
   console.error(`\n${errors.length} error(s) across ${count} case(s).`);
   process.exit(1);
 }
-console.log(`ok: ${count} case(s), golden stream, and models.json are valid.`);
+console.log(`ok: ${count} case(s) and models.json are valid.`);

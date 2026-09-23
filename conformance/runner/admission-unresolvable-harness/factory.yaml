@@ -3,8 +3,7 @@ start: work
 steps:
   work:
     type: agent
-    harness: mock@0.2
-    harness_config: { agent: worker }
+    harness: conformance-unknown-harness
     prompt: "Do the work."
     result_schema: { type: object }
     next:

@@ -62,10 +62,15 @@ steps:
 
 ### 2.1 Harness reference
 
-The mock's harness name is `mock`. A conforming implementation MUST resolve `mock` and `mock@0.1`
-to its mock harness when running the conformance suite. It MUST NOT resolve any other version
-(`mock@0.2`, `mock@x`). A step naming another version is a case of an unresolvable harness, which
-is rejected at admission (SPEC §6.12, §9.1).
+SPEC §6.12 leaves the resolution of `<name>[@<version>]` to the implementation. So the suite never
+tests how a version string is interpreted. It uses exactly two harness reference literals:
+
+| Literal                        | Every conforming implementation MUST…                                 |
+| ------------------------------ | --------------------------------------------------------------------- |
+| `mock`                         | resolve it to its mock harness when running the conformance suite.    |
+| `conformance-unknown-harness`  | fail to resolve it, rejecting the run at admission (SPEC §9.1).       |
+
+No case writes an `@<version>` suffix on either.
 
 ### 2.2 `harness_config`
 
@@ -75,16 +80,18 @@ is rejected at admission (SPEC §6.12, §9.1).
 
 An `AgentName` matches `^[a-z0-9][a-z0-9_-]{0,63}$`, so it is always a safe file stem.
 
-TODO: make it so the agent file has to be there. Turn failures should be documented as conformance tests not implied by harness contract. If the agent file is not there, the harness should raise a harness error.
+Every agent a factory names MUST have a script in the case. The suite validator enforces this. If a
+mock is nevertheless invoked for an agent with no script, it MUST fail the turn as a non-retryable
+harness failure. The suite never relies on that path. A case that tests how failures are classified
+scripts the failure explicitly (§6.1), so the behavior under test is visible in the case data rather
+than implied by this contract.
 
-### 2.3 Agents are shared across steps, not across concurrency
+### 2.3 One agent per step
 
-Several steps MAY name the same agent. Their sessions come from that agent's one script, in the
-order the Runner opens them (§4). Two children of the same `parallel` step MUST NOT name the same
-agent: they run concurrently, so the order their sessions open in would be a race. The case
-validator (`tools/validate.mjs`) rejects such a case.
-
-TODO: This is good. Also, no agent should be used across different steps. Not sure if we want to go so far as forcing that in the code base, but it should be true.
+Each agent serves exactly one step, and each step names its own agent. So every session in an
+agent's script belongs to that one step, and two concurrent `parallel` children can never race for
+the same script. `tools/validate-conformance.mjs` rejects a factory that names one agent from two
+steps.
 
 ## 3. The async API
 

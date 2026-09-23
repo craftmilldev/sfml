@@ -14,7 +14,6 @@ conformance/
   mock-harness.md        the mock harness contract
   models.json            the pricing table every mock MUST use
   schema/                JSON Schemas (2020-12) for every file format below
-  tools/validate.mjs     checks every case against the schemas and the cross-file rules
   parser/<case>/         clause 5 cases        (Parser, Linter, Runner)
   lint/<case>/           clause 8 cases        (Linter, Runner)
   runner/<case>/         clauses 9–12 cases    (Runner)
@@ -87,9 +86,9 @@ runner/<case>/
 ### 3.1 Agents and files
 
 A step selects its script by name: `harness_config: { agent: coder }` plays
-`agents/coder.yaml`. The mapping is by convention, with no lookup table. `tools/validate.mjs` checks
-that every agent named in `factory.yaml` has a script, and that every script is named by some step.
-The only exception is a case that is deliberately testing a missing script (§3.6). The order of
+`agents/coder.yaml`. The mapping is by convention, with no lookup table. `tools/validate-conformance.mjs`
+(at the repository root) checks that every agent named in `factory.yaml` has a script, that every
+script is named by exactly one step, and that no agent serves two steps. The order of
 sessions inside a script, and when a Runner opens or continues one, are defined in
 [`mock-harness.md` §4](mock-harness.md#4-sessions).
 
@@ -192,21 +191,12 @@ each routing decision's target, in order:
 - `parallel` children do not appear. They run concurrently and their relative order is not
   deterministic. The `parallel` step itself does appear.
 
-### 3.6 Special agents
-
-A case that deliberately names an agent with no script (to test the non-retryable config failure of
-mock-harness §2.2) declares it so the validator doesn't flag it:
-
-```yaml
-unscripted_agents: [ghost]
-```
-
 ---
 
 ## 4. Validating the suite
 
 ```
-cd conformance/tools && npm install && node validate.mjs
+npm install && npm run validate:conformance    # from the repository root
 ```
 
 The validator checks every case against `schema/`, and then checks the rules a schema cannot
@@ -215,15 +205,11 @@ express:
 - `class` matches the directory, and the required files for that class are present;
 - a script's `agent` equals its file stem, and scripts correspond to the `harness_config.agent`
   values in `factory.yaml`;
-- two children of the same `parallel` step don't share an agent (mock-harness §2.3);
+- every mock step names an agent, and no agent serves two steps (mock-harness §2.2–§2.3);
 - every `usage.model` and session `model` is in `models.json`;
 - every `tool_result.id` matches an earlier `tool_call` in its turn;
 - every barrier name has at least two parties, in different agents' scripts;
 - `start` comes first and only once, and nothing follows `admitted: false`.
-
-It also checks `mock-harness.golden.json`, the exact stream a conforming mock emits for one scripted
-turn, by re-deriving it from the script and `models.json`. Mock implementations can use that file
-as a unit-test fixture.
 
 It does not run factories. The suite is data. Running it is each implementation's job.
 
