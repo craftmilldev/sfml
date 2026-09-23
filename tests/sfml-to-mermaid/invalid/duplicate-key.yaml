@@ -1,9 +1,0 @@
-sfml: "v0.1"
-start: a
-steps:
-  a:
-    type: result
-    outcome: complete
-  a:
-    type: result
-    outcome: terminal_failure

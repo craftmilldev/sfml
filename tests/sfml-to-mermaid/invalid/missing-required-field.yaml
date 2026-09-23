@@ -1,8 +1,0 @@
-sfml: "v0.1"
-start: a
-steps:
-  a:
-    type: agent
-    harness: claude-code@1
-    next:
-      - to: a
