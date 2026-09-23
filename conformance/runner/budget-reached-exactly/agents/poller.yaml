@@ -1,0 +1,27 @@
+mock: "0.1"
+agent: poller
+description: mock-small output is 5.00 USD/Mtok, so 20,000 output tokens cost exactly 0.10 USD.
+sessions:
+  - name: iteration-1
+    model: mock-small
+    turns:
+      - expect: { step: poll, prompt: "Is the deploy finished?" }
+        events:
+          - usage: { output_tokens: 20000 }          # step total 0.10
+          - complete: { output: { done: false } }
+  - name: iteration-2
+    model: mock-small
+    turns:
+      - events:
+          - usage: { output_tokens: 20000 }          # step total 0.20
+          - complete: { output: { done: false } }
+  - name: iteration-3
+    model: mock-small
+    turns:
+      - events:
+          - usage: { output_tokens: 20000 }          # step total 0.30 >= 0.30: the Runner stops here
+          - message: "never delivered: the Runner closed the stream at the report point above"
+          - complete: { output: { done: false } }
+      - events:                                     # after the 0.10 grant; the same session continues
+          - usage: { output_tokens: 10000 }          # step total 0.35 < 0.40
+          - complete: { output: { done: true } }

@@ -1,0 +1,3 @@
+status: errored
+blocked:
+  - { step: work, state: errored, exception: budget_exceeded }

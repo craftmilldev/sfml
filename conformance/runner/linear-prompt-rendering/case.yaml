@@ -1,0 +1,12 @@
+class: runner
+description: >
+  Two agent steps in sequence, then a result step. The mock checks each rendered prompt byte for
+  byte: a string value is inserted as-is, a non-string value as JSON, a single guillemet is literal
+  text, and whitespace inside the delimiters is ignored.
+clauses: ["§6.3", "§6.5", "§6.8", "§7.9", "§9.4", "§9.9"]
+drive:
+  - start:
+      parameters: { issue: "add a --verbose flag" }
+    expect:
+      admitted: true
+      status: terminal

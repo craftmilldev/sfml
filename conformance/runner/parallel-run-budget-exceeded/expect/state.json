@@ -1,0 +1,7 @@
+{
+  "parameters": {},
+  "results": {
+    "checks": [{ "lint": { "passed": true }, "test": { "failures": 0 } }],
+    "done": [{ "lint": { "passed": true }, "test": { "failures": 0 } }]
+  }
+}

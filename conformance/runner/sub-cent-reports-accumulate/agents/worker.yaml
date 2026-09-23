@@ -1,0 +1,11 @@
+mock: "0.1"
+agent: worker
+description: mock-small input is 1.00 USD/Mtok, so 4,000 input tokens cost exactly 0.004 USD.
+sessions:
+  - model: mock-small
+    turns:
+      - events:
+          - usage: { input_tokens: 4000 }   # 0.004
+          - usage: { input_tokens: 4000 }   # 0.008
+          - usage: { input_tokens: 4000 }   # 0.012 >= 0.01: the Runner stops here
+          - complete: { output: { summary: "never delivered" } }

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sfml.dev/conformance/schema/factory-state.schema.json",
+  "title": "FactoryState (SPEC §9.2)",
+  "description": "Compared by JSON value equality; object key order is insignificant, list order is significant (conformance/README.md §3.4).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["parameters", "results"],
+  "properties": {
+    "parameters": { "type": "object" },
+    "results": {
+      "type": "object",
+      "propertyNames": { "type": "string", "minLength": 1, "pattern": "^[^.]+$" },
+      "additionalProperties": { "type": "array", "minItems": 1 }
+    }
+  }
+}

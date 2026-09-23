@@ -1,0 +1,8 @@
+mock: "0.1"
+agent: local-a
+sessions:
+  - model: mock-local
+    turns:
+      - events:
+          - usage: { input_tokens: 5000000, output_tokens: 2000000, cache_read_tokens: 9000000 }
+          - complete: { output: { n: 1 } }

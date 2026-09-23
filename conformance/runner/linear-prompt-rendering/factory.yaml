@@ -1,0 +1,38 @@
+sfml: "v0.1"
+description: plan then implement
+parameters:
+  issue: { type: string }
+  priority: { type: integer, default: 2 }
+start: plan
+steps:
+  plan:
+    type: agent
+    harness: mock
+    harness_config: { agent: planner }
+    prompt_vars:
+      issue: parameters.issue
+      priority: parameters.priority
+    prompt: "Plan «this» issue: ««prompt_vars.issue»» (p««  prompt_vars.priority  »»)"
+    result_schema:
+      type: object
+      required: [plan]
+      properties: { plan: { type: string } }
+    next:
+      - to: implement
+  implement:
+    type: agent
+    harness: mock
+    harness_config: { agent: coder }
+    prompt_vars:
+      plan: last(results.plan).plan
+    prompt: "Implement: ««prompt_vars.plan»»"
+    result_schema:
+      type: object
+      required: [branch]
+      properties: { branch: { type: string } }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete
+    value: last(results.implement)

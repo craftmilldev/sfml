@@ -1,0 +1,15 @@
+mock: "0.1"
+agent: worker
+sessions:
+  - name: the-only-session
+    model: mock-medium
+    turns:
+      - expect: { step: work, prompt: "Do the work." }
+        events:
+          - message: "Checking out the repository."
+          - usage: { input_tokens: 2000 }
+          - fail: { message: "401 invalid credentials", retryable: false }
+      - events:
+          - message: "Continuing where I left off."
+          - usage: { input_tokens: 3000, output_tokens: 800 }
+          - complete: { output: { ok: true } }

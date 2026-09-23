@@ -1,0 +1,11 @@
+class: runner
+description: >
+  Every agent step runs on mock-local, which costs 0.00 USD per token. However many tokens are
+  reported, consumption stays at a measured zero. Tight step and factory budgets are never reached,
+  and the run completes (PRD success criterion 9).
+clauses: ["§9.7"]
+drive:
+  - start: {}
+    expect:
+      admitted: true
+      status: terminal

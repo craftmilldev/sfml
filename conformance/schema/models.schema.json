@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sfml.dev/conformance/schema/models.schema.json",
+  "title": "Mock model pricing table",
+  "description": "Prices in USD per 1,000,000 tokens, as decimal strings with at most two decimal places, so that token costs are exact integers of 1e-8 USD (mock-harness.md §7).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "unit", "models"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "const": "0.1" },
+    "unit": { "const": "USD per 1,000,000 tokens" },
+    "models": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/$defs/ModelName" },
+      "additionalProperties": { "$ref": "#/$defs/Pricing" }
+    }
+  },
+  "$defs": {
+    "ModelName": { "type": "string", "pattern": "^mock-[a-z0-9-]+$" },
+    "Price": { "type": "string", "pattern": "^(0|[1-9][0-9]*)\\.[0-9]{2}$" },
+    "Pricing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input", "output", "cache_read", "cache_write"],
+      "properties": {
+        "description": { "type": "string" },
+        "input": { "$ref": "#/$defs/Price" },
+        "output": { "$ref": "#/$defs/Price" },
+        "cache_read": { "$ref": "#/$defs/Price" },
+        "cache_write": { "$ref": "#/$defs/Price" }
+      }
+    }
+  }
+}

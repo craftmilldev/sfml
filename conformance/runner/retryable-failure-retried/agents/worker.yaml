@@ -1,0 +1,16 @@
+mock: "0.1"
+agent: worker
+sessions:
+  - name: the-only-session
+    model: mock-small
+    turns:
+      - expect: { step: work, prompt: "Do the work." }
+        events:
+          - usage: { input_tokens: 1000 }
+          - fail: { message: "429 rate limited", retryable: true, backoff_ms: 0 }
+      - events:
+          - usage: { input_tokens: 1000 }
+          - fail: { message: "503 overloaded", retryable: true, backoff_ms: 1 }
+      - events:
+          - usage: { input_tokens: 1000, output_tokens: 500 }
+          - complete: { output: { ok: true } }

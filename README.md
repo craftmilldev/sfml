@@ -8,6 +8,8 @@ The bet is that the factory graph will be defined in code and having a shared fo
 | ------------------ | -------------------------------------------------------------- |
 | [PRD.md](PRD.md)   | What SFML must do and what has been decided.    |
 | [SPEC.md](SPEC.md) | The specification. |
+| [conformance/](conformance/README.md) | The conformance suite (Annex B) and its file formats. |
+| [conformance/mock-harness.md](conformance/mock-harness.md) | The `mock` harness contract: async API, sessions, events, and pricing. |
 
 ## Status
 

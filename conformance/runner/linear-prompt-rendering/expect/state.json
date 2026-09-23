@@ -1,0 +1,8 @@
+{
+  "parameters": { "issue": "add a --verbose flag", "priority": 2 },
+  "results": {
+    "plan": [{ "plan": "add a --verbose flag to parse()" }],
+    "implement": [{ "branch": "feat/verbose" }],
+    "done": [{ "branch": "feat/verbose" }]
+  }
+}

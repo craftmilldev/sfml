@@ -1,0 +1,4 @@
+class: parser
+description: A step object with two `next` keys is a parse error, not "last value wins".
+clauses: ["§5.6"]
+expect: reject

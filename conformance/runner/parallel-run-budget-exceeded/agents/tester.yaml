@@ -1,0 +1,14 @@
+mock: "0.1"
+agent: tester
+description: 120,000 mock-small output tokens cost exactly 0.60 USD; 20,000 cost 0.10 USD.
+sessions:
+  - model: mock-small
+    turns:
+      - expect: { step: checks.test, prompt: "Test the branch." }
+        events:
+          - usage: { output_tokens: 120000 }
+          - barrier: reported
+          - complete: { output: { failures: 0 } }
+      - events:
+          - usage: { output_tokens: 20000 }
+          - complete: { output: { failures: 0 } }

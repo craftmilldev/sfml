@@ -1,0 +1,19 @@
+class: runner
+description: >
+  The step names agent `ghost`, which has no script. The mock answers with an immediate
+  non-retryable turn.failed and opens no session (mock-harness §2.2). So `retry: 3` does not apply,
+  and harness_error is raised after one attempt. A resume that carries a result is appended in
+  place of re-running the harness (SPEC §10.3), so the script-less agent is never invoked again.
+clauses: ["§6.10", "§10.3", "§11.4"]
+unscripted_agents: [ghost]
+drive:
+  - start: {}
+    expect:
+      admitted: true
+      status: errored
+      blocked:
+        - { step: work, state: errored, exception: harness_error }
+  - resume: { step: work, payload: { ok: true } }
+    expect:
+      accepted: true
+      status: terminal

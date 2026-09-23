@@ -1,0 +1,14 @@
+sfml: "v0.1"
+start: work
+steps:
+  work:
+    type: agent
+    harness: mock@0.2
+    harness_config: { agent: worker }
+    prompt: "Do the work."
+    result_schema: { type: object }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete

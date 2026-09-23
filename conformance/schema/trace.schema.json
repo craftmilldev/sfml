@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sfml.dev/conformance/schema/trace.schema.json",
+  "title": "Routing trace (SPEC §9.11)",
+  "description": "The path of arrivals: the start step, then each routing decision's target. Parallel children never appear (conformance/README.md §3.5).",
+  "type": "array",
+  "minItems": 1,
+  "items": { "type": "string", "minLength": 1, "pattern": "^[^.]+$" }
+}

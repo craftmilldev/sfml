@@ -1,0 +1,5 @@
+class: lint
+description: The last connection of a non-result step has a `when`, so routing is not total.
+clauses: ["§6.9", "§8.3"]
+expect:
+  diagnostics: [non-total-routing]

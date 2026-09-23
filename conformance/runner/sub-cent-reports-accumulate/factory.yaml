@@ -1,0 +1,18 @@
+sfml: "v0.1"
+start: work
+steps:
+  work:
+    type: agent
+    harness: mock
+    harness_config: { agent: worker }
+    budget: 0.01
+    prompt: "Summarize the log."
+    result_schema:
+      type: object
+      required: [summary]
+      properties: { summary: { type: string } }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete

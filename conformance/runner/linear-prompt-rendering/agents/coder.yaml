@@ -1,0 +1,15 @@
+mock: "0.1"
+agent: coder
+sessions:
+  - name: implement
+    model: mock-medium
+    turns:
+      - expect:
+          step: implement
+          prompt: "Implement: add a --verbose flag to parse()"
+        events:
+          - tool_call: { id: t1, name: edit_file, input: { path: src/cli.ts } }
+          - tool_result: { id: t1, output: "ok" }
+          - usage: { input_tokens: 15000, output_tokens: 4000 }
+          - complete:
+              output: { branch: "feat/verbose" }
