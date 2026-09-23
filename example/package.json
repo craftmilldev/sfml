@@ -2,7 +2,10 @@
   "name": "sfml-example",
   "private": true,
   "type": "module",
-  "description": "The SFML worked example (SPEC Annex C). Only the harness wrappers exist so far.",
+  "description": "The SFML worked example (SPEC Annex C): the engine (parser, linter, Runner), its harness wrappers, a CLI, and a mock-transcript stepper for embedding a run in a web page.",
+  "bin": {
+    "sfml": "dist/cli/sfml.js"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "build": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\" && tsc",
@@ -10,6 +13,7 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.3.280",
+    "ajv": "^8.17.1",
     "yaml": "^2.6.0"
   },
   "devDependencies": {

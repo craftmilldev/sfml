@@ -73,8 +73,16 @@ export class MockBackend {
   constructor(
     private readonly rows: Row[],
     private readonly statePath?: string,
+    initialState?: State,
   ) {
-    if (statePath && existsSync(statePath)) this.state = JSON.parse(readFileSync(statePath, "utf8")) as State;
+    if (initialState) this.state = initialState;
+    else if (statePath && existsSync(statePath)) this.state = JSON.parse(readFileSync(statePath, "utf8")) as State;
+  }
+
+  /** This backend's cursor/session state, for a caller with no filesystem (e.g. a browser) that
+   * wants to simulate a restart itself by passing it back as `initialState` to a new MockBackend. */
+  exportState(): State {
+    return structuredClone(this.state);
   }
 
   static fromFiles(paths: { transcript: string; state?: string }): MockBackend {
