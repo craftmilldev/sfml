@@ -206,6 +206,10 @@ A factory document is a YAML 1.2 document, encoded as UTF-8. Every value in the 
 clause 6 that is legal YAML MUST be representable in a factory document; an implementation MAY also
 accept the equivalent JSON document, since every JSON document is valid YAML.
 
+Comments carry no meaning: an implementation MUST NOT assign meaning to a comment, and a document's
+data model is the same with or without them. This specification does not require a tool that
+rewrites a factory document to preserve its comments.
+
 ### 5.2 Names and identifiers
 
 A `StepName` is a non-empty string. It MUST NOT contain `.`, which is reserved as the qualifier
@@ -239,6 +243,11 @@ A YAML or JSON mapping with a duplicate key at any level of a factory document (
 `steps` entries with the same `StepName`, or a step object with two `budget` fields) is a parse
 error. A conforming Parser MUST reject such a document rather than silently applying "last value
 wins" or any other resolution.
+
+### 5.7 Graph size
+
+This specification sets no maximum on the size of a factory. A conforming implementation MUST NOT
+reject a factory for the number of steps, connections, or `parallel` children it declares.
 
 ## 6. Data model
 
