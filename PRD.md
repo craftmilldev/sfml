@@ -709,8 +709,8 @@ quietly landing on `eng-platform`. The file says both things or it says neither.
 | Phase | Output                                                    | Status                   |
 | ----- | --------------------------------------------------------- | ------------------------ |
 | 1     | Freeze the v0.1 core field set                            | **Done** — this document |
-| 2     | Spec document with RFC-2119 language + JSON Schema        | **Next**                 |
-| 3     | **Harness contract**: the interface a harness implements  | Blocks 4 and 5           |
+| 2     | Spec document with RFC-2119 language + JSON Schema        | **Done** — at spec.md    |
+| 3     | **Harness contract**: the interface a harness implements  | **Next**                 |
 | 4     | Reference linter + `mock` harness + conformance suite     |                          |
 | 5     | One real harness binding; port two real pipelines to SFML |                          |
 | 6     | v0.1 tag; collect what v0.2 must fix                      |                          |
