@@ -1,0 +1,7 @@
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: result
+    outcome: complete
+    bogus_field: true

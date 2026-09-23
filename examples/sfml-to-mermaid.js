@@ -31,7 +31,7 @@ const ajv = new Ajv2020({
 });
 const validateFactory = ajv.compile(schema);
 
-function parseFactory(path) {
+export function parseFactory(path) {
   const bytes = readFileSync(path);
   let text;
   try {
@@ -103,7 +103,7 @@ const stepLabel = (name, step) => {
   return lines.join("<br/>");
 };
 
-function render(factory) {
+export function render(factory) {
   const lines = ["flowchart TD"];
   const classAssignments = [];
   const steps = factory.steps ?? {};
@@ -171,4 +171,8 @@ function main() {
   process.stdout.write(render(factory));
 }
 
-main();
+// Run the CLI only when this file is the program Node was invoked on, not when a test imports
+// parseFactory/render from it.
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  main();
+}
