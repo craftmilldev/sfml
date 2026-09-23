@@ -12,6 +12,10 @@ wrappers absorb the differences between harnesses.
 Every wrapper prices token counts against a price table in one shared format. None uses a
 harness's own cost estimate.
 
+Tests sit beside the code (`*.test.ts`, `node:test`). Run them with `npm test` in `example/`, or
+with `npm test` at the repository root, which also validates the conformance suite. CI runs the
+root `npm test` on every push to `main` and on every pull request.
+
 Shared pieces: `pricing.ts` (token pricing), `money.ts` (exact USD in 1e-8 units), `extract.ts`
 (fenced-JSON extraction for harnesses without native structured output).
 

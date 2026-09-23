@@ -4,7 +4,9 @@
   "type": "module",
   "description": "Tooling for the SFML specification and its conformance suite.",
   "scripts": {
-    "validate:conformance": "node tools/validate-conformance.mjs"
+    "validate:conformance": "node tools/validate-conformance.mjs",
+    "test:example": "npm --prefix example test",
+    "test": "npm run validate:conformance && npm run test:example"
   },
   "dependencies": {
     "ajv": "^8.17.1",
