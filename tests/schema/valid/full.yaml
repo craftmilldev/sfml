@@ -1,0 +1,96 @@
+# Every step type and every optional field, in one factory.
+sfml: "v0.1"
+description: implement an issue, check it, and have a person review it
+parameters:
+  issue_url: { type: string, description: the issue to implement }
+  priority: { type: string, default: p2 }
+start: plan
+budget: 20.00
+assignee: eng-platform
+
+steps:
+  plan:
+    type: agent
+    description: read the issue and produce an implementation plan
+    harness: claude@1.2
+    harness_config: { model: large, repo: { url: "https://example.com/repo.git" } }
+    budget: 1.00
+    retry: 3
+    prompt_vars:
+      issue: parameters.issue_url
+    prompt_path: prompts/plan.md
+    result_schema:
+      type: object
+      required: [plan]
+      properties: { plan: { type: string } }
+    next:
+      - to: implement
+
+  implement:
+    type: agent
+    max_iterations: 3
+    budget: 5.00
+    harness: claude
+    prompt_vars:
+      plan: last(results.plan).plan
+      prior_review: last(results.review).notes
+    prompt: |
+      Implement this plan: ««prompt_vars.plan»»
+      Reviewer notes, if any: «« prompt_vars.prior_review »»
+    result_schema:
+      type: object
+      properties: { branch: { type: string } }
+    next:
+      - to: checks
+
+  checks:
+    type: parallel
+    description: lint and test the branch concurrently
+    max_iterations: 3
+    steps:
+      lint:
+        type: agent
+        harness: claude
+        budget: 0.25
+        prompt_vars:
+          branch: last(results.implement).branch
+        prompt_path: prompts/lint.md
+        result_schema: { type: object, properties: { passed: { type: boolean } } }
+      signoff:
+        type: human
+        description: a security sign-off, in parallel with lint
+        assignee: security
+        max_iterations: 2
+        instructions: last(results.implement).branch
+        result_schema: true
+    next:
+      - to: review
+
+  review:
+    type: human
+    description: approve, request changes, or abandon
+    assignee: eng-reviewers
+    max_iterations: 3
+    instructions: last(results.implement).branch
+    result_schema:
+      type: object
+      properties:
+        approved: { type: boolean }
+        abandon: { type: boolean }
+        notes: { type: string }
+    next:
+      - when: last(results.review).approved
+        to: shipped
+      - when: last(results.review).abandon
+        to: give_up
+      - to: implement
+
+  shipped:
+    type: result
+    description: the branch is approved
+    outcome: complete
+    value: "{'branch': last(results.implement).branch}"
+
+  give_up:
+    type: result
+    outcome: terminal_failure

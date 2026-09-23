@@ -1,0 +1,12 @@
+# §6.1 Decimal USD is a number
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: agent
+    harness: h
+    prompt: go
+    result_schema: {}
+    budget: "5.00"
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

@@ -1,0 +1,5 @@
+# §6.8 outcome is complete or terminal_failure
+sfml: "v0.1"
+start: done
+steps:
+  done: { type: result, outcome: success }

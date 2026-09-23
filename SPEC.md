@@ -423,7 +423,8 @@ A `Connection` is one entry of a step's `next` list.
 ### 6.10 Retry
 
 `retry`, on an `agent` step, is an Integer: the maximum number of attempts within one entry to the
-step. It governs re-attempting a harness failure that the harness itself has classified as
+step. Where present, it MUST be at least 1, since an entry always makes at least one attempt; a
+document declaring a smaller `retry` MUST be rejected. It governs re-attempting a harness failure that the harness itself has classified as
 retryable (§10.3); an implementation MUST NOT re-attempt a failure the harness has not classified as
 retryable, regardless of `retry`. An absent `retry` means one attempt: a retryable failure on that
 single attempt raises `harness_error` (§10.3) immediately.
@@ -735,6 +736,10 @@ in declared order (§6.9) and transitions control to the target of the first `Co
 
 > On entering step `X`, if `X` has already run `max_iterations` times, the step does not start.
 
+- `max_iterations`, where present, MUST be a non-negative Integer; a document declaring a negative
+  `max_iterations` MUST be rejected. `max_iterations: 0` raises `iteration_limit` (§10.5) on
+  arrival, and, like `budget: 0.00` (§9.7), is a legitimate way to disable a step pending a grant
+  (§11.6).
 - Iterations are counted from `results.<StepName>`.
 - A retry (§6.10) is not an iteration: a failed attempt does not append to `results`, so
   `max_iterations: 3` means three iterations of the step, not three attempts at it.

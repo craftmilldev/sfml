@@ -1,0 +1,6 @@
+# §5.2 a StepName is non-empty
+sfml: "v0.1"
+start: done
+steps:
+  "": { type: result, outcome: complete }
+  done: { type: result, outcome: complete }

@@ -1,0 +1,14 @@
+# Passes the schema but fails lint: non-total-routing (§8.3), unknown-step-reference and
+# unreachable-step (§8.2, §8.4). The schema deliberately leaves graph rules to clause 8.
+sfml: "v0.1"
+start: ask
+steps:
+  ask:
+    type: human
+    result_schema: { type: object }
+    next:
+      - when: last(results.ask).ok
+        to: nowhere
+  orphan:
+    type: result
+    outcome: complete

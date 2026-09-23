@@ -1,0 +1,11 @@
+# §6.9 when is an Expression
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: agent
+    harness: h
+    prompt: go
+    result_schema: {}
+    next: [{ when: true, to: done }, { to: done }]
+  done: { type: result, outcome: complete }

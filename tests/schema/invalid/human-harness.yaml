@@ -1,0 +1,10 @@
+# §6.4 harness does not apply to human
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: human
+    result_schema: {}
+    harness: h
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

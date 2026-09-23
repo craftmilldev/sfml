@@ -1,0 +1,11 @@
+# §6.9 a step always has somewhere to go
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: agent
+    harness: h
+    prompt: go
+    result_schema: {}
+    next: []
+  done: { type: result, outcome: complete }

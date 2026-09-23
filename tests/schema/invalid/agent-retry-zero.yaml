@@ -1,0 +1,12 @@
+# §6.10 retry, where present, is at least 1
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: agent
+    harness: h
+    prompt: go
+    result_schema: {}
+    retry: 0
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

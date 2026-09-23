@@ -1,0 +1,12 @@
+# §6.4 instructions does not apply to agent
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: agent
+    harness: h
+    prompt: go
+    result_schema: {}
+    instructions: x
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

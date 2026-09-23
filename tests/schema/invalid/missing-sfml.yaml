@@ -1,0 +1,4 @@
+# §6.2 sfml is required
+start: done
+steps:
+  done: { type: result, outcome: complete }

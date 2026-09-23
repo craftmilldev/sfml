@@ -1,0 +1,11 @@
+# §6.9 to is a StepName
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: agent
+    harness: h
+    prompt: go
+    result_schema: {}
+    next: [{ to: checks.lint }]
+  done: { type: result, outcome: complete }

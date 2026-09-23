@@ -1,0 +1,5 @@
+# §6.8 outcome is required
+sfml: "v0.1"
+start: done
+steps:
+  done: { type: result }

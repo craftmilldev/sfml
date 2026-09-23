@@ -1,0 +1,12 @@
+# §6.12 harness is <name>[@<version>]
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: agent
+    harness: "h@1@2"
+    prompt: go
+    result_schema: {}
+    harness_config: {}
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

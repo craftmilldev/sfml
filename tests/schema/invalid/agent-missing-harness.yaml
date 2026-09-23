@@ -1,0 +1,10 @@
+# §6.5 harness is required
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: agent
+    prompt: go
+    result_schema: {}
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }
