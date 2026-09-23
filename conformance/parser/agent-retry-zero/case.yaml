@@ -1,0 +1,4 @@
+description: "retry, where present, is at least 1"
+clauses: ["§6.10"]
+expect:
+  parse: reject

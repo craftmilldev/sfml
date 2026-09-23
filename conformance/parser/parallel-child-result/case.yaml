@@ -1,0 +1,4 @@
+description: "a child is agent or human"
+clauses: ["§6.7"]
+expect:
+  parse: reject

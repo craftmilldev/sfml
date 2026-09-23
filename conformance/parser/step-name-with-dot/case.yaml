@@ -1,0 +1,4 @@
+description: "a StepName excludes '.'"
+clauses: ["§5.2"]
+expect:
+  parse: reject

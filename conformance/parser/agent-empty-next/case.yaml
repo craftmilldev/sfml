@@ -1,0 +1,4 @@
+description: "a step always has somewhere to go"
+clauses: ["§6.9"]
+expect:
+  parse: reject

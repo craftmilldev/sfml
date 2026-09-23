@@ -1,0 +1,4 @@
+description: "value is an Expression"
+clauses: ["§6.8"]
+expect:
+  parse: reject

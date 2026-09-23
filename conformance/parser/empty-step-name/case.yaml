@@ -1,0 +1,4 @@
+description: "a StepName is non-empty"
+clauses: ["§5.2"]
+expect:
+  parse: reject

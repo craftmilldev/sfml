@@ -1,0 +1,4 @@
+description: "Decimal USD edge values that are legal: integers, zero, and two decimal places."
+clauses: ["§9.7"]
+expect:
+  parse: accept

@@ -1,0 +1,4 @@
+description: "sfml is required"
+clauses: ["§6.2"]
+expect:
+  parse: reject

@@ -26,9 +26,9 @@ submodule) and point its test runner at it. The folder a test sits in gives its 
 
 | Folder    | Files                                                         | What the implementation does                                     |
 | --------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `parser/` | `case.yaml`, `factory.yaml` or `factory.json`                 | Parse the document; accept or reject it.                         |
-| `lint/`   | `case.yaml`, `factory.yaml`                                   | Lint the factory; report diagnostics.                            |
-| `runner/` | `case.yaml`, `factory.yaml`, and `transcript.yaml` if the factory has agent steps | Perform `actions` against the factory, with the mock playing `transcript.yaml` (mock-harness.md). |
+| `parser/` | `case.yaml`, `factory.sfml.yaml` or `factory.sfml.json`       | Parse the document; accept or reject it.                         |
+| `lint/`   | `case.yaml`, `factory.sfml.yaml`                              | Lint the factory; report diagnostics.                            |
+| `runner/` | `case.yaml`, `factory.sfml.yaml`, and `transcript.yaml` if the factory has agent steps | Perform `actions` against the factory, with the mock playing `transcript.yaml` (mock-harness.md). |
 
 Every `case.yaml` has the same frame:
 
@@ -44,10 +44,11 @@ Paths inside a test are relative to its folder. `models.json` is the only file s
 
 ```yaml
 # parser/duplicate-step-key/case.yaml
-description: A step object with two `next` keys is a parse error.
+description: A step object with two `next` keys is a parse error, not "last value wins".
 clauses: ["§5.6"]
 expect:
   parse: reject          # accept | reject
+  message: "unique"      # optional; case-insensitive regex the rejection's diagnostic must match
 ```
 
 ```yaml
@@ -58,8 +59,15 @@ expect:
   diagnostics: [non-total-routing]
 ```
 
-- A parser test's document is `factory.yaml`, or `factory.json` when the test is about JSON input
-  (SPEC §5.1). SPEC.md defines no parse diagnostics, so accept or reject is the whole output.
+- A parser test's document is `factory.sfml.yaml`, or `factory.sfml.json` when the test is about JSON input
+  (SPEC §5.1). SPEC.md defines no parse diagnostics, so `expect.parse` (accept or reject) is the
+  whole normative output.
+- `expect.message`, present only when `expect.parse: reject`, is optional: a regex, tested
+  case-insensitively against the implementation's rejection message, that pins the test to the
+  *reason* it must be rejected (SPEC.md defines no diagnostic identifiers for parse errors, so this
+  is looser than `lint`'s `diagnostics`). A consumer that only cares about accept/reject can ignore
+  it; one that wants to assert a fixture trips the right check (rather than being rejected for an
+  unrelated reason) can use it instead of hardcoding a fixture→pattern map of its own.
 - `diagnostics` is the set of §8.7 identifiers the Linter reports. Order and duplicates don't
   matter. Every listed identifier must be reported, and no other. `[]` means the factory is valid.
 
@@ -136,7 +144,7 @@ then checks what a schema can't:
 - each test has exactly the files its folder calls for;
 - transcript rows reference sessions correctly: a label's first `send` names its agent and model,
   and replies and closes only name labels that have been opened;
-- transcript agents and models match `factory.yaml` and `models.json`, and no agent serves two steps;
+- transcript agents and models match `factory.sfml.yaml` and `models.json`, and no agent serves two steps;
 - `start` is the first action and appears once, and the last action carries no `expect`.
 
 It does not run factories. Running them is each implementation's job.

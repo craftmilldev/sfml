@@ -1,0 +1,4 @@
+description: "Decimal USD is non-negative"
+clauses: ["§6.1"]
+expect:
+  parse: reject

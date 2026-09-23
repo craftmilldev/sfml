@@ -1,0 +1,4 @@
+description: "SFMLVersionString is a string"
+clauses: ["§6.1"]
+expect:
+  parse: reject

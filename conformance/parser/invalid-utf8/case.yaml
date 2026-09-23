@@ -1,0 +1,5 @@
+description: "a factory document must be UTF-8"
+clauses: ["§5.1"]
+expect:
+  parse: reject
+  message: "utf-8"

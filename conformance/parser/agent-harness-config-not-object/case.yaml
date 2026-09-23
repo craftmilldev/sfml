@@ -1,0 +1,4 @@
+description: "harness_config is a record"
+clauses: ["§6.12"]
+expect:
+  parse: reject

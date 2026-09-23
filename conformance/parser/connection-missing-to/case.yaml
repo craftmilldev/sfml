@@ -1,0 +1,4 @@
+description: "to is required"
+clauses: ["§6.9"]
+expect:
+  parse: reject

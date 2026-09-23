@@ -1,0 +1,4 @@
+description: "An equivalent JSON document is accepted, since every JSON document is valid YAML."
+clauses: ["§5.1"]
+expect:
+  parse: accept

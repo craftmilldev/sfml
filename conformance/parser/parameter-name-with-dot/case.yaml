@@ -1,0 +1,4 @@
+description: "a Name excludes '.'"
+clauses: ["§5.2"]
+expect:
+  parse: reject

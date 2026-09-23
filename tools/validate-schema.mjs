@@ -1,8 +1,11 @@
-// Checks sfml.schema.json against its fixtures: every document under tests/schema/valid/ must
-// validate, and every document under tests/schema/invalid/ must not. Exits non-zero on any miss.
-// Usage: node tools/validate-schema.mjs [factory.yaml ...] validates the named files instead.
+// Checks sfml.schema.json against the conformance suite's parser/ fixtures (conformance/parser/):
+// every test's expect.parse: accept must validate, and every expect.parse: reject must not. When a
+// test also carries expect.message, the combined rejection text must match it (case-insensitively).
+// Exits non-zero on any miss.
+// Usage: node tools/validate-schema.mjs [factory.sfml.yaml ...] validates the named files instead, with
+// no expect.parse/expect.message check — it just reports accept or reject.
 
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import Ajv2020 from "ajv/dist/2020.js";
@@ -55,17 +58,30 @@ if (args.length) {
     for (const e of errors) console.log(`       ${e}`);
   }
 } else {
-  const dir = join(root, "tests", "schema");
-  for (const expect of ["valid", "invalid"]) {
-    for (const f of readdirSync(join(dir, expect)).filter((f) => /\.(ya?ml|json)$/.test(f)).sort()) {
-      const p = join(dir, expect, f);
-      const errors = check(p);
-      const ok = expect === "valid" ? errors.length === 0 : errors.length > 0;
-      if (!ok) failed++;
-      console.log(`${ok ? "ok  " : "FAIL"} ${relative(root, p)}`);
-      if (!ok && expect === "valid") for (const e of errors) console.log(`       ${e}`);
-      if (!ok && expect === "invalid") console.log("       expected the schema to reject this document");
+  const dir = join(root, "conformance", "parser");
+  for (const name of readdirSync(dir).sort()) {
+    const testDir = join(dir, name);
+    const casePath = join(testDir, "case.yaml");
+    const testCase = YAML.parse(readFileSync(casePath, "utf8"));
+    const factoryPath = existsSync(join(testDir, "factory.sfml.yaml"))
+      ? join(testDir, "factory.sfml.yaml")
+      : join(testDir, "factory.sfml.json");
+
+    const errors = check(factoryPath);
+    const wantReject = testCase.expect.parse === "reject";
+    let ok = wantReject ? errors.length > 0 : errors.length === 0;
+
+    if (ok && wantReject && testCase.expect.message) {
+      const re = new RegExp(testCase.expect.message, "i");
+      ok = re.test(errors.join("; "));
+      if (!ok) errors.push(`expected rejection to match /${testCase.expect.message}/i, got: ${errors.join("; ")}`);
     }
+
+    if (!ok) failed++;
+    console.log(`${ok ? "ok  " : "FAIL"} ${relative(root, testDir)}`);
+    if (!ok && !wantReject) for (const e of errors) console.log(`       ${e}`);
+    if (!ok && wantReject && !errors.length) console.log("       expected the schema to reject this document");
+    if (!ok && wantReject && errors.length) for (const e of errors) console.log(`       ${e}`);
   }
 }
 

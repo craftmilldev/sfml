@@ -1,5 +1,5 @@
 // Renders an SFML factory document (SPEC.md clause 6) as a Mermaid flowchart.
-// Usage: node sfml-to-mermaid.js <path-to-factory.yaml>
+// Usage: node sfml-to-mermaid.js <path-to-factory.sfml.yaml>
 //
 // This is a conforming Parser (§4.1.1): it rejects clause 5 violations — non-UTF-8 encoding
 // (§5.1), duplicate keys (§5.6) — and validates the document against the Annex A schema
