@@ -210,6 +210,12 @@ Comments carry no meaning: an implementation MUST NOT assign meaning to a commen
 data model is the same with or without them. This specification does not require a tool that
 rewrites a factory document to preserve its comments.
 
+A factory document stored as a file SHOULD use the `.sfml` extension (for example, `checkout.sfml`),
+optionally combined with the underlying syntax as `.sfml.yaml` or `.sfml.json`. This is a naming
+recommendation, not a validity requirement: a document named with a bare `.yaml`, `.yml`, or `.json`
+extension remains a conforming factory document, and an implementation MUST NOT reject a document
+solely because of its file extension.
+
 ### 5.2 Names and identifiers
 
 A `StepName` is a non-empty string. It MUST NOT contain `.`, which is reserved as the qualifier
