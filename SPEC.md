@@ -76,8 +76,7 @@ SFML does not define:
 - RFC 8259, *The JavaScript Object Notation (JSON) Data Interchange Format*. <https://www.rfc-editor.org/rfc/rfc8259>
 - YAML 1.2, *YAML Ain't Markup Language*. <https://yaml.org/spec/1.2.2/>
 - JSON Schema, 2020-12 core and validation specifications. <https://json-schema.org/specification-links#2020-12>
-- Common Expression Language (CEL) language specification. <https://github.com/google/cel-spec/blob/master/doc/langdef.md>
-- ISO 4217, *Currency codes*. <https://www.iso.org/iso-4217-currency-codes.html>
+- Common Expression Language (CEL) language specification, v0.25.3. <https://github.com/cel-expr/cel-spec/blob/v0.25.3/doc/langdef.md>
 
 ## 3. Terms and definitions
 
@@ -421,10 +420,14 @@ retryable, regardless of `retry`. An absent `retry` means one attempt: a retryab
 single attempt raises `harness_error` (§10.3) immediately.
 
 Spacing between attempts is not an authored field: where a harness states a backoff (§10.3), an
-implementation MAY honor it and MUST NOT invent one the harness did not state.
+implementation SHOULD honor it as best practice.
 
 A failed attempt does not append to `results` (§9.3); exhausting `retry`'s attempts, or encountering
 a non-retryable failure, raises `harness_error` (§10.3).
+
+A resume from `harness_error` (§10.3) or `schema_violation` (§10.4) that re-runs the step opens a
+new entry: `retry`'s attempt count applies fresh to that entry, exactly as it did to the entry the
+exception was raised from.
 
 ### 6.11 Assignee
 
