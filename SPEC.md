@@ -44,8 +44,8 @@ SFML defines:
 - A closed set of exception classes a run can raise, and which of them are retryable (clause 10).
 - The pause-and-resume contract: branch states, resume addressing, and the payload each blocked
   state accepts (clause 11).
-- The minimum a run's recorded history must make observable, without prescribing its format
-  (clause 12).
+- That a run and its branches are resumable, after process death or a human-shaped pause, to a
+  state provably equivalent to an uninterrupted run's (clause 12).
 - The version identifier, compatibility policy, and extension points a factory file may rely on
   (clause 13).
 
@@ -108,15 +108,16 @@ A live line of control within a run. A run has exactly one branch except while c
 
 #### 3.2.5 Iteration
 
-A single traversal of a step from entry to success that is counted toward a step's `max_iterations`.
-[OPEN: see the question list — §9.4's step lifecycle speaks of "on each iteration" for the
-in-progress traversal, before success is known, which this definition (success-scoped) does not
-strictly cover.]
+A single traversal of a step from entry to success, counted toward a step's `max_iterations`. Where
+this document describes a step *entry* whose outcome is not yet known — the traversal is still in
+progress, or it ended in an exception rather than success — it says "entry" or "entering," not
+"iteration": only a successful entry is an iteration, per §9.6.
 
 #### 3.2.6 Attempt
 
-A single try at executing a step within one iteration. An attempt that fails does not append to
-`results`; an iteration may consist of several attempts when `retry` (§6.10) applies.
+A single try at executing a step within one entry. An attempt that fails does not append to
+`results`; an entry may consist of several attempts, ending in one iteration, when `retry` (§6.10)
+applies.
 
 #### 3.2.7 Prompt template
 
@@ -133,13 +134,12 @@ The person or persons, or the system, that writes a factory file.
 
 #### 3.3.2 Caller
 
-The person or system that starts a run and supplies the values bound to `parameters` (§6.3).
-
-#### 3.3.3 Operator
-
-The person or system that resumes a blocked run: supplying a human step's result, granting
-additional iterations or budget, or supplying an operator-authored result in place of a wedged
-agent step (§11.4).
+The person or system that starts a run, supplying the values bound to `parameters` (§6.3), or that
+resumes a blocked run: supplying a human step's result, granting additional iterations or budget, or
+supplying a caller-authored result in place of a wedged agent step (§11.4). This specification does
+not distinguish whoever starts a run from whoever later resumes one; both act through the same
+addressed calls (§9.1, §11.3), and a conforming implementation MAY apply its own access control to
+either without SFML's involvement.
 
 #### 3.3.4 Harness
 
@@ -187,7 +187,7 @@ constrains.
 | Implement the execution model of clause 9                             |   —    |   —    |  MUST  |
 | Raise the exception classes of clause 10 under their stated conditions|   —    |   —    |  MUST  |
 | Implement resume addressing and payloads of clause 11                 |   —    |   —    |  MUST  |
-| Satisfy the run-record requirements of clause 12                      |   —    |   —    |  MUST  |
+| Satisfy the resumability requirement of clause 12                     |   —    |   —    |  MUST  |
 
 A single piece of software MAY implement more than one conformance class. An implementation that
 claims the Runner class MUST also satisfy the Parser and Linter requirements, since a Runner MUST
@@ -318,7 +318,7 @@ against `result_schema`.
 | `prompt_path` \| `prompt` | path \| String                | yes (one of) |
 | `prompt_vars`             | Record<Name, Expression>      | no           |
 | `budget`                  | Decimal USD                   | no           |
-| `retry`                   | `{ max_attempts, backoff }`   | no           |
+| `retry`                   | Integer                       | no           |
 
 - `harness` is REQUIRED and names, per §6.12, the harness that executes the step.
 - Exactly one of `prompt_path` or `prompt` MUST be present.
@@ -337,7 +337,7 @@ against `result_schema`.
 
 ### 6.6 Human step
 
-A `human` step blocks its branch (§11.1) until an operator supplies a payload validated against
+A `human` step blocks its branch (§11.1) until a caller supplies a payload validated against
 `result_schema`.
 
 | Field          | Type                       | Required |
@@ -353,7 +353,7 @@ A `human` step blocks its branch (§11.1) until an operator supplies a payload v
 - A human step has no timeout, no escalation, and no failure mode of its own (§11.1). It either
   resumes with input that validates against `result_schema`, or it continues to wait; an input that
   does not validate is rejected at the call (§11.5) and the branch remains `awaiting_input`.
-- `max_iterations`, where present, bounds how many times the step may be crossed (§9.6); a human
+- `max_iterations`, where present, bounds the number of iterations of the step (§9.6); a human
   step MUST NOT declare `budget`, since it does not invoke a harness.
 
 ### 6.7 Parallel step
@@ -415,17 +415,17 @@ A `Connection` is one entry of a step's `next` list.
 
 ### 6.10 Retry
 
-`retry`, on an `agent` step, governs re-attempting a harness failure that the harness itself has
-classified as retryable (§10.3), for as many attempts as `max_attempts` allows within one iteration
-of the step.
+`retry`, on an `agent` step, is an Integer: the maximum number of attempts within one entry to the
+step. It governs re-attempting a harness failure that the harness itself has classified as
+retryable (§10.3); an implementation MUST NOT re-attempt a failure the harness has not classified as
+retryable, regardless of `retry`. An absent `retry` means one attempt: a retryable failure on that
+single attempt raises `harness_error` (§10.3) immediately.
 
-| Field          | Type    | Notes                                                                 |
-| -------------- | ------- | ----------------------------------------------------------------------- |
-| `max_attempts` | Integer | The maximum number of attempts within one iteration of the step.         |
-| `backoff`      | —       | How to space attempts; an implementation MAY honor a backoff the harness states and MUST NOT invent one the harness did not. |
+Spacing between attempts is not an authored field: where a harness states a backoff (§10.3), an
+implementation MAY honor it and MUST NOT invent one the harness did not state.
 
-A failed attempt does not append to `results` (§9.3); exhausting `max_attempts`, or encountering a
-non-retryable failure, raises `harness_error` (§10.3).
+A failed attempt does not append to `results` (§9.3); exhausting `retry`'s attempts, or encountering
+a non-retryable failure, raises `harness_error` (§10.3).
 
 ### 6.11 Assignee
 
@@ -512,10 +512,9 @@ parameter — and SHOULD report a type error before a run starts rather than at 
 ### 7.7 Evaluation errors
 
 An expression that is well-typed per §7.6 but fails at evaluation time (for example, indexing past
-the end of a list) is a runtime evaluation error. An implementation MUST raise an exception rather
-than silently producing a value. [OPEN: see the question list — this currently reuses
-`harness_error` (§10.3), but an evaluation error is not a harness failure and this specification may
-need to name it as its own exception class.]
+the end of a list), or a prompt template (§3.2.7) that fails to render against its evaluated
+`PromptVars`, is a runtime evaluation error. An implementation MUST raise `expression_error` (§10.7)
+rather than silently producing a value or a partial rendering.
 
 ### 7.8 Prohibited constructs
 
@@ -663,13 +662,13 @@ clause 10; rejection at admission is distinct from, and precedes, everything cla
 
 A `StepResult` is the validated result object a step produces. `last(results.review).approved` reads `approved` directly off the object the `review` step produced.
 
-A `StepResult` is appended to `results` only on the success of an iteration; a failed attempt appends
-nothing. Each step type defines how its own result is created: see §6.5 for an `agent` step, §6.6
-for a `human` step, §6.7 for a `parallel` step, and §6.8 for a `result` step.
+A `StepResult` is appended to `results` only on the success of an entry to a step (§3.2.5); a
+failed attempt appends nothing. Each step type defines how its own result is created: see §6.5 for
+an `agent` step, §6.6 for a `human` step, §6.7 for a `parallel` step, and §6.8 for a `result` step.
 
 ### 9.4 Step lifecycle
 
-On each iteration of a step, an implementation:
+On each entry to a step, an implementation:
 
 1. Checks the step's iteration bound (§9.6); if exceeded, raises `iteration_limit` (§10.5) without
    starting the step.
@@ -686,7 +685,7 @@ On each iteration of a step, an implementation:
 
 ### 9.5 Routing
 
-On a successful iteration of a non-`result` step, an implementation evaluates the step's `next` list
+On an iteration of a non-`result` step, an implementation evaluates the step's `next` list
 in declared order (§6.9) and transitions control to the target of the first `Connection` whose
 `when` is absent or evaluates to `true`. Routing always selects exactly one target.
 
@@ -719,10 +718,15 @@ appears.
   `max_iterations: 3` and `budget: 5.00` has five dollars across its three iterations. A factory's
   `budget` (§6.2) covers every agent iteration across every step in the run, and is the ceiling for
   the run as a whole. A grant, when made, is applied at whichever scope raised the exception.
-- A factory-level overrun is attributed to the run, not to any one step. Every running agent step
-  MUST stop at the next point it would report consumption. [OPEN: see the question list — whether
-  they MUST then be resumed together, as a single unit, is unresolved, and the per-branch resume
-  addressing of §11.3 does not currently express a multi-branch resume.]
+- A factory-level overrun is attributed to the run, not to any one step: the concurrent children of
+  a `parallel` step (§6.7) draw on the same run-level pool while they run, so a factory-level
+  `budget_exceeded` is a property of the pool, not of whichever child's report happened to cross it.
+  Each child MAY independently exceed its own child-level `budget` (§10.6); that is a per-step
+  overrun like any other. But once the shared, run-level ceiling is reached, every agent step
+  currently drawing on that pool MUST stop at the next point it would report consumption and raise
+  `budget_exceeded`, naming the run — an implementation MUST NOT let some continue past the ceiling
+  while others have already stopped. Resuming this shared overrun is addressed per branch, per
+  §11.3; §10.6 states how one grant covers every branch it stopped.
 
 ### 9.8 Concurrency and join
 
@@ -776,8 +780,9 @@ selecting a `Connection`.
 | `harness_error`     | The harness fails to produce a result for a reason outside the agent's own output contract.              |
 | `iteration_limit`   | Entering a step would exceed its effective iteration bound (§9.6).                                       |
 | `budget_exceeded`   | A step's reported consumption reaches or exceeds its effective budget (§9.7).                            |
+| `expression_error`  | A well-typed expression, or a prompt template, fails at evaluation or render time (§7.7).                |
 
-All four classes are resumable (clause 11). Nothing in v0.1 is inherently fatal except reaching a
+All five classes are resumable (clause 11). Nothing in v0.1 is inherently fatal except reaching a
 `result` step (§9.10).
 
 ### 10.3 Harness failure classification and retry
@@ -790,9 +795,10 @@ would be wrong for the next harness bound to it.
 - The harness classifies. A conforming harness MUST report, with each failure, whether it is
   retryable, and MAY additionally state a backoff. A rate limit is an example of a retryable
   failure; invalid credentials or a malformed `harness_config` is an example of one that is not.
-- `retry` (§6.10) supplies `max_attempts` and `backoff`; the harness supplies the retryability
-  judgment. Retry applies only to a failure the harness has marked retryable.
-- Exhausting `max_attempts`, or receiving a failure marked non-retryable, raises `harness_error`.
+- `retry` (§6.10) supplies the maximum number of attempts; the harness supplies the retryability
+  judgment and, where it states one, the backoff. Retry applies only to a failure the harness has
+  marked retryable.
+- Exhausting `retry`'s attempts, or receiving a failure marked non-retryable, raises `harness_error`.
 - When a run resumes from `harness_error`, the same harness session MUST be used, so that session
   state is continued (§11.7).
 
@@ -834,7 +840,26 @@ When a run resumes from `budget_exceeded`, the same harness session MUST be used
 being resumed, so that session state is continued (§11.7).
 
 An exception raised by a child of a `parallel` step names that child's qualified name (§5.3), and
-only that child re-runs on resume; siblings that already produced a result keep it. A resume of this kind is therefore addressed to the child, for example `checks.audit`, never to the enclosing `parallel` step.
+only that child re-runs on resume; siblings that already produced a result keep it. A resume of this
+kind is therefore addressed to the child, for example `checks.audit`, never to the enclosing
+`parallel` step.
+
+Where a factory-level overrun stops more than one branch at once — as it does for the concurrent
+children of a `parallel` step (§9.7) — each stopped child is its own `errored` branch, addressed
+individually (§11.3). A grant recorded (§11.6) against any one of their resumes raises the run's
+`effective_budget` for the run as a whole, not for that child alone; an implementation MUST let
+every other branch stopped by the same overrun proceed once `effective_budget` covers it, without
+requiring a separate grant addressed to each. A resume addressed to a sibling already covered by an
+earlier grant MAY carry a zero grant (§11.5).
+
+### 10.7 Expression error
+
+`expression_error` is raised when an expression (§7.7) — a `FactoryState Expression` or a
+`PromptVars Expression`, wherever either is evaluated: a `Connection`'s `when` (§6.9), a human
+step's `instructions` (§6.6), a `result` step's `value` (§6.8), an agent step's `prompt_vars`
+(§6.5), or a prompt template rendering against `PromptVars` (§9.9) — fails at evaluation or render
+time despite being well-typed. Nothing has been appended to `results` for the entry in which it is
+raised.
 
 ## 11. Pause and resume
 
@@ -848,7 +873,7 @@ branch is `running`, `awaiting_input`, `errored`, or `done`.
 - A branch is `errored` where an exception of any class in clause 10 has been raised and not yet
   resolved by a resume.
 - `awaiting_input` and `errored` are both **blocked**: the branch is stopped, nothing has been
-  appended to `results` for that iteration, and the branch advances only on a resume (§11.3).
+  appended to `results` for that entry, and the branch advances only on a resume (§11.3).
 - A branch is `done` once it has reached a `result` step, or, inside a `parallel` step, once its
   child has produced a result.
 
@@ -888,9 +913,12 @@ step is resumed; this specification requires no more of the mechanism than that.
 
 ### 11.4 Payloads by branch state
 
-[OPEN: see the question list — whether a resume from `harness_error` should carry a payload (either
-a message fed back to the harness, or a `result_schema`-validated result as `schema_violation`
-allows) is unresolved; the table below currently gives it none.]
+[OPEN: see the question list — whether `harness_error` and `expression_error` should carry a resume
+payload of their own, rather than none, is unresolved. The general shape under discussion is: each
+resumable class gets an implementation-defined default reaction unless this specification states
+one, with a `result_schema`-validated result as the universal escape hatch past any of them — which
+would generalize what `schema_violation` alone currently does. The table below reflects the current,
+narrower state of the specification, not that direction.]
 
 The payload a resume carries depends on what blocked the branch:
 
@@ -901,6 +929,7 @@ The payload a resume carries depends on what blocked the branch:
 | `errored`         | `budget_exceeded`   | Decimal USD, at most two decimal places           | grant recorded (§11.6); the step is entered                                       |
 | `errored`         | `harness_error`     | none                                               | the step re-runs on the same harness session (§11.7)                              |
 | `errored`         | `schema_violation`  | none, or an object matching `result_schema`       | the step re-runs as a new agent turn; if a payload is given, that result is appended instead |
+| `errored`         | `expression_error`  | none                                                | the step is re-entered (§9.4)                                                      |
 
 ### 11.5 Rejected resumes
 
@@ -924,21 +953,13 @@ A grant — additional iterations (§10.5) or additional budget (§10.6) — is 
 
 Where clause 10 or this clause states that a resume MUST use the same harness session — from
 `harness_error` (§10.3) and from `budget_exceeded` (§10.6) — a conforming Runner MUST re-invoke the
-same harness session that was active for the iteration being resumed, rather than starting a new one,
+same harness session that was active for the entry being resumed, rather than starting a new one,
 so that any state the harness holds for that session (for example, prior turns of a conversation) is
 continued rather than discarded. If that is not possible, an implementation MUST reject the resume.
 
-## 12. Run records
+## 12. Resumability
 
-[OPEN: see the question list — this clause's scope, and whether §12.1's specific observability
-requirements survive or collapse into §12.2's resume-equivalence requirement, is unresolved.]
-
-### 12.1 Observability requirements
-
-An implementation's storage mechanism for the data required to satisfy the Runner requirements
-(§4.1.3) — how it is stored, indexed, or queried — is its own business.
-
-### 12.2 Resume equivalence
+### 12.1 Resume equivalence
 
 A run MUST be resumable after process death to a state equivalent to the one it had, where
 equivalence is defined over `FactoryState` (§9.2): the same `results`, the same routing decisions,
@@ -946,22 +967,12 @@ and the same attempt counts as an uninterrupted run would have produced from the
 `StepResult`s. A run MUST also be resumable after a human-shaped pause of arbitrary duration, with
 the same equivalence guarantee.
 
-### 12.3 Operator-supplied results
-
-[OPEN: see the question list — whether this requirement belongs in this specification at all is
-unresolved.]
-
-Where a resume supplies a result in place of one a step would otherwise have produced — the
-`schema_violation` escape hatch of §10.4 — an implementation MUST record that the result was
-operator-supplied. Nothing in `StepResult` or `FactoryState` carries this distinction; the run's
-recorded history is the only place it survives.
-
-### 12.4 What is not specified
-
-Whether a run's owner may change mid-run, and by whom, is a matter for whatever identity system an
-implementation uses; this specification records nothing about it and imposes no requirement on it.
-Storage format, retention, and query interface for a run's recorded data are likewise unspecified
-beyond the capabilities of §12.1–§12.3.
+This is the whole of what this specification requires of a run's recorded history. What else an
+implementation records — observability of individual attempts, provenance of a caller-supplied
+result (§10.4), who owns a run and whether that can change — is a property of the implementation's
+own operational tooling, not of the SFML file format this specification defines, and this
+specification imposes no requirement on it. How that data is stored, indexed, or queried is
+likewise the implementation's own business.
 
 ## 13. Versioning and extensibility
 
@@ -991,19 +1002,21 @@ repository. Where it conflicts with the normative text of this document, this do
 
 ## Annex B (normative) — Conformance test suite
 
-The conformance test suite is the `conformance/` directory of this repository. It is organized into
-top-level categories by what a case exercises — `lint/` for the static checks of clause 8, `runner/`
-for the execution-model behavior of clauses 9–11, [OPEN: see the question list — a third category is
-referenced but not yet named or scoped] — each holding one subdirectory per case.
+The conformance test suite is the `conformance/` directory of this repository, organized into one
+top-level category per conformance class (§4.1): `parser/` for the document-format checks of
+clause 5, `lint/` for the static checks of clause 8, and `runner/` for the execution-model behavior
+of clauses 9–11. Each holds one subdirectory per case, and an implementation conforms with respect
+to a given class once its test suite passes every case in that class's directory — a Linter need
+not pass `runner/`, but a Runner MUST pass `parser/` and `lint/` as well as `runner/`, per §4.1.3.
 
-A case's directory supplies: the SFML file under test, valid or invalid as the case requires; for a
-`runner/` case, the `FactoryState` (§9.2) the case MUST produce, and a result file stating whether
-the case is expected to succeed or to raise a named exception (clause 10); and, where the case
-invokes an agent step, a script of canned agent messages for the mock harness to play back. A
-conforming implementation MUST supply a mock harness capable of consuming these scripts and,
-against them, reproducing the routing trace and `FactoryState` a case declares. An implementation
-conforms with respect to Annex B once its test suite passes every case in `conformance/`. The exact
-file formats are documented in `conformance/README.md`, not in this document.
+A case's directory supplies: the SFML file (or, for `parser/`, the raw document) under test, valid
+or invalid as the case requires; for a `lint/` case, the diagnostic identifier (§8.7) it MUST raise,
+if any; for a `runner/` case, the `FactoryState` (§9.2) the case MUST produce, and a result file
+stating whether the case is expected to succeed or to raise a named exception (clause 10); and,
+where the case invokes an agent step, a script of canned agent messages for the mock harness to
+play back. A conforming implementation MUST supply a mock harness capable of consuming these
+scripts and, against them, reproducing the routing trace and `FactoryState` a case declares. The
+exact file formats are documented in `conformance/README.md`, not in this document.
 
 ## Annex C (informative) — Worked example
 
