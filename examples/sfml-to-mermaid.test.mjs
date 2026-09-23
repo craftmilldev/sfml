@@ -24,7 +24,7 @@ const parserTests = readdirSync(parserDir)
   .map((name) => {
     const dir = join(parserDir, name);
     const testCase = YAML.parse(readFileSync(join(dir, "case.yaml"), "utf8"));
-    const factory = existsSync(join(dir, "factory.yaml")) ? join(dir, "factory.yaml") : join(dir, "factory.json");
+    const factory = existsSync(join(dir, "factory.sfml.yaml")) ? join(dir, "factory.sfml.yaml") : join(dir, "factory.sfml.json");
     return { name, factory, ...testCase };
   });
 
@@ -44,12 +44,12 @@ for (const { name, factory, expect } of parserTests.filter((t) => t.expect.parse
 // declares an agent (`plan`), a parallel step (`checks`, with an agent child `lint` and a human
 // child `signoff`), a human step (`review`) with two conditional edges and one fallback, and two
 // result steps (`shipped`: complete, `give_up`: terminal_failure).
-const full = join(parserDir, "full", "factory.yaml");
+const full = join(parserDir, "full", "factory.sfml.yaml");
 
 // tests/sfml-to-mermaid/full.mmd is a golden fixture: the exact, byte-for-byte mermaid full.yaml
 // must render to. A change to render()'s output — a new shape, a reordered field, different
 // escaping — is expected to change this file too; regenerate it with:
-//   node examples/sfml-to-mermaid.js conformance/parser/full/factory.yaml > tests/sfml-to-mermaid/full.mmd
+//   node examples/sfml-to-mermaid.js conformance/parser/full/factory.sfml.yaml > tests/sfml-to-mermaid/full.mmd
 // and review the diff before committing it, the same way you'd review any other fixture update.
 const fullMermaidFixture = join(here, "..", "tests", "sfml-to-mermaid", "full.mmd");
 
@@ -160,7 +160,7 @@ test("CLI writes mermaid source to stdout for a valid file", () => {
 });
 
 test("CLI exits non-zero and writes nothing to stdout for an invalid file", () => {
-  const unknownStepField = join(parserDir, "unknown-step-field", "factory.yaml");
+  const unknownStepField = join(parserDir, "unknown-step-field", "factory.sfml.yaml");
   assert.throws(() => execFileSync("node", [script, unknownStepField], { encoding: "utf8" }), (err) => {
     assert.equal(err.status, 1);
     assert.equal(err.stdout, "");

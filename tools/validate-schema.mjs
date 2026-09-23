@@ -2,7 +2,7 @@
 // every test's expect.parse: accept must validate, and every expect.parse: reject must not. When a
 // test also carries expect.message, the combined rejection text must match it (case-insensitively).
 // Exits non-zero on any miss.
-// Usage: node tools/validate-schema.mjs [factory.yaml ...] validates the named files instead, with
+// Usage: node tools/validate-schema.mjs [factory.sfml.yaml ...] validates the named files instead, with
 // no expect.parse/expect.message check — it just reports accept or reject.
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
@@ -63,9 +63,9 @@ if (args.length) {
     const testDir = join(dir, name);
     const casePath = join(testDir, "case.yaml");
     const testCase = YAML.parse(readFileSync(casePath, "utf8"));
-    const factoryPath = existsSync(join(testDir, "factory.yaml"))
-      ? join(testDir, "factory.yaml")
-      : join(testDir, "factory.json");
+    const factoryPath = existsSync(join(testDir, "factory.sfml.yaml"))
+      ? join(testDir, "factory.sfml.yaml")
+      : join(testDir, "factory.sfml.json");
 
     const errors = check(factoryPath);
     const wantReject = testCase.expect.parse === "reject";

@@ -26,9 +26,9 @@ submodule) and point its test runner at it. The folder a test sits in gives its 
 
 | Folder    | Files                                                         | What the implementation does                                     |
 | --------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `parser/` | `case.yaml`, `factory.yaml` or `factory.json`                 | Parse the document; accept or reject it.                         |
-| `lint/`   | `case.yaml`, `factory.yaml`                                   | Lint the factory; report diagnostics.                            |
-| `runner/` | `case.yaml`, `factory.yaml`, and `transcript.yaml` if the factory has agent steps | Perform `actions` against the factory, with the mock playing `transcript.yaml` (mock-harness.md). |
+| `parser/` | `case.yaml`, `factory.sfml.yaml` or `factory.sfml.json`       | Parse the document; accept or reject it.                         |
+| `lint/`   | `case.yaml`, `factory.sfml.yaml`                              | Lint the factory; report diagnostics.                            |
+| `runner/` | `case.yaml`, `factory.sfml.yaml`, and `transcript.yaml` if the factory has agent steps | Perform `actions` against the factory, with the mock playing `transcript.yaml` (mock-harness.md). |
 
 Every `case.yaml` has the same frame:
 
@@ -59,7 +59,7 @@ expect:
   diagnostics: [non-total-routing]
 ```
 
-- A parser test's document is `factory.yaml`, or `factory.json` when the test is about JSON input
+- A parser test's document is `factory.sfml.yaml`, or `factory.sfml.json` when the test is about JSON input
   (SPEC §5.1). SPEC.md defines no parse diagnostics, so `expect.parse` (accept or reject) is the
   whole normative output.
 - `expect.message`, present only when `expect.parse: reject`, is optional: a regex, tested
@@ -144,7 +144,7 @@ then checks what a schema can't:
 - each test has exactly the files its folder calls for;
 - transcript rows reference sessions correctly: a label's first `send` names its agent and model,
   and replies and closes only name labels that have been opened;
-- transcript agents and models match `factory.yaml` and `models.json`, and no agent serves two steps;
+- transcript agents and models match `factory.sfml.yaml` and `models.json`, and no agent serves two steps;
 - `start` is the first action and appears once, and the last action carries no `expect`.
 
 It does not run factories. Running them is each implementation's job.
