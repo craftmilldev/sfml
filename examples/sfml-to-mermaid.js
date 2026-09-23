@@ -1,12 +1,64 @@
 // Renders an SFML factory document (SPEC.md clause 6) as a Mermaid flowchart.
 // Usage: node sfml-to-mermaid.js <path-to-factory.yaml>
 //
-// This is an illustrative example, not a conforming Parser or Linter (§4.1): it does not reject
-// unknown fields (§5.4), duplicate keys (§5.6), or graph violations (clause 8). It assumes the
-// input already conforms to the data model of clause 6 and renders it for human review.
+// This is a conforming Parser (§4.1.1): it rejects clause 5 violations — non-UTF-8 encoding
+// (§5.1), duplicate keys (§5.6) — and validates the document against the Annex A schema
+// (sfml.schema.json) before rendering, which covers the rest of clause 5 (unknown fields, §5.4)
+// and the structural shape of clause 6 (required fields, per-type fields, `prompt`/`prompt_path`
+// exclusivity, and so on). It is not a Linter: it does not perform the graph-level checks of
+// clause 8 (reachability, totality of routing, cycle bounds) — those require walking the graph
+// and expression ASTs, not just the document's shape.
 
 import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import YAML from "yaml";
+import Ajv2020 from "ajv/dist/2020.js";
+
+const schemaPath = join(dirname(fileURLToPath(import.meta.url)), "..", "sfml.schema.json");
+const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
+
+// Matches tools/validate-schema.mjs: strictTypes/strictRequired are off because the schema's
+// if/oneOf branches use required and properties without restating type: object; validateFormats
+// is off because format is an annotation, not an assertion, in the 2020-12 metaschema that
+// result_schema and parameters reference.
+const ajv = new Ajv2020({
+  allErrors: true,
+  strict: true,
+  strictTypes: false,
+  strictRequired: false,
+  validateFormats: false,
+});
+const validateFactory = ajv.compile(schema);
+
+function parseFactory(path) {
+  const bytes = readFileSync(path);
+  let text;
+  try {
+    // §5.1: a factory document is UTF-8. `fatal: true` rejects a document containing a byte
+    // sequence that isn't, rather than silently substituting U+FFFD for it.
+    text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    throw new Error("not valid UTF-8 (§5.1)");
+  }
+
+  // §5.6: a duplicate key at any level is a parse error, not "last value wins".
+  const doc = YAML.parseDocument(text, { uniqueKeys: true });
+  if (doc.errors.length) {
+    throw new Error(doc.errors.map((e) => e.message).join("; "));
+  }
+  const factory = doc.toJS();
+
+  // Annex A: structural shape of clause 6, including unknown-field rejection (§5.4).
+  if (!validateFactory(factory)) {
+    const detail = validateFactory.errors
+      .map((e) => `${e.instancePath || "/"} ${e.message}`)
+      .join("; ");
+    throw new Error(`does not conform to the SFML v0.1 data model (Annex A): ${detail}`);
+  }
+
+  return factory;
+}
 
 const STEP_CLASS = {
   agent: "agentStep",
@@ -110,15 +162,9 @@ function main() {
 
   let factory;
   try {
-    const text = readFileSync(path, "utf8");
-    factory = YAML.parse(text);
+    factory = parseFactory(path);
   } catch (e) {
-    console.error(`Failed to read/parse ${path}: ${e.message}`);
-    process.exit(1);
-  }
-
-  if (!factory || typeof factory !== "object" || !factory.start || !factory.steps) {
-    console.error(`${path} does not look like a factory document: missing 'start' or 'steps'.`);
+    console.error(`${path}: ${e.message}`);
     process.exit(1);
   }
 
