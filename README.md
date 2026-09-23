@@ -19,7 +19,7 @@ Linter. To check a factory file against the schema:
 
 ```sh
 npm install
-node tools/validate-schema.mjs path/to/factory.sfml.yaml
+node tools/validate-schema.mjs path/to/factory.sfml
 ```
 
 `npm run validate:schema` runs the schema against the conformance suite's `conformance/parser/`

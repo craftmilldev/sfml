@@ -52,14 +52,14 @@ function checkFiles(dir, required, allowed) {
 }
 
 function checkParser(dir) {
-  const present = checkFiles(dir, ["case.yaml"], ["case.yaml", "factory.sfml.yaml", "factory.sfml.json"]);
-  if (present.filter((f) => f.startsWith("factory.")).length !== 1) fail(dir, "needs exactly one of factory.sfml.yaml or factory.sfml.json");
+  const present = checkFiles(dir, ["case.yaml"], ["case.yaml", "factory.sfml", "factory.sfml.json"]);
+  if (present.filter((f) => f.startsWith("factory.")).length !== 1) fail(dir, "needs exactly one of factory.sfml or factory.sfml.json");
   // The document is deliberately not parsed: a parser test may hold one that must be rejected.
 }
 
 function checkLint(dir) {
-  checkFiles(dir, ["case.yaml", "factory.sfml.yaml"], ["case.yaml", "factory.sfml.yaml"]);
-  if (existsSync(join(dir, "factory.sfml.yaml"))) load(join(dir, "factory.sfml.yaml"));
+  checkFiles(dir, ["case.yaml", "factory.sfml"], ["case.yaml", "factory.sfml"]);
+  if (existsSync(join(dir, "factory.sfml"))) load(join(dir, "factory.sfml"));
 }
 
 /** Yields [qualifiedName, step] for every step, parallel children included. */
@@ -71,7 +71,7 @@ function* walkSteps(factory) {
 }
 
 function checkRunner(dir, testCase) {
-  const factoryPath = join(dir, "factory.sfml.yaml");
+  const factoryPath = join(dir, "factory.sfml");
   const factory = existsSync(factoryPath) ? load(factoryPath) : undefined;
 
   // Agents: mock steps name exactly { agent }, and no agent serves two steps (mock-harness.md §2).
@@ -87,7 +87,7 @@ function checkRunner(dir, testCase) {
     agents.set(config.agent, name);
   }
 
-  const files = ["case.yaml", "factory.sfml.yaml", ...(agents.size > 0 && testCase.expect?.admitted !== false ? ["transcript.yaml"] : [])];
+  const files = ["case.yaml", "factory.sfml", ...(agents.size > 0 && testCase.expect?.admitted !== false ? ["transcript.yaml"] : [])];
   checkFiles(dir, files, files);
   const transcriptPath = join(dir, "transcript.yaml");
   if (files.includes("transcript.yaml") && existsSync(transcriptPath)) checkTranscript(transcriptPath, agents);
@@ -116,7 +116,7 @@ function checkTranscript(path, agents) {
       const known = sessions.get(session);
       if (!known) {
         if (!agent || !model) return fail(path, `${at}: the first send of '${session}' needs agent and model`);
-        if (!agents.has(agent)) fail(path, `${at}: agent '${agent}' is not named by any mock step in factory.sfml.yaml`);
+        if (!agents.has(agent)) fail(path, `${at}: agent '${agent}' is not named by any mock step in factory.sfml`);
         if (!(model in models.models)) fail(path, `${at}: model '${model}' is not in models.json`);
         sessions.set(session, { open: true, stoppable: false });
       } else {
