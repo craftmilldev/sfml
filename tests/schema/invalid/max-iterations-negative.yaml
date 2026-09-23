@@ -1,4 +1,4 @@
-# §9.6 max_iterations counts iterations
+# §9.6 max_iterations is non-negative
 sfml: "v0.1"
 start: a
 steps:

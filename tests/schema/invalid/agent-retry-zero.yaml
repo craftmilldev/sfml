@@ -1,4 +1,4 @@
-# §6.10 retry counts attempts; absent means one
+# §6.10 retry, where present, is at least 1
 sfml: "v0.1"
 start: a
 steps:
