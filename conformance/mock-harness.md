@@ -75,12 +75,7 @@ is rejected at admission (SPEC §6.12, §9.1).
 
 An `AgentName` matches `^[a-z0-9][a-z0-9_-]{0,63}$`, so it is always a safe file stem.
 
-The mock checks `harness_config` on every invocation. The Runner passes it through unexamined
-(SPEC §6.12). If `agent` is missing or is not an `AgentName`, if `harness_config` has any other key,
-or if no script exists for the named agent, the mock MUST respond with an immediate **non-retryable**
-`turn.failed` (§5.3) costing `0`. It MUST NOT open a session or use up any script. This is the
-"malformed `harness_config`" example of SPEC §10.3 made concrete. A case can use it to test
-non-retryable classification without writing a script.
+TODO: make it so the agent file has to be there. Turn failures should be documented as conformance tests not implied by harness contract. If the agent file is not there, the harness should raise a harness error.
 
 ### 2.3 Agents are shared across steps, not across concurrency
 
@@ -89,7 +84,11 @@ order the Runner opens them (§4). Two children of the same `parallel` step MUST
 agent: they run concurrently, so the order their sessions open in would be a race. The case
 validator (`tools/validate.mjs`) rejects such a case.
 
+TODO: This is good. Also, no agent should be used across different steps. Not sure if we want to go so far as forcing that in the code base, but it should be true.
+
 ## 3. The async API
+
+TODO: Is this interface something all of the harnesses will have? My assumption has been that each harness supported will need an implementor defined wrapper to normalize. If that is true, I'm not sure if defining interfaces for the mock harness is worth it. We are looking to define the source data used in the mock-harness and then to handle comformance testing in the conformce test cases. In neither of those spots does the internal stucture of the API matter.
 
 The mock is a library object inside the implementation, not a network service. This contract
 describes its surface in language-neutral terms. Each implementation exposes it in its own
@@ -132,6 +131,8 @@ be reported clearly. No real harness takes a step name. Treat `step` as diagnost
 mock binding adds.
 
 ### 3.1 How the pieces map to real harnesses (informative)
+
+TODO: Probs not something we need in this document.
 
 | Mock                           | Claude Agent SDK                     | Codex SDK                          | Pi                                   | Hermes Agent                         |
 | ------------------------------ | ------------------------------------ | ---------------------------------- | ------------------------------------ | ------------------------------------ |
@@ -283,9 +284,14 @@ Failed turns cost money too. Every `usage` event counts toward consumption, whet
 Each named agent has one script file, `agents/<agent>.yaml`, in the case directory. The file stem is
 the agent's name.
 
+TODO: should `mock: "0.1"` be `mock: "v0.1"`? Should the version be tied to the spec version at all or is the mock schema is own version?
+
+TODO: How is `expect` supposed to be used? I see how the prompt could be used, but not the step. Are we saying that a harness should throw a `harness_expception` is the prompt text is not right? This makes some sense to me.
+
+TODO: Events are often going to be pretty light. The example is a bit hard to parse. How does this connect to user and system messages. This feels like its both too verbose (do we care about testing different message types?) and too terse (each line means so much with so little).
+
 ```yaml
 mock: "0.1"          # script format version
-agent: coder         # MUST equal the file stem
 sessions:
   - name: first-pass          # optional label, unique within the file; used in fault messages
     model: mock-medium        # default model for this session's usage events
@@ -310,6 +316,8 @@ sessions:
 ```
 
 ### 6.1 Script events
+
+TODO: What is the min set we need here?
 
 Each scripted event is a map with exactly one key, which names its kind.
 
@@ -338,6 +346,8 @@ that doesn't both conform.
 
 ### 6.3 Expectations
 
+TODO: Not sure how step gets in. Not sure it should. Per exceptation_mismatch, I think we are saying this is a non-retryable harness_exception. Is that right?
+
 A turn MAY have an `expect` block. The mock checks it against the `TurnRequest` before emitting any
 event:
 
@@ -351,6 +361,8 @@ sends on a retry or a re-run, and SPEC §10.4 encourages adding validator feedba
 SHOULD appear only on the first turn of a session.
 
 ### 6.4 Barriers
+
+TODO: One problem with this way of thinking is that tests to are checking that an implemenation stops when a check happens are being helped here. What this seems to be showing is that a parallel step has a series of agent messages that should be delivered in a set order. Maybe we need a file that can handle that. This could be a huge change to how agent files work or just a split on parallel. Once version of the world I could see is one where there is a single agent file of messages. Each row is a single message naming if its sent or returned and which agents/agent-session returns it. A connection would be open for a single agent as long as a sent message has not has a return message.
 
 A `barrier: <name>` event fixes an order across concurrent streams when a case's outcome would
 otherwise depend on timing. The one case in v0.1 that needs it is a factory-level budget crossed
@@ -451,6 +463,8 @@ A `tool_result` whose `id` has no matching `tool_call`, and a barrier with only 
 `script_invalid`.
 
 ## 10. Versioning
+
+TODO: Note my confusion above on this. That is becuase 0.1 is being used.
 
 The mock contract is versioned separately from SFML. Agent scripts declare `mock: "0.1"`. A mock
 implementation MUST reject a script declaring a version it does not support, with a `script_invalid`
