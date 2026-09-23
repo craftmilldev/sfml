@@ -1,0 +1,31 @@
+flowchart TD
+  __start__(("start"))
+  __start__ --> plan
+  plan["plan<br/>agent: claude@1.2"]
+  implement["implement<br/>agent: claude"]
+  subgraph checks ["checks (parallel)"]
+    direction TB
+    checks__lint["lint<br/>agent: claude"]
+    checks__signoff[/"signoff<br/>human: security"/]
+  end
+  review[/"review<br/>human: eng-reviewers"/]
+  shipped(["shipped<br/>result: complete"])
+  give_up(["give_up<br/>result: terminal_failure"])
+  plan --> implement
+  implement --> checks
+  checks --> review
+  review -->|"last(results.review).approved"| shipped
+  review -->|"last(results.review).abandon"| give_up
+  review --> implement
+  classDef agentStep fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a;
+  classDef humanStep fill:#fef3c7,stroke:#b45309,color:#78350f;
+  classDef parallelStep fill:#ede9fe,stroke:#6d28d9,color:#4c1d95;
+  classDef resultStep fill:#dcfce7,stroke:#15803d,color:#14532d;
+  class plan agentStep;
+  class implement agentStep;
+  class checks__lint agentStep;
+  class checks__signoff humanStep;
+  class checks parallelStep;
+  class review humanStep;
+  class shipped resultStep;
+  class give_up resultStep;

@@ -25,9 +25,12 @@ const ajv = new Ajv2020({
 });
 const validate = ajv.compile(schema);
 
+// §5.1: a factory document is UTF-8. `fatal: true` rejects a document containing a byte sequence
+// that isn't, rather than `readFileSync(p, "utf8")`'s silent substitution of U+FFFD for it.
 // Duplicate keys (§5.6) are a parse error, so they never reach the schema.
 const parse = (p) => {
-  const doc = YAML.parseDocument(readFileSync(p, "utf8"), { uniqueKeys: true });
+  const text = new TextDecoder("utf-8", { fatal: true }).decode(readFileSync(p));
+  const doc = YAML.parseDocument(text, { uniqueKeys: true });
   if (doc.errors.length) throw new Error(doc.errors.map((e) => e.message).join("; "));
   return doc.toJS();
 };

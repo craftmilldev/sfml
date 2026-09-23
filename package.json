@@ -7,7 +7,8 @@
     "validate:schema": "node tools/validate-schema.mjs",
     "validate:conformance": "node tools/validate-conformance.mjs",
     "test:example": "npm --prefix example test",
-    "test": "npm run validate:schema && npm run validate:conformance && npm run test:example"
+    "test:examples": "node --test examples/*.test.mjs",
+    "test": "npm run validate:schema && npm run validate:conformance && npm run test:example && npm run test:examples"
   },
   "dependencies": {
     "ajv": "^8.17.1",

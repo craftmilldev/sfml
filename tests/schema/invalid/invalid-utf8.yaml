@@ -1,0 +1,7 @@
+# Â§5.1 a factory document must be UTF-8
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: result
+    outcome: compÿlete
