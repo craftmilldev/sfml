@@ -1,26 +1,26 @@
-class: runner
 description: >
-  A non-retryable failure raises harness_error on the first attempt, even though `retry: 3` would
-  allow more. The Runner then dies and restarts while the step is errored. A resume with no payload
-  must continue the same session (SPEC §11.7, mock rule S3). The session id has to survive the
-  restart, because the script has only one session.
+  A non-retryable failure raises harness_error on the first attempt, although `retry: 3` would allow
+  more. The Runner dies and restarts while the step is errored. A resume with no payload re-runs the
+  step on the same session (SPEC §11.7), so the session has to survive the restart.
 clauses: ["§6.10", "§10.3", "§11.4", "§11.7", "§12.1"]
-drive:
+actions:
   - start: {}
     expect:
-      admitted: true
       status: errored
-      blocked:
-        - { step: work, state: errored, exception: harness_error }
+      blocked: [{ step: work, state: errored, exception: harness_error }]
       state: { parameters: {}, results: {} }
-      trace: ["work"]
   - restart: {}
     expect:
       status: errored
-      blocked:
-        - { step: work, state: errored, exception: harness_error }
+      blocked: [{ step: work, state: errored, exception: harness_error }]
       state: { parameters: {}, results: {} }
   - resume: { step: work }
-    expect:
-      accepted: true
-      status: terminal
+expect:
+  status: terminal
+  outcome: complete
+  value: { ok: true }
+  state:
+    parameters: {}
+    results:
+      work: [{ ok: true }]
+      done: [{ ok: true }]

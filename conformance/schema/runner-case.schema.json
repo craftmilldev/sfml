@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sfml.dev/conformance/schema/runner-case.schema.json",
+  "title": "runner/<test>/case.yaml",
+  "description": "Actions to perform, intermediate checks on them, and the end state after the last one (conformance/README.md §3).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["description", "clauses", "actions", "expect"],
+  "properties": {
+    "description": { "$ref": "common.schema.json#/$defs/Description" },
+    "clauses": { "$ref": "common.schema.json#/$defs/Clauses" },
+    "actions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/Action" } },
+    "expect": { "$ref": "#/$defs/EndState" }
+  },
+  "$defs": {
+    "Action": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start"],
+          "properties": {
+            "start": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": { "parameters": { "type": "object" } }
+            },
+            "expect": { "$ref": "#/$defs/AfterStart" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["resume"],
+          "properties": {
+            "resume": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["step"],
+              "properties": {
+                "step": { "type": "string", "minLength": 1 },
+                "payload": { "description": "Presence matters: absent means no payload; null is the JSON value null." }
+              }
+            },
+            "expect": { "$ref": "#/$defs/AfterResume" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["restart"],
+          "properties": {
+            "restart": { "type": "object", "maxProperties": 0 },
+            "expect": { "$ref": "#/$defs/Observed" }
+          }
+        }
+      ]
+    },
+
+    "ObservedFields": {
+      "type": "object",
+      "properties": {
+        "status": { "enum": ["terminal", "errored", "awaiting_input"] },
+        "blocked": { "$ref": "#/$defs/BlockedSet" },
+        "state": { "$ref": "factory-state.schema.json" }
+      }
+    },
+    "Observed": {
+      "allOf": [{ "$ref": "#/$defs/ObservedFields" }],
+      "unevaluatedProperties": false,
+      "minProperties": 1
+    },
+    "AfterStart": {
+      "allOf": [{ "$ref": "#/$defs/ObservedFields" }],
+      "unevaluatedProperties": false,
+      "minProperties": 1,
+      "properties": { "admitted": { "const": true } }
+    },
+    "AfterResume": {
+      "allOf": [{ "$ref": "#/$defs/ObservedFields" }],
+      "unevaluatedProperties": false,
+      "minProperties": 1,
+      "properties": { "accepted": { "type": "boolean" } }
+    },
+
+    "EndState": {
+      "oneOf": [
+        {
+          "title": "Rejected at admission",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["admitted"],
+          "properties": { "admitted": { "const": false } }
+        },
+        {
+          "title": "Terminal",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "outcome", "value", "state"],
+          "properties": {
+            "status": { "const": "terminal" },
+            "outcome": { "enum": ["complete", "terminal_failure"] },
+            "value": { "description": "The result step's value (SPEC §6.8)." },
+            "state": { "$ref": "factory-state.schema.json" }
+          }
+        },
+        {
+          "title": "Blocked",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "blocked", "state"],
+          "properties": {
+            "status": { "enum": ["errored", "awaiting_input"] },
+            "blocked": { "$ref": "#/$defs/BlockedSet", "minItems": 1 },
+            "state": { "$ref": "factory-state.schema.json" }
+          }
+        }
+      ]
+    },
+
+    "BlockedSet": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/Blocked" } },
+    "Blocked": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step", "state"],
+      "properties": {
+        "step": { "type": "string", "minLength": 1 },
+        "state": { "enum": ["errored", "awaiting_input"] },
+        "exception": {
+          "enum": ["schema_violation", "harness_error", "iteration_limit", "budget_exceeded", "expression_error", "routing_error"]
+        }
+      },
+      "if": { "properties": { "state": { "const": "errored" } } },
+      "then": { "required": ["exception"] },
+      "else": { "not": { "required": ["exception"] } }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+# mock-small output is 5.00 USD per million tokens: 20,000 output tokens cost exactly 0.10.
+- send: { session: poll-1, agent: poller, model: mock-small }
+- reply: { session: poll-1, usage: { output_tokens: 20000 }, result: { done: false } }   # step total 0.10
+- send: { session: poll-2, agent: poller, model: mock-small }
+- reply: { session: poll-2, usage: { output_tokens: 20000 }, result: { done: false } }   # 0.20
+- send: { session: poll-3, agent: poller, model: mock-small }
+- reply: { session: poll-3, usage: { output_tokens: 20000 }, result: { done: false } }   # 0.30: stop before the result
+- close: [poll-3]
+- send: { session: poll-3 }                                                               # after the grant: same session
+- reply: { session: poll-3, usage: { output_tokens: 10000 }, result: { done: true } }    # 0.35 of 0.40

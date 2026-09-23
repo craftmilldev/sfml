@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -144,6 +144,42 @@ test("opening a new session where the transcript expects the old one to continue
   const retried = await collect(harness.invoke(invocation("work", "worker", "Work.", signal))); // no handle: new session
   assert.equal(retried.at(-1)!.type, "failure");
   assert.equal(backend.faults.length, 1);
+});
+
+test("close: stopping at the crossing usage passes; taking the result the Runner should refuse is a fault", async () => {
+  const rows: Row[] = [
+    { send: { session: "w-1", agent: "worker", model: "mock-small" } },
+    { reply: { session: "w-1", usage: { input_tokens: 4000 }, result: { summary: "late" } } },
+    { close: ["w-1"] },
+  ];
+  const play = async (stopAtUsage: boolean) => {
+    const backend = new MockBackend(rows);
+    const stop = new AbortController();
+    for await (const e of new MockHarness(backend, prices).invoke(invocation("work", "worker", "p", stop.signal))) {
+      if (e.type === "usage" && stopAtUsage) {
+        stop.abort();
+        break;
+      }
+    }
+    return backend.verify();
+  };
+  assert.deepEqual(await play(true), []);
+  const problems = await play(false);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0]!, /took 'w-1' to its terminal outcome instead of stopping it/);
+});
+
+test("every conformance transcript loads into the backend", () => {
+  const runnerDir = fileURLToPath(new URL("../../../conformance/runner/", import.meta.url));
+  let loaded = 0;
+  for (const test of readdirSync(runnerDir)) {
+    const transcript = join(runnerDir, test, "transcript.yaml");
+    if (!existsSync(transcript)) continue;
+    const backend = MockBackend.fromFiles({ transcript });
+    assert.notDeepEqual(backend.verify(), [], `${test}: an unplayed transcript must not verify as complete`);
+    loaded++;
+  }
+  assert.ok(loaded > 0);
 });
 
 test("harness_config must be exactly { agent }", async () => {

@@ -1,0 +1,4 @@
+- send: { session: draft-1, agent: writer, model: mock-medium }
+- reply: { session: draft-1, usage: { input_tokens: 500, output_tokens: 50 }, result: { headline: "Wrong key" } }
+- send: { session: draft-1 }                                        # the retry continues the session
+- reply: { session: draft-1, usage: { input_tokens: 900, output_tokens: 40 }, result: "Title: not even an object" }

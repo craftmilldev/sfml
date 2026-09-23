@@ -1,25 +1,10 @@
 // The conformance mock's backend: a fake "API server" that plays one transcript for one whole run.
 //
-// DRAFT, written against the transcript format proposed in step 2.1 (not yet in
-// conformance/mock-harness.md). This is the mock's counterpart to `query()` plus Anthropic's servers
-// on the Claude side. Every session in a run talks to this one backend, which is why it, and not
-// the wrapper, holds the state that orders replies across agents. The wrapper (mock.ts) is
-// stateless, like the Claude wrapper.
-//
-// A transcript is the whole conversation between the Runner's harness invocations and the backend,
-// in order:
-//
-//   - send:  { session: lint-1, agent: linter, model: mock-small, prompt: "Lint it." }  # invocation → backend
-//   - reply: { session: lint-1, usage: { output_tokens: 120000 } }                       # backend → invocation
-//   - close: [lint-1, test-1]                                                            # these must be stopped
-//   - reply: { session: lint-1, result: { passed: true } }
-//
-// - `send` opens a session when its id is new (then `agent` and `model` are required) and continues
-//   it otherwise. `prompt`, when given, must equal the SFML-rendered prompt exactly. Consecutive
-//   sends are one group and may arrive in any order, which is how concurrent `parallel` children work.
-// - `reply` carries at most one `usage` and at most one terminal (`result`, `no_value`, or `error`).
-//   Like a real API, it reports tokens; pricing them is the wrapper's job.
-// - `close` waits until every listed session's stream has been stopped, or has ended.
+// Plays the transcript format of conformance/mock-harness.md §3 (send / reply / close rows). This is
+// the mock's counterpart to `query()` plus Anthropic's servers on the Claude side. Every session in
+// a run talks to this one backend, which is why it, and not the wrapper, holds the state that orders
+// replies across agents. The wrapper (mock.ts) is stateless, like the Claude wrapper. Like a real
+// API, the backend reports tokens; pricing them is the wrapper's job.
 //
 // The backend releases a row only after the consumer has finished with the previous one (it has
 // come back for the next reply, or has stopped that stream). So the Runner sees one fixed order of
@@ -78,6 +63,8 @@ type State = {
 export class MockBackend {
   private state: State = { cursor: 0, received: [], sessions: {} };
   private readonly open = new Set<string>();
+  /** Sessions whose stream ran to its terminal outcome since their last send. A close row may not name them. */
+  private readonly ranToEnd = new Set<string>();
   /** True while a reply is in flight and its consumer has not yet come back for more. */
   private delivering = false;
   private waiters: Array<() => void> = [];
@@ -119,6 +106,9 @@ export class MockBackend {
           for (const reply of replies) {
             await setImmediate();
             if (req.signal.aborted) return;
+            // Mark before handing it over: a consumer that takes the terminal reply may close this
+            // generator at the yield, so nothing after the yield is guaranteed to run.
+            if (reply.type !== "usage") this.ranToEnd.add(id);
             yield reply;
           }
           this.delivering = owesDelivery = false;
@@ -173,6 +163,7 @@ export class MockBackend {
         this.state.sessions[send.session] = { agent: req.agent, model: send.model };
       }
       this.state.received.push(i);
+      this.ranToEnd.delete(send.session);
       this.advance();
       this.notify();
       return send.session;
@@ -195,6 +186,8 @@ export class MockBackend {
       if (!row) break;
       if ("close" in row) {
         if (row.close.some((s) => this.open.has(s))) break;
+        for (const s of row.close.filter((s) => this.ranToEnd.has(s)))
+          this.faults.push(`close row ${this.state.cursor}: the Runner took '${s}' to its terminal outcome instead of stopping it`);
         this.state.cursor++;
       } else if ("send" in row) {
         let end = this.state.cursor;

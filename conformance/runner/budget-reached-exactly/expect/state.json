@@ -1,7 +1,0 @@
-{
-  "parameters": {},
-  "results": {
-    "poll": [{ "done": false }, { "done": false }, { "done": true }],
-    "finish": [{ "done": true }]
-  }
-}

@@ -1,11 +1,15 @@
-class: runner
 description: >
-  Two retryable failures, then a success, all within `retry: 3`. Every attempt continues the same
-  session (mock rule S2), so the whole entry uses exactly one scripted session. A Runner that opened
-  a new session per attempt would hit script_exhausted.
-clauses: ["§6.10", "§10.3", "§9.6"]
-drive:
+  Two retryable failures, then a success, all within `retry: 3`. Each retry continues the same
+  session.
+clauses: ["§6.10", "§10.3"]
+actions:
   - start: {}
-    expect:
-      admitted: true
-      status: terminal
+expect:
+  status: terminal
+  outcome: complete
+  value: { ok: true }
+  state:
+    parameters: {}
+    results:
+      work: [{ ok: true }]
+      done: [{ ok: true }]

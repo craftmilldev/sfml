@@ -1,0 +1,6 @@
+# mock-small input is 1.00 USD per million tokens: 4,000 input tokens cost exactly 0.004.
+- send: { session: work-1, agent: worker, model: mock-small }
+- reply: { session: work-1, usage: { input_tokens: 4000 } }                              # 0.004
+- reply: { session: work-1, usage: { input_tokens: 4000 } }                              # 0.008
+- reply: { session: work-1, usage: { input_tokens: 4000 }, result: { summary: "late" } } # 0.012: stop before the result
+- close: [work-1]

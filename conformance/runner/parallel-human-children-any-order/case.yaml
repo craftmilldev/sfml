@@ -1,34 +1,34 @@
-class: runner
 description: >
   A parallel step with two human children. Resumes arrive in reverse of declared order, with a
-  restart in between. The join waits for both. The joined result's keys follow declared order, but
-  the comparison ignores key order anyway. The terminal state is the same as for the other arrival
-  order.
+  restart in between and a rejected resume to a child that already finished. The join waits for
+  both.
 clauses: ["§5.3", "§6.6", "§6.7", "§9.8", "§11.1", "§11.2", "§11.3", "§12.1"]
-drive:
+actions:
   - start: {}
     expect:
-      admitted: true
       status: awaiting_input
       blocked:
         - { step: approvals.security, state: awaiting_input }
         - { step: approvals.design, state: awaiting_input }
   - resume: { step: approvals.security, payload: { approved: true } }
     expect:
-      accepted: true
       status: awaiting_input
-      blocked:
-        - { step: approvals.design, state: awaiting_input }
+      blocked: [{ step: approvals.design, state: awaiting_input }]
       state: { parameters: {}, results: {} }
   - restart: {}
     expect:
       status: awaiting_input
-      blocked:
-        - { step: approvals.design, state: awaiting_input }
+      blocked: [{ step: approvals.design, state: awaiting_input }]
   - resume: { step: approvals.security, payload: { approved: false } }
     expect:
       accepted: false
   - resume: { step: approvals.design, payload: { approved: true } }
-    expect:
-      accepted: true
-      status: terminal
+expect:
+  status: terminal
+  outcome: complete
+  value: { ok: true }
+  state:
+    parameters: {}
+    results:
+      approvals: [{ design: { approved: true }, security: { approved: true } }]
+      shipped: [{ ok: true }]

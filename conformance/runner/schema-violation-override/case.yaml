@@ -1,26 +1,28 @@
-class: runner
 description: >
-  With `retry: 2`, the agent returns output that fails result_schema twice on one session: the
-  first attempt, then the automatic reprompt (mock rule S2). That raises schema_violation. An
-  override that also fails result_schema is rejected at the call and changes nothing. A valid
-  override is appended as the step's result without invoking the harness (mock rule S5).
+  With `retry: 2`, the agent's output fails result_schema on both attempts (the second on the same
+  session), which raises schema_violation. An override that also fails result_schema is rejected at
+  the call and changes nothing. A valid override is appended as the step's result, with no harness
+  invocation.
 clauses: ["§6.5", "§10.4", "§11.4", "§11.5"]
-drive:
+actions:
   - start: {}
     expect:
-      admitted: true
       status: errored
-      blocked:
-        - { step: draft, state: errored, exception: schema_violation }
+      blocked: [{ step: draft, state: errored, exception: schema_violation }]
       state: { parameters: {}, results: {} }
   - resume: { step: draft, payload: { headline: "wrong key" } }
     expect:
       accepted: false
       status: errored
-      blocked:
-        - { step: draft, state: errored, exception: schema_violation }
+      blocked: [{ step: draft, state: errored, exception: schema_violation }]
       state: { parameters: {}, results: {} }
   - resume: { step: draft, payload: { title: "Hand-written title" } }
-    expect:
-      accepted: true
-      status: terminal
+expect:
+  status: terminal
+  outcome: complete
+  value: { title: "Hand-written title" }
+  state:
+    parameters: {}
+    results:
+      draft: [{ title: "Hand-written title" }]
+      done: [{ title: "Hand-written title" }]

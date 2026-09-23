@@ -1,11 +1,11 @@
-class: runner
 description: >
-  One turn reports 0.004 USD three times (4,000 mock-small input tokens each), against
-  `budget: 0.01`. Kept exactly, consumption reaches 0.012 on the third report and exceeds the budget.
-  A Runner that rounded each report to cents would keep 0.00 and never raise. The run ends blocked.
+  One turn reports 0.004 three times against `budget: 0.01`. Added exactly, consumption reaches
+  0.012 on the third report and exceeds the budget. Rounding each report to cents would keep it at
+  0.00 and never exceed. The run ends blocked.
 clauses: ["§9.7", "§10.6"]
-drive:
+actions:
   - start: {}
-    expect:
-      admitted: true
-      status: errored
+expect:
+  status: errored
+  blocked: [{ step: work, state: errored, exception: budget_exceeded }]
+  state: { parameters: {}, results: {} }

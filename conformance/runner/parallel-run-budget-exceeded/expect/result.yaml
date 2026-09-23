@@ -1,4 +1,0 @@
-outcome: complete
-value:
-  lint: { passed: true }
-  test: { failures: 0 }

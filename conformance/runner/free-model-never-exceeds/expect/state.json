@@ -1,8 +1,0 @@
-{
-  "parameters": {},
-  "results": {
-    "first": [{ "n": 1 }],
-    "second": [{ "n": 2 }],
-    "done": [{ "ok": true }]
-  }
-}

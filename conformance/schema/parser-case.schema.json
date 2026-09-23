@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sfml.dev/conformance/schema/parser-case.schema.json",
+  "title": "parser/<test>/case.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["description", "clauses", "expect"],
+  "properties": {
+    "description": { "$ref": "common.schema.json#/$defs/Description" },
+    "clauses": { "$ref": "common.schema.json#/$defs/Clauses" },
+    "expect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parse"],
+      "properties": { "parse": { "enum": ["accept", "reject"] } }
+    }
+  }
+}

@@ -1,248 +1,162 @@
 # SFML conformance suite
 
-TODO: Note, this might be going to far for how aligned we are on harness contract. Some of my comments are being cuased by jumping to makeing conformance tests before agreeing on the harness contract.
-
-This directory is the conformance test suite that SPEC.md Annex B refers to. Annex B defers the
-exact file formats to this document. The mock harness that `runner/` cases run against has its own
-contract, [`mock-harness.md`](mock-harness.md).
+This directory is the conformance suite of SPEC.md Annex B. Each test states clear inputs and the
+outputs a conforming implementation must produce from them. A test checks only outputs SPEC.md
+defines. It never checks how an implementation produces them.
 
 The key words MUST, MUST NOT, SHOULD, and MAY are used as in SPEC.md §3.1.
 
 ```
 conformance/
-  README.md              this file: suite layout and case formats
-  mock-harness.md        the mock harness contract
-  models.json            the pricing table every mock MUST use
-  schema/                JSON Schemas (2020-12) for every file format below
-  parser/<case>/         clause 5 cases        (Parser, Linter, Runner)
-  lint/<case>/           clause 8 cases        (Linter, Runner)
-  runner/<case>/         clauses 9–12 cases    (Runner)
+  README.md          this file
+  mock-harness.md    the mock harness that runner tests play back (Annex B)
+  models.json        the price table the mock uses
+  schema/            JSON Schemas (2020-12) for every file below
+  parser/<test>/     clause 5: Parser, Linter, and Runner run these
+  lint/<test>/       clause 8: Linter and Runner run these
+  runner/<test>/     clauses 9–12: Runner runs these
 ```
 
-Each class must pass its own directory and the ones before it. A Linter passes `parser/` and
-`lint/`. A Runner passes all three (SPEC §4.1.3).
+A Linter must pass `parser/` and `lint/`. A Runner must pass all three (SPEC §4.1.3).
 
-Every case directory has a `case.yaml` manifest. Its `class` field MUST match the top-level
-directory the case lives in. Its `clauses` field lists the SPEC.md clauses the case exercises, so a
-failing case points to the text it tests.
+## 1. Using the suite
 
----
+The directory is self-contained, so an implementation can vendor it (for example as a git
+submodule) and point its test runner at it. The folder a test sits in gives its type:
 
-## 1. `parser/` cases
+| Folder    | Files                                                         | What the implementation does                                     |
+| --------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `parser/` | `case.yaml`, `factory.yaml` or `factory.json`                 | Parse the document; accept or reject it.                         |
+| `lint/`   | `case.yaml`, `factory.yaml`                                   | Lint the factory; report diagnostics.                            |
+| `runner/` | `case.yaml`, `factory.yaml`, and `transcript.yaml` if the factory has agent steps | Perform `actions` against the factory, with the mock playing `transcript.yaml` (mock-harness.md). |
 
-```
-parser/<case>/
-  case.yaml
-  document.yaml      the raw document under test (bytes matter: encoding, duplicate keys)
-```
+Every `case.yaml` has the same frame:
 
 ```yaml
-class: parser
-description: A duplicate key inside a step is a parse error.
+description: What this test shows, in a sentence or two.
+clauses: ["§8.3"]      # the SPEC.md clauses it exercises
+expect: …              # the outputs to check; shape depends on the folder
+```
+
+Paths inside a test are relative to its folder. `models.json` is the only file shared across tests.
+
+## 2. `parser/` and `lint/` tests
+
+```yaml
+# parser/duplicate-step-key/case.yaml
+description: A step object with two `next` keys is a parse error.
 clauses: ["§5.6"]
-expect: reject          # accept | reject
-```
-
-The implementation parses `document.yaml` and either accepts it or rejects it, which must match
-`expect`. SPEC.md defines no parse diagnostics, so there is no identifier to compare.
-
-## 2. `lint/` cases
-
-```
-lint/<case>/
-  case.yaml
-  factory.yaml
+expect:
+  parse: reject          # accept | reject
 ```
 
 ```yaml
-class: lint
-description: The last connection of a non-result step carries a `when`.
+# lint/non-total-routing/case.yaml
+description: The last connection of a non-result step has a `when`.
 clauses: ["§8.3"]
 expect:
-  diagnostics: [non-total-routing]     # empty list = the factory is valid
+  diagnostics: [non-total-routing]
 ```
 
-`diagnostics` is the set of §8.7 identifiers the Linter MUST report. The comparison ignores order
-and duplicates. The Linter MUST report every listed identifier and no identifier that is not listed.
-A case that expects `[]` is a positive case: the Linter must accept the factory cleanly.
+- A parser test's document is `factory.yaml`, or `factory.json` when the test is about JSON input
+  (SPEC §5.1). SPEC.md defines no parse diagnostics, so accept or reject is the whole output.
+- `diagnostics` is the set of §8.7 identifiers the Linter reports. Order and duplicates don't
+  matter. Every listed identifier must be reported, and no other. `[]` means the factory is valid.
 
-## 3. `runner/` cases
-
-```
-runner/<case>/
-  case.yaml            manifest and driver script
-  factory.yaml         the SFML file under test
-  agents/<agent>.yaml  one mock script per agent named by a step's harness_config.agent
-  expect/
-    result.yaml        how the run ends: admission rejected, terminal, or still blocked
-    state.json         the FactoryState (SPEC §9.2) at the end
-    trace.json         the routing trace (SPEC §9.11) at the end
-```
-
-`agents/` is present only if the factory has agent steps. `expect/state.json` and
-`expect/trace.json` are absent when the run is rejected at admission, since such a run has no state
-(SPEC §9.1).
-
-### 3.1 Agents and files
-
-A step selects its script by name: `harness_config: { agent: coder }` plays
-`agents/coder.yaml`. The mapping is by convention, with no lookup table. `tools/validate-conformance.mjs`
-(at the repository root) checks that every agent named in `factory.yaml` has a script, that every
-script is named by exactly one step, and that no agent serves two steps. The order of
-sessions inside a script, and when a Runner opens or continues one, are defined in
-[`mock-harness.md` §4](mock-harness.md#4-sessions).
-
-### 3.2 `case.yaml`
+## 3. `runner/` tests
 
 ```yaml
-class: runner
-description: A retryable failure is retried on the same session and then succeeds.
-clauses: ["§6.10", "§10.3"]
-drive:
-  - start:
-      parameters: { issue: "add a flag" }
+# runner/budget-reached-exactly/case.yaml
+description: >
+  A step with `budget: 0.30` is exceeded by its third report of 0.10, and a grant lets it finish.
+clauses: ["§9.7", "§10.6", "§11.7"]
+actions:
+  - start: {}
     expect:
-      admitted: true
-      status: terminal
-  # …more actions…
+      status: errored
+      blocked: [{ step: poll, state: errored, exception: budget_exceeded }]
+  - resume: { step: poll, payload: 0.10 }
+expect:
+  status: terminal
+  outcome: complete
+  value: { done: true }
+  state:
+    parameters: {}
+    results:
+      poll: [{ done: false }, { done: false }, { done: true }]
+      finish: [{ done: true }]
 ```
 
-`drive` is an ordered list of **actions**. The conformance driver (the implementation's own test
-runner) performs each one. After each action it **runs to quiescence**: it waits until no branch of
-the run is `running` (SPEC §11.1). Then it checks the action's `expect`, if there is one. Every
-action is a single-key map, plus an optional `expect`.
+### 3.1 Actions
 
-| Action                                  | Meaning                                                                                                   |
-| --------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `start: { parameters }`                 | Ask for a run with these parameter values (SPEC §9.1). `parameters` defaults to `{}`. MUST be the first action, and MUST appear only once. |
-| `resume: { step, payload? }`            | Resume `(run_id, step)` (SPEC §11.3). **Whether `payload` is present matters**: an absent `payload` means "no payload"; `payload: null` means the JSON value `null` (a legal override for a `result` step, SPEC §10.7). |
-| `restart: {}`                           | Simulate process death: throw away every piece of in-memory Runner state, then reload the run from the Runner's durable storage (SPEC §12.1). The mock's play state survives (mock-harness §8). Allowed only when the run is quiescent, which is always true between actions. |
+`actions` is performed in order. After each action, the implementation waits until no branch of the
+run is `running` (SPEC §11.1) before going on.
 
-An action's `expect` MAY contain:
+| Action                        | Meaning                                                                                                   |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `start: { parameters? }`      | Ask for a run with these parameter values (SPEC §9.1). `parameters` defaults to `{}`. Always the first action, and only once. |
+| `resume: { step, payload? }`  | Resume the run at `step`, qualified for a `parallel` child (SPEC §5.3, §11.3). An absent `payload` means no payload. `payload: null` is the JSON value `null` (a valid override for a `result` step, SPEC §10.7). |
+| `restart: {}`                 | Simulate process death: discard every piece of in-memory Runner state, then reload the run from durable storage (SPEC §12.1). The mock keeps its place (mock-harness.md §4). |
 
-| Key        | For          | Meaning                                                                                                             |
-| ---------- | ------------ | ------------------------------------------------------------------------------------------------------------------- |
-| `admitted` | `start`      | `true`: a run id was minted. `false`: the run was rejected at admission (SPEC §9.1). After `false`, no action may follow. |
-| `accepted` | `resume`     | `true`: the resume was taken. `false`: it was rejected at the call (SPEC §11.3, §11.5), and the run MUST be unchanged. Defaults to `true`. |
-| `status`   | any          | Derived run status (SPEC §11.2): `errored`, `awaiting_input`, or `terminal`.                                        |
-| `blocked`  | any          | The exact set of blocked branches, as `{ step, state, exception? }`. `step` is qualified (SPEC §5.3). `state` is `errored` or `awaiting_input`. `exception` is required for `errored` and is a clause 10 class. The comparison ignores order. |
-| `state`    | any          | The whole `FactoryState` at this point, in the same format as `expect/state.json`.                                 |
-| `trace`    | any          | The whole routing trace so far, in the same format as `expect/trace.json`.                                         |
+A grant payload for `budget_exceeded` is written as a YAML number with at most two decimal places,
+for example `0.10`. It MUST be read as an exact decimal, never carried into budget arithmetic as a
+binary float.
 
-A grant payload for `budget_exceeded` is a Decimal USD (SPEC §6.1). Cases write it as a YAML number
-with at most two decimal places, such as `payload: 0.10`. A driver MUST turn it into an exact
-decimal, for example by reading the scalar's source text or by rounding the parsed float to cents,
-and MUST NOT carry a binary float into budget arithmetic.
+### 3.2 Expectations
 
-The driver MUST put a per-case timeout on running to quiescence. The suite uses **10 seconds**. A
-timeout fails the case. This is how a barrier deadlock (mock-harness §6.4) or a hung Runner shows up.
-The timeout is a test-harness guard, not SFML behavior. No case depends on elapsed time.
+The top-level `expect` states how the run stands after the last action. An action may carry its own
+`expect` for an intermediate check. The last action never does, so every state is stated once.
 
-### 3.3 `expect/result.yaml`
+| Key        | Where                  | Meaning                                                                            |
+| ---------- | ---------------------- | ---------------------------------------------------------------------------------- |
+| `admitted` | `start`, or top level  | `false`: the run was rejected at admission (SPEC §9.1). It has no run id and no state, so nothing else is expected. `true` is the default. |
+| `accepted` | a `resume`             | `false`: the resume was rejected at the call (SPEC §11.5) and the run is unchanged. `true` is the default. |
+| `status`   | anywhere               | Run status (SPEC §11.2): `terminal`, `errored`, or `awaiting_input`.               |
+| `blocked`  | anywhere               | Exactly the set of blocked branches, each `{ step, state, exception? }`. `exception` is required when `state` is `errored`. Order doesn't matter. |
+| `outcome`, `value` | top level, when `status: terminal` | The result step's outcome and value (SPEC §6.8).            |
+| `state`    | anywhere; required at top level unless `admitted: false` | The `FactoryState` (SPEC §9.2). |
 
-This is the "result file" that Annex B requires. It has exactly one of three shapes:
+`FactoryState` is compared as JSON values: object key order is ignored and list order matters.
+`results` has a key for each step that has appended a result, and no key for one that hasn't. A
+`parallel` child's results appear only inside its parent's result object. A `result` step's value
+is appended under that step's name.
 
-```yaml
-# The run was never admitted.
-admission: rejected
-```
+### 3.3 Passing
 
-```yaml
-# The run reached a result step (SPEC §9.10).
-outcome: complete            # complete | terminal_failure
-value: { branch: "feat/x" }  # the result step's value (SPEC §6.8); required
-```
-
-```yaml
-# The run is still blocked on at least one exception (it "raises a named exception").
-status: errored              # errored | awaiting_input
-blocked:
-  - { step: checks, state: errored, exception: budget_exceeded }
-```
-
-The driver checks it after the last `drive` action.
-
-### 3.4 `expect/state.json`
-
-This is the `FactoryState` of SPEC §9.2: `{ "parameters": {…}, "results": { "<StepName>": [ … ] } }`.
-
-- `parameters` holds the values after admission, including defaults.
-- `results` has a key for every step that has appended at least one `StepResult`, and no key for a
-  step that has not. A `parallel` child's results appear only inside its parent's result object
-  (SPEC §6.7), never under a key of their own. A `result` step's value is appended under that step's
-  name (SPEC §9.3).
-- The comparison is JSON value equality: object key order is ignored and numbers compare by value.
-  List order matters.
-
-### 3.5 `expect/trace.json`
-
-The routing trace (SPEC §9.11) is a JSON array of `StepName`s. It starts with `start` and then lists
-each routing decision's target, in order:
-
-```json
-["plan", "implement", "checks", "review", "implement", "checks", "review", "shipped"]
-```
-
-- Each consecutive pair is one route decision (SPEC §9.5). Arriving at a step appears once, even
-  if the arrival raised on entry (`iteration_limit`, `budget: 0.00`) and was later resumed. A
-  resume re-runs the step in the same place rather than routing into it again.
-- A resume from `routing_error` with a target payload (SPEC §10.8) records that target, just as if
-  `when` had chosen it.
-- `parallel` children do not appear. They run concurrently and their relative order is not
-  deterministic. The `parallel` step itself does appear.
-
----
+A runner test passes when every `expect` matches, the mock recorded no mismatch, and every
+transcript row was played (mock-harness.md §7). Waiting for the run to settle SHOULD time out after
+10 seconds, which fails the test. That is how a Runner that never finishes a `send` group, or never
+stops a stream a `close` row names, shows up. No test depends on elapsed time.
 
 ## 4. Validating the suite
 
-```
-npm install && npm run validate:conformance    # from the repository root
-```
+`npm run validate:conformance`, from the repository root, checks every test against `schema/`, and
+then checks what a schema can't:
 
-The validator checks every case against `schema/`, and then checks the rules a schema cannot
-express:
+- each test has exactly the files its folder calls for;
+- transcript rows reference sessions correctly: a label's first `send` names its agent and model,
+  and replies and closes only name labels that have been opened;
+- transcript agents and models match `factory.yaml` and `models.json`, and no agent serves two steps;
+- `start` is the first action and appears once, and the last action carries no `expect`.
 
-- `class` matches the directory, and the required files for that class are present;
-- a script's `agent` equals its file stem, and scripts correspond to the `harness_config.agent`
-  values in `factory.yaml`;
-- every mock step names an agent, and no agent serves two steps (mock-harness §2.2–§2.3);
-- every `usage.model` and session `model` is in `models.json`;
-- every `tool_result.id` matches an earlier `tool_call` in its turn;
-- every barrier name has at least two parties, in different agents' scripts;
-- `start` comes first and only once, and nothing follows `admitted: false`.
-
-It does not run factories. The suite is data. Running it is each implementation's job.
-
-The worked example in `example/` (SPEC Annex C) uses the same runner-case layout: `factory.yaml`,
-`agents/`, and optionally `case.yaml` and `expect/`. So it runs on the same mock and can be checked
-the same way.
+It does not run factories. Running them is each implementation's job.
 
 ## 5. Open questions for v0.1 feedback
 
-The following questions came up while defining these contracts. Each one is settled here for the
-mock only; SPEC.md is unchanged. They should be looked at again once the example implementation is
-in hand.
+These are settled for the suite only; SPEC.md is unchanged.
 
-1. **Session continuity on `schema_violation`.** SPEC §10.4 says a resume re-runs the step "as a new
-   agent turn" but, unlike §10.3, does not say "on the same harness session". Mock rule S3 requires
-   the same session. That matches S2, where automatic reprompts carry validator feedback, which only
-   makes sense inside a conversation.
-2. **Session continuity on retry attempts.** SPEC §6.10 is silent. Mock rule S2 requires the same
-   session.
-3. **Report points.** SPEC §9.7 says concurrent children stop "at the next point [they] would report
-   consumption". The mock defines the terminal event as a report point (mock-harness §5.5), so a
+1. **Session continuity beyond SPEC §11.7.** The suite requires the same session for retry
+   attempts and for re-runs after `schema_violation`, and a new session for each new entry
+   (mock-harness.md §4). SPEC.md states only the `harness_error` and `budget_exceeded` cases.
+2. **Report points.** SPEC §9.7 says concurrent children stop "at the next point [they] would report
+   consumption". The suite counts a terminal outcome as such a point (mock-harness.md §5), so a
    child with nothing more to report still stops.
-4. **Parallel children in `FactoryState`.** SPEC.md implies, but does not say, that children have no
-   `results` key of their own. §3.4 above assumes they don't.
-5. **Result steps in `results`.** SPEC §9.3 implies a `result` step appends its value. §3.4 assumes
+3. **Parallel children in `FactoryState`.** SPEC.md implies, but does not say, that children have no
+   `results` key of their own. §3.2 assumes they don't.
+4. **Result steps in `results`.** SPEC §9.3 implies a `result` step appends its value. §3.2 assumes
    it does.
-6. **Process death mid-turn.** SPEC §12.1 requires resumability after process death but does not say
-   what happens to a harness turn in flight. `restart` only happens at quiescence, so v0.1 cases
-   never test it.
-7. **Trace shape.** SPEC §9.11 defines the trace as "step entries and route decisions". §3.5 records
-   it as the path of arrivals, which carries both and has no ambiguity about re-entries after a
-   resume.
-8. **Does `retry` count schema-violation attempts?** SPEC §6.10 describes `retry` as governing
-   *harness* failures that are classified as retryable. SPEC §10.2 raises `schema_violation` once
-   "retry, where configured, has not fixed it". `runner/schema-violation-override` reads `retry: 2`
-   as two attempts in total, counting failed validations as well as harness failures.
+5. **Does `retry` count schema-violation attempts?** SPEC §6.10 describes `retry` as governing
+   harness failures; SPEC §10.2 raises `schema_violation` once "retry, where configured, has not
+   fixed it". `runner/schema-violation-override` reads `retry: 2` as two attempts in total.
+6. **Process death mid-turn.** `restart` happens only once the run has settled, so no test covers a
+   harness turn in flight at process death.

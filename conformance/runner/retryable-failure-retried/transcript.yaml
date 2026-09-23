@@ -1,0 +1,6 @@
+- send: { session: work-1, agent: worker, model: mock-small }
+- reply: { session: work-1, usage: { input_tokens: 1000 }, error: { message: "429 rate limited", retryable: true, backoff_ms: 0 } }
+- send: { session: work-1 }
+- reply: { session: work-1, usage: { input_tokens: 1000 }, error: { message: "503 overloaded", retryable: true, backoff_ms: 1 } }
+- send: { session: work-1 }
+- reply: { session: work-1, usage: { input_tokens: 1000, output_tokens: 500 }, result: { ok: true } }

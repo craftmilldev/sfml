@@ -10,7 +10,7 @@ The bet is that the factory graph will be defined in code and having a shared fo
 | [SPEC.md](SPEC.md) | The specification. |
 | [sfml.schema.json](sfml.schema.json) | JSON Schema (2020-12) for a factory document's surface syntax (SPEC Annex A). |
 | [conformance/](conformance/README.md) | The conformance suite (Annex B) and its file formats. |
-| [conformance/mock-harness.md](conformance/mock-harness.md) | The `mock` harness contract: async API, sessions, events, and pricing. |
+| [conformance/mock-harness.md](conformance/mock-harness.md) | The `mock` harness: the transcript format runner tests play back, sessions, and pricing. |
 
 ## Validating a factory
 

@@ -1,0 +1,10 @@
+# mock-small output is 5.00 USD per million tokens: 120,000 tokens cost 0.60; 20,000 cost 0.10.
+- send: { session: lint-1, agent: linter, model: mock-small }     # the two children start
+- send: { session: test-1, agent: tester, model: mock-small }     # concurrently, in either order
+- reply: { session: lint-1, usage: { output_tokens: 120000 } }    # run total 0.60
+- reply: { session: test-1, usage: { output_tokens: 120000 } }    # 1.20 >= 1.00: both stop
+- close: [lint-1, test-1]
+- send: { session: lint-1 }                                       # after the grant: each child
+- send: { session: test-1 }                                       # continues its own session
+- reply: { session: lint-1, usage: { output_tokens: 20000 }, result: { passed: true } }
+- reply: { session: test-1, usage: { output_tokens: 20000 }, result: { failures: 0 } }

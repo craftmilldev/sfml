@@ -1,7 +1,0 @@
-{
-  "parameters": {},
-  "results": {
-    "approvals": [{ "design": { "approved": true }, "security": { "approved": true } }],
-    "shipped": [{ "ok": true }]
-  }
-}

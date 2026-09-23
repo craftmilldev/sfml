@@ -1,24 +1,25 @@
-class: runner
 description: >
-  A step with `budget: 0.30` loops. Each iteration reports exactly 0.10 (20,000 mock-small output
-  tokens). The third report makes consumption equal to the budget, so the step is exceeded right at
-  that report point: the Runner closes the stream, and that entry appends nothing. A grant of 0.10
-  resumes the same session (mock rule S3). The next turn reports 0.05 and finishes, for a total of
-  0.35, under the effective budget of 0.40.
-clauses: ["§9.7", "§10.6", "§11.4", "§11.6", "§11.7"]
-drive:
+  A looping step with `budget: 0.30` reports exactly 0.10 per iteration. The third report makes
+  consumption equal to the budget, so the step is exceeded right there and that entry appends
+  nothing. A grant of 0.10 continues the same session, which reports 0.05 and finishes (0.35 of an
+  effective 0.40).
+clauses: ["§9.7", "§10.6", "§11.4", "§11.7"]
+actions:
   - start: {}
     expect:
-      admitted: true
       status: errored
-      blocked:
-        - { step: poll, state: errored, exception: budget_exceeded }
+      blocked: [{ step: poll, state: errored, exception: budget_exceeded }]
       state:
         parameters: {}
         results:
           poll: [{ done: false }, { done: false }]
-      trace: ["poll", "poll", "poll"]
   - resume: { step: poll, payload: 0.10 }
-    expect:
-      accepted: true
-      status: terminal
+expect:
+  status: terminal
+  outcome: complete
+  value: { done: true }
+  state:
+    parameters: {}
+    results:
+      poll: [{ done: false }, { done: false }, { done: true }]
+      finish: [{ done: true }]
