@@ -4,8 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,47 +26,41 @@ for (const name of fixturesIn(join(schemaTestsDir, "valid"))) {
   });
 }
 
+// Every file under tests/schema/invalid/ must be rejected. A few are also named here with the
+// pattern their rejection message must match, so a change that made parseFactory reject a fixture
+// for the *wrong* reason (or stopped invoking the §5.1/§5.4/§5.6/Annex-A path each is meant to
+// exercise) would still be caught, without a separate one-off test duplicating the same fixture.
+const expectedDiagnostic = {
+  "duplicate-step-key.yaml": /unique/i, // §5.6
+  "unknown-step-field.yaml": /unevaluated propert/i, // §5.4
+  "agent-missing-result-schema.yaml": /data model/i, // Annex A
+  "invalid-utf8.yaml": /utf-8/i, // §5.1
+};
+
 for (const name of fixturesIn(join(schemaTestsDir, "invalid"))) {
   test(`parseFactory rejects tests/schema/invalid/${name}`, () => {
-    assert.throws(() => parseFactory(invalid(name)));
+    assert.throws(() => parseFactory(invalid(name)), expectedDiagnostic[name]);
   });
 }
-
-test("parseFactory rejects a duplicate step key with a §5.6 diagnostic", () => {
-  assert.throws(() => parseFactory(invalid("duplicate-step-key.yaml")), /unique/i);
-});
-
-test("parseFactory rejects an unknown field with a §5.4 diagnostic", () => {
-  assert.throws(() => parseFactory(invalid("unknown-step-field.yaml")), /unevaluated propert/i);
-});
-
-test("parseFactory rejects a step missing a required field with an Annex A diagnostic", () => {
-  assert.throws(() => parseFactory(invalid("agent-missing-result-schema.yaml")), /data model/i);
-});
-
-test("parseFactory rejects a document that isn't valid UTF-8 (§5.1)", () => {
-  const dir = mkdtempSync(join(tmpdir(), "sfml-to-mermaid-test-"));
-  const path = join(dir, "bad-utf8.yaml");
-  try {
-    writeFileSync(
-      path,
-      Buffer.concat([
-        Buffer.from('sfml: "v0.1"\nstart: a\nsteps:\n  a:\n    type: result\n    outcome: comp'),
-        Buffer.from([0xff]),
-        Buffer.from("lete\n"),
-      ]),
-    );
-    assert.throws(() => parseFactory(path), /utf-8/i);
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
-  }
-});
 
 // tests/schema/valid/full.yaml (its own header comment: "Every step type and every optional
 // field, in one factory") declares an agent (`plan`), a parallel step (`checks`, with an agent
 // child `lint` and a human child `signoff`), a human step (`review`) with two conditional edges
 // and one fallback, and two result steps (`shipped`: complete, `give_up`: terminal_failure).
 const full = valid("full.yaml");
+
+// tests/sfml-to-mermaid/full.mmd is a golden fixture: the exact, byte-for-byte mermaid full.yaml
+// must render to. A change to render()'s output — a new shape, a reordered field, different
+// escaping — is expected to change this file too; regenerate it with:
+//   node examples/sfml-to-mermaid.js tests/schema/valid/full.yaml > tests/sfml-to-mermaid/full.mmd
+// and review the diff before committing it, the same way you'd review any other fixture update.
+const fullMermaidFixture = join(here, "..", "tests", "sfml-to-mermaid", "full.mmd");
+
+test("render output for the full spec matches its golden mermaid fixture", () => {
+  const out = render(parseFactory(full));
+  const expected = readFileSync(fullMermaidFixture, "utf8");
+  assert.equal(out, expected);
+});
 
 test("render draws each step type of the full spec with its own shape", () => {
   const out = render(parseFactory(full));
