@@ -35,6 +35,7 @@ import { setImmediate } from "node:timers/promises";
 import YAML from "yaml";
 import type { Harness, HarnessEvent, Invocation } from "./types.js";
 import type { Usd } from "./money.js";
+import { loadPriceTable, priceTokens, type PriceTable } from "./pricing.js";
 
 type Tokens = { input_tokens?: number; output_tokens?: number; cache_read_tokens?: number; cache_write_tokens?: number };
 type Send = { session: string; agent?: string; model?: string; prompt?: string };
@@ -47,7 +48,6 @@ type Reply = {
 };
 export type Row = { send: Send } | { reply: Reply } | { close: string[] };
 
-type Pricing = Record<string, { input: string; output: string; cache_read: string; cache_write: string }>;
 type State = {
   cursor: number;
   /** Rows of the current send group already received. */
@@ -57,6 +57,14 @@ type State = {
 
 export class MockFault extends Error {}
 
+/**
+ * One instance plays one transcript for one whole run. The Runner resolves `harness: mock` to that
+ * single instance for every step and every concurrent `parallel` child, so there is exactly one
+ * cursor, and it moves across all agents in transcript order. Concurrent invocations are
+ * interleaved by that shared cursor, not by separate counters. A second live instance over the same
+ * transcript would keep its own cursor and diverge, so the only time a new instance is built is
+ * after a Runner restart, when the old one is gone and the new one reloads `statePath`.
+ */
 export class MockHarness implements Harness {
   private state: State = { cursor: 0, received: [], sessions: {} };
   private readonly open = new Set<string>();
@@ -67,7 +75,7 @@ export class MockHarness implements Harness {
 
   constructor(
     private readonly rows: Row[],
-    private readonly pricing: Pricing,
+    private readonly pricing: PriceTable,
     private readonly statePath?: string,
   ) {
     if (statePath && existsSync(statePath)) this.state = JSON.parse(readFileSync(statePath, "utf8")) as State;
@@ -75,8 +83,7 @@ export class MockHarness implements Harness {
 
   static fromFiles(paths: { transcript: string; models: string; state?: string }): MockHarness {
     const rows = YAML.parse(readFileSync(paths.transcript, "utf8")) as Row[];
-    const pricing = (JSON.parse(readFileSync(paths.models, "utf8")) as { models: Pricing }).models;
-    return new MockHarness(rows, pricing, paths.state);
+    return new MockHarness(rows, loadPriceTable(paths.models), paths.state);
   }
 
   async *invoke(inv: Invocation): AsyncGenerator<HarnessEvent> {
@@ -238,16 +245,15 @@ export class MockHarness implements Harness {
     return events;
   }
 
-  /** Exact cost in 1e-8 USD: tokens × price in cents per million tokens (mock-harness.md §7). */
+  /** Exact cost in 1e-8 USD, from the transcript's token counts (mock-harness.md §7). */
   private price(model: string, tokens: Tokens): Usd {
-    const table = this.pricing[model];
-    if (!table) throw new MockFault(`unknown model '${model}'`);
-    const cents = (price: string) => BigInt(price.replace(".", ""));
-    return (
-      BigInt(tokens.input_tokens ?? 0) * cents(table.input) +
-      BigInt(tokens.output_tokens ?? 0) * cents(table.output) +
-      BigInt(tokens.cache_read_tokens ?? 0) * cents(table.cache_read) +
-      BigInt(tokens.cache_write_tokens ?? 0) * cents(table.cache_write)
-    );
+    const cost = priceTokens(this.pricing, model, {
+      input: tokens.input_tokens ?? 0,
+      output: tokens.output_tokens ?? 0,
+      cacheRead: tokens.cache_read_tokens ?? 0,
+      cacheWrite: tokens.cache_write_tokens ?? 0,
+    });
+    if (cost === undefined) throw new MockFault(`unknown model '${model}'`);
+    return cost;
   }
 }

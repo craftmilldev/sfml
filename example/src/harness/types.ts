@@ -15,7 +15,9 @@ export type JsonSchema = Record<string, unknown>;
  * restart (SPEC §12.1). Opaque to the Runner: it persists the latest handle it has seen for an entry
  * and passes it back verbatim. It must be JSON-serializable.
  */
-export type SessionHandle = { readonly [key: string]: string | number | boolean | null };
+export type SessionHandle = { readonly [key: string]: Json };
+
+export type Json = null | boolean | number | string | readonly Json[] | { readonly [key: string]: Json };
 
 export interface Invocation {
   /** Qualified step name (SPEC §5.3). For logs and diagnostics only. */
@@ -28,13 +30,6 @@ export interface Invocation {
   harnessConfig: Record<string, unknown>;
   /** Continue this session. Absent: open a new one. */
   session?: SessionHandle;
-  /**
-   * The smallest remaining budget ceiling that applies to this invocation, if any. Advisory: the
-   * Runner enforces budgets itself at every `usage` event. A wrapper whose harness can stop itself
-   * at a spend limit may pass this through, so that a turn cannot run far past the ceiling between
-   * reports.
-   */
-  spendLimit?: Usd;
   /** Aborted when the Runner must stop this invocation (SPEC §9.7). The wrapper then ends its stream. */
   signal: AbortSignal;
 }
@@ -42,7 +37,10 @@ export interface Invocation {
 export type HarnessEvent =
   /** The current session handle. May be sent more than once; the Runner persists the latest. */
   | { type: "session"; handle: SessionHandle }
-  /** A consumption report (SPEC §9.7): what was spent since the previous usage event. */
+  /**
+   * A consumption report (SPEC §9.7): what was spent since the previous usage event, priced by the
+   * wrapper from token counts against its price table. Never a harness's own cost estimate.
+   */
   | { type: "usage"; cost: Usd }
   /** Terminal. A value to validate against result_schema (SPEC §6.5). */
   | { type: "output"; value: unknown }
