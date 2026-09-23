@@ -1,0 +1,174 @@
+# This project's own feature factory: turns a GitHub issue (or a comment on one, or on a
+# PR) into a reviewed, merged pull request.
+#
+# Adapted from https://github.com/mcwhittemore/blodget/blob/main/.blodget/factory.yaml,
+# blodget's own dogfooding pipeline, restated as SFML v0.1. Differences from that source
+# worth noting for anyone comparing the two:
+#   - blodget's separate `code_review` and `pr_review` steps collapse into one `ai_review`
+#     step here: this flow's `human_review` step (see below) is what looks at the actual
+#     GitHub PR review, so the agent-side review here always means "review the diff on
+#     this branch," whichever iteration it is.
+#   - blodget's `human_refine` and `human_review` are two steps; here they are one
+#     `human_review` step entered from two different points in the graph (SPEC §3.2.5: a
+#     step can have more than one edge routing into it). The `decision` a human records
+#     tells the run which of those two situations it's resolving.
+#   - blodget has no notion of iteration/budget ceilings (it bounds a review loop with its
+#     own `maxCrossings`); this file uses `max_iterations` (SPEC §9.6) for the same job,
+#     since every cycle in an SFML factory must be bounded (SPEC §8.5).
+#   - blodget's `{{PLAN_PATH}}` and `{{ARG[0]}}` become the `plan_path` and `ticket_url`
+#     parameters, threaded into each step's own `prompt_vars` (SPEC §6.3 — a prompt
+#     template can never reach `parameters` directly).
+
+sfml: "v0.1"
+description: >
+  Takes a GitHub ticket (issue, PR, or a comment on either) from analysis through
+  implementation, review, and human-approved merge.
+start: analyze
+budget: 100.00
+parameters:
+  ticket_url:
+    type: string
+    description: The GitHub issue, PR, or comment URL this run is working from.
+  plan_path:
+    type: string
+    default: ".craftmill/plan.md"
+    description: Where Analyze writes its implementation plan.
+
+steps:
+  analyze:
+    type: agent
+    description: Decides whether the ticket is ready to plan, or needs a human answer first.
+    harness: claude-agent-sdk
+    harness_config: { cwd: ".", permissionMode: "acceptEdits" }
+    prompt_path: .craftmill/prompts/analyze.md
+    prompt_vars:
+      ticket_url: parameters.ticket_url
+      plan_path: parameters.plan_path
+    max_iterations: 8
+    result_schema:
+      type: object
+      required: [ready]
+      properties:
+        ready: { type: boolean }
+        plan: { type: string }
+        branch: { type: string }
+    next:
+      - when: "!last(results.analyze).ready"
+        to: human_review
+      - to: implement
+
+  human_review:
+    type: human
+    description: >
+      Reached either after Analyze posts open questions, or after a pull request is open
+      for review; `decision` says which situation is being resolved and what to do next.
+    assignee: "on-call-reviewer"
+    instructions: "'Review whatever is waiting on you: open questions on the ticket, or an open pull request. Record your decision.'"
+    max_iterations: 30
+    result_schema:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [revise_analysis, request_changes, approve, abandon]
+        notes: { type: string }
+    next:
+      - when: "last(results.human_review).decision == 'abandon'"
+        to: abandoned
+      - when: "last(results.human_review).decision == 'revise_analysis'"
+        to: analyze
+      - when: "last(results.human_review).decision == 'request_changes'"
+        to: implement
+      - to: merge
+
+  implement:
+    type: agent
+    description: Builds the approved plan (or addresses the latest review feedback) on the branch.
+    harness: claude-agent-sdk
+    harness_config: { cwd: ".", permissionMode: "acceptEdits" }
+    prompt_path: .craftmill/prompts/implement.md
+    prompt_vars:
+      ticket_url: parameters.ticket_url
+      plan_path: parameters.plan_path
+      review_comments: last(results.ai_review).comments
+    max_iterations: 20
+    result_schema:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+    next:
+      - to: ai_review
+
+  ai_review:
+    type: agent
+    description: Reviews the current diff on the branch; loops back to Implement if it has feedback.
+    harness: claude-agent-sdk
+    harness_config: { cwd: ".", permissionMode: "acceptEdits" }
+    prompt_path: .craftmill/prompts/ai_review.md
+    prompt_vars:
+      ticket_url: parameters.ticket_url
+      pr_url: last(results.create_update_pr).url
+    max_iterations: 20
+    result_schema:
+      type: object
+      required: [comments]
+      properties:
+        comments:
+          type: array
+          items: { type: string }
+    next:
+      - when: "notEmpty(last(results.ai_review).comments)"
+        to: implement
+      - to: create_update_pr
+
+  create_update_pr:
+    type: agent
+    description: Opens the pull request, or pushes the latest commits to the one already open.
+    harness: claude-agent-sdk
+    harness_config: { cwd: ".", permissionMode: "acceptEdits" }
+    prompt_path: .craftmill/prompts/create_update_pr.md
+    prompt_vars:
+      ticket_url: parameters.ticket_url
+      plan_path: parameters.plan_path
+      pr_url: last(results.create_update_pr).url
+    max_iterations: 10
+    result_schema:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        url: { type: string }
+        head_sha: { type: string }
+    next:
+      - to: human_review
+
+  merge:
+    type: agent
+    description: Merges the human-approved pull request.
+    harness: claude-agent-sdk
+    harness_config: { cwd: ".", permissionMode: "acceptEdits" }
+    prompt_path: .craftmill/prompts/merge.md
+    prompt_vars:
+      ticket_url: parameters.ticket_url
+      pr_url: last(results.create_update_pr).url
+    budget: 5.00
+    result_schema:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        merged_sha: { type: string }
+    next:
+      - to: success
+
+  success:
+    type: result
+    outcome: complete
+    value: last(results.merge)
+
+  abandoned:
+    type: result
+    outcome: terminal_failure
+    value: last(results.human_review)
