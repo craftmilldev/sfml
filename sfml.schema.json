@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sfml.dev/sfml.schema.json",
+  "title": "SFML v0.1 factory document",
+  "description": "Surface syntax of a factory document (SPEC Annex A). Where this schema and SPEC.md disagree, SPEC.md governs (§4.4). It checks structure only: the graph-level rules of clause 8 (step references, totality of routing, reachability, termination, expression binding) are left to a Linter, and duplicate keys (§5.6) are a Parser's to reject before a document reaches this schema.",
+  "$ref": "#/$defs/Factory",
+  "$defs": {
+    "Factory": {
+      "description": "The top-level object of a factory document (§6.2).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sfml", "start", "steps"],
+      "properties": {
+        "sfml": { "$ref": "#/$defs/SFMLVersionString" },
+        "description": { "type": "string" },
+        "parameters": {
+          "description": "The factory's signature (§6.3). A parameter with no `default` is required at admission.",
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/Name" },
+          "additionalProperties": { "$ref": "#/$defs/JSONSchema" }
+        },
+        "start": { "$ref": "#/$defs/StepName" },
+        "steps": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/StepName" },
+          "additionalProperties": { "$ref": "#/$defs/Step" }
+        },
+        "assignee": { "$ref": "#/$defs/Assignee" },
+        "budget": { "$ref": "#/$defs/DecimalUSD" }
+      }
+    },
+
+    "SFMLVersionString": {
+      "description": "The version of the specification the document targets (§6.1, §13.1). This schema describes v0.1 only; a document targeting another version is outside its reach.",
+      "const": "v0.1"
+    },
+    "StepName": {
+      "description": "A non-empty, case-sensitive name that does not contain `.`, the qualifier separator (§5.2, §5.3).",
+      "type": "string",
+      "pattern": "^[^.]+$"
+    },
+    "Name": {
+      "description": "A `parameters` or `prompt_vars` key; the same rules as a StepName (§5.2).",
+      "$ref": "#/$defs/StepName"
+    },
+    "DecimalUSD": {
+      "description": "A non-negative number of US dollars (§6.1, §9.7). The two-decimal-place limit is left to a Parser: `multipleOf: 0.01` would state it, but common validators (Ajv, Python jsonschema) test it by dividing binary floats and so reject legal values such as 0.29.",
+      "type": "number",
+      "minimum": 0
+    },
+    "Expression": {
+      "description": "A string that parses as an SFML expression (clause 7). Parsing and binding are checked by a Linter, not by this schema.",
+      "type": "string",
+      "minLength": 1
+    },
+    "JSONSchema": {
+      "description": "A JSON Schema, 2020-12 (clause 2).",
+      "$ref": "https://json-schema.org/draft/2020-12/schema"
+    },
+    "Assignee": {
+      "description": "An opaque owner string (§6.11).",
+      "type": "string"
+    },
+    "HarnessReference": {
+      "description": "`<name>[@<version>]` (§6.12). Resolution is implementation-defined and checked at admission.",
+      "type": "string",
+      "pattern": "^[^@]+(@[^@]+)?$"
+    },
+    "MaxIterations": {
+      "description": "The number of iterations a step may run (§9.6).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "Retry": {
+      "description": "The maximum number of attempts within one entry to an agent step (§6.10). Absent means one attempt.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "Connection": {
+      "description": "One entry of a step's `next` list (§6.9). That the last connection omits `when` is a Linter rule (§8.3, `non-total-routing`), not a schema rule.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["to"],
+      "properties": {
+        "when": { "$ref": "#/$defs/Expression" },
+        "to": { "$ref": "#/$defs/StepName" }
+      }
+    },
+    "Next": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/Connection" }
+    },
+
+    "Step": {
+      "description": "A top-level step (§6.4), selected by `type`.",
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["agent", "human", "parallel", "result"] }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "agent" } } },
+          "then": { "$ref": "#/$defs/AgentStep" }
+        },
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "human" } } },
+          "then": { "$ref": "#/$defs/HumanStep" }
+        },
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "parallel" } } },
+          "then": { "$ref": "#/$defs/ParallelStep" }
+        },
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "result" } } },
+          "then": { "$ref": "#/$defs/ResultStep" }
+        }
+      ]
+    },
+    "ParallelChild": {
+      "description": "A child of a `parallel` step (§6.7): an agent or human step with no `next`.",
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "enum": ["agent", "human"] }
+      },
+      "allOf": [
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "agent" } } },
+          "then": { "$ref": "#/$defs/AgentChild" }
+        },
+        {
+          "if": { "required": ["type"], "properties": { "type": { "const": "human" } } },
+          "then": { "$ref": "#/$defs/HumanChild" }
+        }
+      ]
+    },
+
+    "AgentFields": {
+      "description": "Every field an agent step may declare, `next` aside (§6.4, §6.5).",
+      "type": "object",
+      "required": ["type", "harness", "result_schema"],
+      "properties": {
+        "type": { "const": "agent" },
+        "description": { "type": "string" },
+        "max_iterations": { "$ref": "#/$defs/MaxIterations" },
+        "result_schema": { "$ref": "#/$defs/JSONSchema" },
+        "harness": { "$ref": "#/$defs/HarnessReference" },
+        "harness_config": {
+          "description": "Harness-defined keys, passed through unexamined (§6.12).",
+          "type": "object"
+        },
+        "prompt_path": { "type": "string", "minLength": 1 },
+        "prompt": { "type": "string" },
+        "prompt_vars": {
+          "description": "FactoryState Expressions bound as the template's PromptVars (§6.5, §9.9).",
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/Name" },
+          "additionalProperties": { "$ref": "#/$defs/Expression" }
+        },
+        "budget": { "$ref": "#/$defs/DecimalUSD" },
+        "retry": { "$ref": "#/$defs/Retry" }
+      },
+      "oneOf": [{ "required": ["prompt_path"] }, { "required": ["prompt"] }]
+    },
+    "AgentStep": {
+      "$ref": "#/$defs/AgentFields",
+      "required": ["next"],
+      "properties": { "next": { "$ref": "#/$defs/Next" } },
+      "unevaluatedProperties": false
+    },
+    "AgentChild": {
+      "$ref": "#/$defs/AgentFields",
+      "unevaluatedProperties": false
+    },
+
+    "HumanFields": {
+      "description": "Every field a human step may declare, `next` aside (§6.4, §6.6).",
+      "type": "object",
+      "required": ["type", "result_schema"],
+      "properties": {
+        "type": { "const": "human" },
+        "description": { "type": "string" },
+        "max_iterations": { "$ref": "#/$defs/MaxIterations" },
+        "result_schema": { "$ref": "#/$defs/JSONSchema" },
+        "assignee": { "$ref": "#/$defs/Assignee" },
+        "instructions": { "$ref": "#/$defs/Expression" }
+      }
+    },
+    "HumanStep": {
+      "$ref": "#/$defs/HumanFields",
+      "required": ["next"],
+      "properties": { "next": { "$ref": "#/$defs/Next" } },
+      "unevaluatedProperties": false
+    },
+    "HumanChild": {
+      "$ref": "#/$defs/HumanFields",
+      "unevaluatedProperties": false
+    },
+
+    "ParallelStep": {
+      "description": "Runs its children concurrently and joins on all of them (§6.7).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "steps", "next"],
+      "properties": {
+        "type": { "const": "parallel" },
+        "description": { "type": "string" },
+        "max_iterations": { "$ref": "#/$defs/MaxIterations" },
+        "next": { "$ref": "#/$defs/Next" },
+        "steps": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/StepName" },
+          "additionalProperties": { "$ref": "#/$defs/ParallelChild" }
+        }
+      }
+    },
+
+    "ResultStep": {
+      "description": "A terminal step (§6.8).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "outcome"],
+      "properties": {
+        "type": { "const": "result" },
+        "description": { "type": "string" },
+        "outcome": { "enum": ["complete", "terminal_failure"] },
+        "value": { "$ref": "#/$defs/Expression" }
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+# §6.11 assignee is a String
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: human
+    assignee: [a, b]
+    result_schema: {}
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

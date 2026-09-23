@@ -8,6 +8,19 @@ The bet is that the factory graph will be defined in code and having a shared fo
 | ------------------ | -------------------------------------------------------------- |
 | [PRD.md](PRD.md)   | What SFML must do and what has been decided.    |
 | [SPEC.md](SPEC.md) | The specification. |
+| [sfml.schema.json](sfml.schema.json) | JSON Schema (2020-12) for a factory document's surface syntax (SPEC Annex A). |
+
+## Validating a factory
+
+`sfml.schema.json` catches structural mistakes; the graph checks of SPEC clause 8 still need a
+Linter. To check a factory file against the schema:
+
+```sh
+npm install
+node tools/validate-schema.mjs path/to/factory.yaml
+```
+
+`npm run validate:schema` runs the schema against its fixtures in `tests/schema/`.
 
 ## Status
 

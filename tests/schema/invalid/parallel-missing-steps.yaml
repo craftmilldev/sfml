@@ -1,0 +1,8 @@
+# §6.7 steps is required
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: parallel
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

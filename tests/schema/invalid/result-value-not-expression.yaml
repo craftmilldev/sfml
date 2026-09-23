@@ -1,0 +1,5 @@
+# §6.8 value is an Expression
+sfml: "v0.1"
+start: done
+steps:
+  done: { type: result, outcome: complete, value: { ok: true } }

@@ -1,0 +1,10 @@
+# §6.7 a child MUST NOT declare next
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: parallel
+    steps:
+      h: { type: human, result_schema: {}, next: [{ to: done }] }
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

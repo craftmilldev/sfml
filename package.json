@@ -1,0 +1,13 @@
+{
+  "name": "sfml",
+  "private": true,
+  "type": "module",
+  "description": "Tooling for the SFML specification and its JSON Schema.",
+  "scripts": {
+    "validate:schema": "node tools/validate-schema.mjs"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "yaml": "^2.6.0"
+  }
+}

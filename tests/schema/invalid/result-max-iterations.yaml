@@ -1,0 +1,5 @@
+# §6.4 max_iterations does not apply to result
+sfml: "v0.1"
+start: done
+steps:
+  done: { type: result, outcome: complete, max_iterations: 1 }

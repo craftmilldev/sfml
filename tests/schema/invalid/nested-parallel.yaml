@@ -1,0 +1,13 @@
+# §6.7 a child MUST NOT be parallel
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: parallel
+    steps:
+      p:
+        type: parallel
+        steps:
+          h: { type: human, result_schema: {} }
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }
