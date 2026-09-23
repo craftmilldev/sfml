@@ -134,17 +134,16 @@ A Runner that fails to start the children of a `parallel` step concurrently neve
 
 ## 4. Sessions
 
-The transcript's session labels encode when a Runner continues a session and when it opens a new
-one:
+The transcript's session labels encode SPEC §11.7's rules for when a Runner continues a session and
+when it opens a new one:
 
-| Situation                                                                                         | Session  | Basis                    |
-| -------------------------------------------------------------------------------------------------- | -------- | ------------------------ |
-| A new entry into a step (SPEC §3.2.5), including a loop coming back to it                          | new      | suite rule               |
-| A retry attempt within an entry (SPEC §6.10), including an automatic reprompt after failed validation | continue | suite rule               |
-| A re-run after `schema_violation` (SPEC §10.4)                                                     | continue | suite rule               |
-| A re-run after `harness_error` (SPEC §10.3) or `budget_exceeded` (SPEC §10.6)                      | continue | SPEC §11.7               |
-| A re-run after `budget_exceeded` raised on arrival, before any invocation                          | new      | nothing to continue      |
-| A resume that supplies a result or a routing decision (SPEC §11.4)                                 | none     | no invocation            |
+| Situation                                                                                         | Session  | SPEC §11.7 |
+| -------------------------------------------------------------------------------------------------- | -------- | ---------- |
+| A new entry into a step (SPEC §3.2.5), including a loop coming back to it                          | new      | rule 1     |
+| A retry attempt within an entry (SPEC §6.10), including a re-attempt after failed validation       | continue | rule 2     |
+| A re-run after `harness_error`, `schema_violation`, or `budget_exceeded`                           | continue | rule 3     |
+| A re-run after `budget_exceeded` raised on arrival, before any invocation                          | new      | rule 3 → 1 |
+| A resume that supplies a result or a routing decision (SPEC §11.4)                                 | none     | rule 4     |
 
 The mock must also keep its place across a Runner restart (README §3.2, `restart`). Which sessions
 exist, and how far the transcript has been played, survive the restart, just as a real harness

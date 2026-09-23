@@ -145,18 +145,15 @@ It does not run factories. Running them is each implementation's job.
 
 These are settled for the suite only; SPEC.md is unchanged.
 
-1. **Session continuity beyond SPEC §11.7.** The suite requires the same session for retry
-   attempts and for re-runs after `schema_violation`, and a new session for each new entry
-   (mock-harness.md §4). SPEC.md states only the `harness_error` and `budget_exceeded` cases.
-2. **Report points.** SPEC §9.7 says concurrent children stop "at the next point [they] would report
+1. **Report points.** SPEC §9.7 says concurrent children stop "at the next point [they] would report
    consumption". The suite counts a terminal outcome as such a point (mock-harness.md §5), so a
    child with nothing more to report still stops.
-3. **Parallel children in `FactoryState`.** SPEC.md implies, but does not say, that children have no
+2. **Parallel children in `FactoryState`.** SPEC.md implies, but does not say, that children have no
    `results` key of their own. §3.2 assumes they don't.
-4. **Result steps in `results`.** SPEC §9.3 implies a `result` step appends its value. §3.2 assumes
+3. **Result steps in `results`.** SPEC §9.3 implies a `result` step appends its value. §3.2 assumes
    it does.
-5. **Does `retry` count schema-violation attempts?** SPEC §6.10 describes `retry` as governing
+4. **Does `retry` count schema-violation attempts?** SPEC §6.10 describes `retry` as governing
    harness failures; SPEC §10.2 raises `schema_violation` once "retry, where configured, has not
    fixed it". `runner/schema-violation-override` reads `retry: 2` as two attempts in total.
-6. **Process death mid-turn.** `restart` happens only once the run has settled, so no test covers a
+5. **Process death mid-turn.** `restart` happens only once the run has settled, so no test covers a
    harness turn in flight at process death.
