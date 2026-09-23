@@ -1,0 +1,25 @@
+description: >
+  A looping step with `budget: 0.30` reports exactly 0.10 per iteration. The third report makes
+  consumption equal to the budget, so the step is exceeded right there and that entry appends
+  nothing. A grant of 0.10 continues the same session, which reports 0.05 and finishes (0.35 of an
+  effective 0.40).
+clauses: ["§9.7", "§10.6", "§11.4", "§11.7"]
+actions:
+  - start: {}
+    expect:
+      status: errored
+      blocked: [{ step: poll, state: errored, exception: budget_exceeded }]
+      state:
+        parameters: {}
+        results:
+          poll: [{ done: false }, { done: false }]
+  - resume: { step: poll, payload: 0.10 }
+expect:
+  status: terminal
+  outcome: complete
+  value: { done: true }
+  state:
+    parameters: {}
+    results:
+      poll: [{ done: false }, { done: false }, { done: true }]
+      finish: [{ done: true }]

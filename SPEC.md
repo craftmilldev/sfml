@@ -337,7 +337,9 @@ against `result_schema`.
 - A successful attempt's output is validated against `result_schema`; a failure to validate raises
   `schema_violation` (§10.4) once retry, if configured, is exhausted. Validation failure and harness
   failure are distinct: an attempt fails to validate only after the harness has already produced
-  output, which is why this is `schema_violation` and not `harness_error`.
+  output, which is why this is `schema_violation` and not `harness_error`. Output from which no
+  value can be obtained at all (for example, agent text with no parseable result in it) has still
+  been produced, and fails validation the same way (§10.4).
 - `budget` (§9.7) and `max_iterations` (§9.6), where present, bound the step's cost and iterations
   respectively.
 - `retry` (§6.10) governs re-attempting a harness failure the harness has classified as retryable.
@@ -433,11 +435,13 @@ Spacing between attempts is not an authored field: where a harness states a back
 implementation SHOULD honor it as best practice.
 
 A failed attempt does not append to `results` (§9.3); exhausting `retry`'s attempts, or encountering
-a non-retryable failure, raises `harness_error` (§10.3).
+a non-retryable failure, raises `harness_error` (§10.3). Every attempt within one entry continues the
+same harness session (§11.7).
 
 A resume from `harness_error` (§10.3) or `schema_violation` (§10.4) that re-runs the step opens a
 new entry: `retry`'s attempt count applies fresh to that entry, exactly as it did to the entry the
-exception was raised from.
+exception was raised from. That new entry still continues the resumed entry's harness session
+(§11.7).
 
 ### 6.11 Assignee
 
@@ -827,7 +831,7 @@ selecting a `Connection`.
 
 | Class              | Raised when                                                                              |
 | ------------------- | ------------------------------------------------------------------------------------------ |
-| `schema_violation`  | An agent step's output fails `result_schema` validation and retry, where configured, has not fixed it. |
+| `schema_violation`  | An agent step's output fails `result_schema` validation, or yields no value to validate, and retry, where configured, has not fixed it. |
 | `harness_error`     | The harness fails to produce a result for a reason outside the agent's own output contract.              |
 | `iteration_limit`   | Entering a step would exceed its effective iteration bound (§9.6).                                       |
 | `budget_exceeded`   | A step's reported consumption reaches or exceeds its effective budget (§9.7).                            |
@@ -868,10 +872,17 @@ payload is rejected at the call (§11.5): the resume fails, the step remains `aw
 nothing is appended. There is no failed attempt to record and no exception to resume from in this
 case, because the run never left the state it was already in.
 
+How a harness turns an agent's output into the value validated against `result_schema` (a native
+structured-output feature, parsing a fenced block out of the agent's final text, or any other
+means) is the harness's own business (§3.3.4). When the harness has produced output but no value
+can be obtained from it, the attempt MUST be treated as failing `result_schema` validation: it
+raises `schema_violation`, not `harness_error`, and is subject to the retry and reprompt behavior
+below. `harness_error` (§10.3) remains the class for a harness that fails to produce output at all.
+
 - An implementation MUST permit retry of `schema_violation`, and SHOULD default to at least one
   automatic attempt with the validator's error fed back into the reprompt when no `retry` is defined.
-- A resume from `schema_violation` re-runs the step as a new agent turn, which may succeed or fail
-  the same way again; the failure mode is repeatable even though the attempt itself is not, which is why retrying is worth doing.
+- A resume from `schema_violation` re-runs the step as a new agent turn on the same harness session
+  (§11.7), which may succeed or fail the same way again; the failure mode is repeatable even though the attempt itself is not, which is why retrying is worth doing.
 - A resume from `schema_violation` MAY instead carry a result, validated against the step's
   `result_schema`, in place of re-running the agent (§11.4). Such a result is appended as the step's
   `StepResult` exactly as an agent-produced one would be, and routing cannot distinguish the two.
@@ -1029,7 +1040,7 @@ The payload a resume carries depends on what blocked the branch:
 | `errored`         | `iteration_limit`   | integer, additional iterations                    | grant recorded (§11.6); the step is entered                                       |
 | `errored`         | `budget_exceeded`   | Decimal USD, at most two decimal places           | grant recorded (§11.6); the step is entered                                       |
 | `errored`         | `harness_error`     | none, or an object matching `result_schema`       | the step re-runs on the same harness session; if a payload is given, that result is appended instead (§11.7) |
-| `errored`         | `schema_violation`  | none, or an object matching `result_schema`       | the step re-runs as a new agent turn; if a payload is given, that result is appended instead |
+| `errored`         | `schema_violation`  | none, or an object matching `result_schema`       | the step re-runs as a new agent turn on the same harness session; if a payload is given, that result is appended instead (§11.7) |
 | `errored`         | `expression_error`  | none, or an object matching `result_schema` (or, for a `result` step, any JSON value) | the entry re-attempts; if a payload is given, that result is appended instead (§10.7) |
 | `errored`         | `routing_error`     | none, or a `StepName` from the step's own `next`  | the `when` list re-evaluates; if a payload is given, that target is routed to instead (§10.8) |
 
@@ -1054,13 +1065,33 @@ A grant — additional iterations (§10.5) or additional budget (§10.6) — is 
 
 ### 11.7 Session continuity
 
-Where clause 10 or this clause states that a resume MUST use the same harness session — from
-`harness_error` (§10.3) and from `budget_exceeded` (§10.6) — a conforming Runner MUST re-invoke the
-same harness session that was active for the entry being resumed, rather than starting a new one,
-so that any state the harness holds for that session (for example, prior turns of a conversation) is
-continued rather than discarded. If that is not possible, an implementation MUST reject the resume.
-Where a resume from `harness_error` or `schema_violation` instead supplies a result (§11.4), no
-harness invocation occurs and this subclause does not apply.
+A harness session is whatever state a harness holds across invocations, for example the prior turns
+of a conversation. Every harness invocation either opens a new session or continues an existing
+one, and a conforming Runner MUST choose as follows:
+
+1. **A new entry opens a new session.** The first attempt of an entry into a step (§3.2.5) opens a
+   new session, unless rule 3 applies. This includes an entry made by routing back into a step the
+   run has already visited: each iteration of a step starts with a new session.
+2. **Attempts within an entry continue its session.** Every later attempt in the same entry
+   continues the session the entry's first attempt opened. That covers a retry of a retryable
+   harness failure (§6.10), and a re-attempt after output fails `result_schema` validation (§10.4),
+   such as a reprompt that feeds back the validator's error.
+3. **A resume that re-runs a step continues the resumed entry's session.** A resume from
+   `harness_error` (§10.3), `schema_violation` (§10.4), or `budget_exceeded` (§10.6) that re-runs
+   the step continues the session of the entry being resumed, even though the re-run counts as a new
+   entry for `retry` (§6.10). This includes each still-incomplete child re-entered by a resume
+   addressed to a `parallel` step after a factory-level overrun (§10.6). If the entry being resumed
+   never invoked the harness (for example, `budget_exceeded` raised on arrival), there is no session
+   to continue, and rule 1 applies.
+4. **Other resumes continue nothing.** A resume that supplies a result or a routing decision
+   (§11.4) invokes no harness, so no session is opened or continued. A resume from
+   `iteration_limit` (§10.5) or `expression_error` (§10.7) re-enters a step whose entry made no
+   harness invocation, so rule 1 applies.
+
+Continuing a session means re-invoking the same harness session, so that the state it holds is kept
+rather than discarded. An implementation MUST NOT open a new session where these rules require
+continuing one. If a session that must be continued cannot be, then under rule 3 the resume MUST be
+rejected (§11.5), and under rule 2 the attempt fails as a non-retryable harness failure (§10.3).
 
 ## 12. Resumability
 

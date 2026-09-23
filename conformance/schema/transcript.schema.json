@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sfml.dev/conformance/schema/transcript.schema.json",
+  "title": "runner/<test>/transcript.yaml",
+  "description": "The conversation between the Runner and the mock harness, in order (mock-harness.md §3).",
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "oneOf": [
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["send"],
+        "properties": {
+          "send": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["session"],
+            "properties": {
+              "session": { "$ref": "#/$defs/Label" },
+              "agent": { "$ref": "common.schema.json#/$defs/AgentName" },
+              "model": { "$ref": "common.schema.json#/$defs/ModelName" },
+              "prompt": { "type": "string" }
+            }
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reply"],
+        "properties": {
+          "reply": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["session"],
+            "minProperties": 2,
+            "properties": {
+              "session": { "$ref": "#/$defs/Label" },
+              "usage": {
+                "type": "object",
+                "additionalProperties": false,
+                "minProperties": 1,
+                "properties": {
+                  "model": { "$ref": "common.schema.json#/$defs/ModelName" },
+                  "input_tokens": { "$ref": "#/$defs/TokenCount" },
+                  "output_tokens": { "$ref": "#/$defs/TokenCount" },
+                  "cache_read_tokens": { "$ref": "#/$defs/TokenCount" },
+                  "cache_write_tokens": { "$ref": "#/$defs/TokenCount" }
+                }
+              },
+              "result": { "description": "Terminal. Any JSON value." },
+              "no_value": { "type": "string", "description": "Terminal. Why no value could be obtained." },
+              "error": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["message", "retryable"],
+                "properties": {
+                  "message": { "type": "string" },
+                  "retryable": { "type": "boolean" },
+                  "backoff_ms": { "type": "integer", "minimum": 0 }
+                }
+              }
+            },
+            "not": {
+              "anyOf": [
+                { "required": ["result", "no_value"] },
+                { "required": ["result", "error"] },
+                { "required": ["no_value", "error"] }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["close"],
+        "properties": {
+          "close": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "#/$defs/Label" } }
+        }
+      }
+    ]
+  },
+  "$defs": {
+    "Label": { "type": "string", "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$" },
+    "TokenCount": { "type": "integer", "minimum": 0 }
+  }
+}

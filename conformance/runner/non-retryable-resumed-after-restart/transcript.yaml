@@ -1,0 +1,5 @@
+- send: { session: work-1, agent: worker, model: mock-medium }
+- reply: { session: work-1, usage: { input_tokens: 2000 }, error: { message: "401 invalid credentials", retryable: false } }
+# restart, then resume: the same session continues (SPEC §11.7)
+- send: { session: work-1 }
+- reply: { session: work-1, usage: { input_tokens: 3000, output_tokens: 800 }, result: { ok: true } }

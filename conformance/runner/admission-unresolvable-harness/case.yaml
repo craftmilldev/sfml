@@ -1,0 +1,8 @@
+description: >
+  The step names `conformance-unknown-harness`, which no implementation resolves (mock-harness.md
+  §2). The run is rejected at admission: no run id, no state, and no exception.
+clauses: ["§6.12", "§9.1"]
+actions:
+  - start: {}
+expect:
+  admitted: false

@@ -1,0 +1,11 @@
+description: >
+  One turn reports 0.004 three times against `budget: 0.01`. Added exactly, consumption reaches
+  0.012 on the third report and exceeds the budget. Rounding each report to cents would keep it at
+  0.00 and never exceed. The run ends blocked.
+clauses: ["§9.7", "§10.6"]
+actions:
+  - start: {}
+expect:
+  status: errored
+  blocked: [{ step: work, state: errored, exception: budget_exceeded }]
+  state: { parameters: {}, results: {} }

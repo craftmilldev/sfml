@@ -1,0 +1,28 @@
+sfml: "v0.1"
+start: approvals
+steps:
+  approvals:
+    type: parallel
+    steps:
+      design:
+        type: human
+        result_schema:
+          type: object
+          required: [approved]
+          properties: { approved: { type: boolean } }
+      security:
+        type: human
+        result_schema:
+          type: object
+          required: [approved]
+          properties: { approved: { type: boolean } }
+    next:
+      - when: last(results.approvals).design.approved && last(results.approvals).security.approved
+        to: shipped
+      - to: rejected
+  shipped:
+    type: result
+    outcome: complete
+  rejected:
+    type: result
+    outcome: terminal_failure

@@ -1,0 +1,4 @@
+- send: { session: plan-1, agent: planner, model: mock-medium, prompt: "Plan «this» issue: add a --verbose flag (p2)" }
+- reply: { session: plan-1, usage: { input_tokens: 8000, output_tokens: 1200, cache_read_tokens: 4000 }, result: { plan: "add a --verbose flag to parse()" } }
+- send: { session: code-1, agent: coder, model: mock-medium, prompt: "Implement: add a --verbose flag to parse()" }
+- reply: { session: code-1, usage: { input_tokens: 15000, output_tokens: 4000 }, result: { branch: "feat/verbose" } }

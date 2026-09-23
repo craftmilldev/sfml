@@ -1,0 +1,35 @@
+{
+  "$schema": "./schema/models.schema.json",
+  "version": "0.1",
+  "unit": "USD per 1,000,000 tokens",
+  "models": {
+    "mock-large": {
+      "description": "Frontier-tier pricing. Use when a case needs cost to add up quickly.",
+      "input": "15.00",
+      "output": "75.00",
+      "cache_read": "1.50",
+      "cache_write": "18.75"
+    },
+    "mock-medium": {
+      "description": "Mid-tier pricing. The default choice for an ordinary agent step.",
+      "input": "3.00",
+      "output": "15.00",
+      "cache_read": "0.30",
+      "cache_write": "3.75"
+    },
+    "mock-small": {
+      "description": "Small-tier pricing. 20,000 output tokens cost exactly 0.10 USD; 4,000 input tokens cost exactly 0.004 USD.",
+      "input": "1.00",
+      "output": "5.00",
+      "cache_read": "0.10",
+      "cache_write": "1.25"
+    },
+    "mock-local": {
+      "description": "A genuinely free model (a local or self-hosted runner). Every token costs 0.00 USD; SPEC §9.7 treats this as a passing, measured zero.",
+      "input": "0.00",
+      "output": "0.00",
+      "cache_read": "0.00",
+      "cache_write": "0.00"
+    }
+  }
+}

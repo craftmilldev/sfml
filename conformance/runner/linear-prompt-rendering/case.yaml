@@ -1,0 +1,18 @@
+description: >
+  Two agent steps in sequence, then a result step. Each rendered prompt must match exactly: a string
+  value is inserted as-is, a non-string value as JSON, a single guillemet is literal text, and
+  whitespace inside the delimiters is ignored.
+clauses: ["§6.3", "§6.5", "§6.8", "§7.9", "§9.9"]
+actions:
+  - start:
+      parameters: { issue: "add a --verbose flag" }
+expect:
+  status: terminal
+  outcome: complete
+  value: { branch: "feat/verbose" }
+  state:
+    parameters: { issue: "add a --verbose flag", priority: 2 }
+    results:
+      plan: [{ plan: "add a --verbose flag to parse()" }]
+      implement: [{ branch: "feat/verbose" }]
+      done: [{ branch: "feat/verbose" }]

@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sfml.dev/conformance/schema/lint-case.schema.json",
+  "title": "lint/<test>/case.yaml",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["description", "clauses", "expect"],
+  "properties": {
+    "description": { "$ref": "common.schema.json#/$defs/Description" },
+    "clauses": { "$ref": "common.schema.json#/$defs/Clauses" },
+    "expect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["diagnostics"],
+      "properties": {
+        "diagnostics": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "unknown-step-reference",
+              "invalid-parallel-child-type",
+              "parallel-child-has-next",
+              "nested-parallel",
+              "field-not-applicable-to-type",
+              "non-total-routing",
+              "unreachable-step",
+              "no-path-to-result",
+              "unbounded-cycle",
+              "unknown-parameter-reference",
+              "unknown-step-result-reference",
+              "unreachable-reference",
+              "binding-environment-violation"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

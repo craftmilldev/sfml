@@ -1,0 +1,15 @@
+description: >
+  Two retryable failures, then a success, all within `retry: 3`. Each retry continues the same
+  session.
+clauses: ["§6.10", "§10.3"]
+actions:
+  - start: {}
+expect:
+  status: terminal
+  outcome: complete
+  value: { ok: true }
+  state:
+    parameters: {}
+    results:
+      work: [{ ok: true }]
+      done: [{ ok: true }]
