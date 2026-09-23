@@ -512,8 +512,10 @@ parameter — and SHOULD report a type error before a run starts rather than at 
 
 An expression that is well-typed per §7.6 but fails at evaluation time (for example, indexing past
 the end of a list), or a prompt template (§3.2.7) that fails to render against its evaluated
-`PromptVars`, is a runtime evaluation error. An implementation MUST raise `expression_error` (§10.7)
-rather than silently producing a value or a partial rendering.
+`PromptVars`, is a runtime evaluation error. An implementation MUST raise an exception rather than
+silently producing a value or a partial rendering: `routing_error` (§10.8) where the failure is
+evaluating a `Connection`'s `when`, or `expression_error` (§10.7) for every other evaluation site.
+These are separate classes, not one, because the two failures are resumed past differently (§11.4).
 
 ### 7.8 Prohibited constructs
 
@@ -812,10 +814,13 @@ selecting a `Connection`.
 | `harness_error`     | The harness fails to produce a result for a reason outside the agent's own output contract.              |
 | `iteration_limit`   | Entering a step would exceed its effective iteration bound (§9.6).                                       |
 | `budget_exceeded`   | A step's reported consumption reaches or exceeds its effective budget (§9.7).                            |
-| `expression_error`  | A well-typed expression, or a prompt template, fails at evaluation or render time (§7.7).                |
+| `expression_error`  | A well-typed expression, or a prompt template, fails at evaluation or render time, anywhere but a `Connection`'s `when` (§7.7, §10.7). |
+| `routing_error`     | A well-typed `Connection`'s `when` fails at evaluation time, after the step's own result already exists (§7.7, §10.8). |
 
-All five classes are resumable (clause 11). Nothing in v0.1 is inherently fatal except reaching a
-`result` step (§9.10).
+All six classes are resumable (clause 11). Nothing in v0.1 is inherently fatal except reaching a
+`result` step (§9.10). `expression_error` and `routing_error` are two classes rather than one
+because a step's own result exists when the second is raised and does not when the first is, which
+is why they take different resume payloads (§11.4).
 
 ### 10.3 Harness failure classification and retry
 
@@ -898,25 +903,34 @@ what was exceeded; these need not be the same scope, as the factory-level cases 
 ### 10.7 Expression error
 
 `expression_error` is raised when an expression (§7.7) — a `FactoryState Expression` or a
-`PromptVars Expression`, wherever either is evaluated — fails at evaluation or render time despite
-being well-typed. Where it is raised depends on whether the step's own `StepResult` (§9.3) has
-already been appended (§9.4) at that point, and this governs both what remains blocked and what a
-resume can supply.
+`PromptVars Expression` — fails at evaluation or render time despite being well-typed, anywhere
+except evaluating a `Connection`'s `when` (§10.8): an agent step's `prompt_vars` (§6.5) or prompt
+template (§3.2.7), a human step's `instructions` (§6.6), or a `result` step's `value` (§6.8). Every
+site this class covers is evaluated before the step's own result exists, so nothing has been
+appended to `results` for the entry (§9.3, §11.1), exactly as for any other exception raised before
+a step's own entry completes.
 
-- **Before the step's own result exists** — an agent step's `prompt_vars` (§6.5) or prompt template
-  (§3.2.7), a human step's `instructions` (§6.6), or a `result` step's `value` (§6.8) — nothing has
-  been appended to `results` for the entry, exactly as for any other exception raised before a
-  step's own entry completes (§11.1). A resume re-attempts the entry from the start. A resume MAY
-  instead carry a result in place of re-attempting: an object validated against `result_schema` for
-  a step type that declares one (agent, human), or, for a `result` step, which declares no
-  `result_schema` (§6.4), any JSON value. Either way the supplied value is appended as the step's
-  `StepResult`, exactly as the escape hatches of §10.3 and §10.4 work.
-- **After the step's own result exists** — a `Connection`'s `when` (§6.9), evaluated once routing
-  begins (§9.4, §9.5) — the step's `StepResult` is already appended and is not reconsidered; only
-  the routing decision is missing. A resume re-evaluates the `when` list from the start. A resume
-  MAY instead carry a payload naming one `StepName` from that step's own declared `next` list, taken
-  as the routing decision in place of re-evaluating `when`; an implementation MUST reject a payload
-  naming a target the step's `next` does not declare (§11.5).
+A resume re-attempts the entry from the start. A resume MAY instead carry a result in place of
+re-attempting: an object validated against `result_schema` for a step type that declares one (agent,
+human), or, for a `result` step, which declares no `result_schema` (§6.4), any JSON value. Either
+way the supplied value is appended as the step's `StepResult`, exactly as the escape hatches of
+§10.3 and §10.4 work. A caller does not need to know which of `prompt_vars`, the prompt template,
+`instructions`, or `value` actually failed to know what a resume here accepts: the payload is always
+a stand-in for the step's whole result, regardless of which expression inside that step's entry
+raised the exception.
+
+### 10.8 Routing error
+
+`routing_error` is raised when a `Connection`'s `when` (§6.9) fails at evaluation time despite being
+well-typed. Routing is evaluated once the step's own result has already been appended (§9.4, §9.5),
+so unlike `expression_error`, the step's `StepResult` already exists and is not reconsidered; only
+the routing decision is missing. This is a separate class from `expression_error`, not a special
+case of it, precisely so that a caller can tell from the class alone which payload applies (§11.4).
+
+A resume re-evaluates the `when` list from the start. A resume MAY instead carry a payload naming
+one `StepName` from that step's own declared `next` list, taken as the routing decision in place of
+re-evaluating `when`; an implementation MUST reject a payload naming a target the step's `next` does
+not declare (§11.5).
 
 ## 11. Pause and resume
 
@@ -931,9 +945,8 @@ branch is `running`, `awaiting_input`, `errored`, or `done`.
   resolved by a resume.
 - `awaiting_input` and `errored` are both **blocked**: the branch is stopped, and it advances only
   on a resume (§11.3). For every exception class but one, nothing has been appended to `results` for
-  that entry. The one exception is `expression_error` raised evaluating a `Connection`'s `when`
-  (§10.7): there, the step's own `StepResult` was already appended before routing — the routing
-  decision is what failed, not the step's own entry.
+  that entry. The one exception is `routing_error` (§10.8): there, the step's own `StepResult` was
+  already appended before routing — the routing decision is what failed, not the step's own entry.
 - A branch is `done` once it has reached a `result` step, or, inside a `parallel` step, once its
   child has produced a result.
 
@@ -983,29 +996,31 @@ step is resumed; this specification requires no more of the mechanism than that.
 
 Every class that can be resumed past by re-attempting can also be resumed past by supplying the
 value the automatic path would otherwise have produced: `schema_violation` (§10.4), `harness_error`
-(§10.3), and `expression_error` raised before a step's own result exists (§10.7) all accept an
-override of the step's `StepResult` in place of re-attempting; `expression_error` raised evaluating
-`when`, where the step's own result already exists, instead accepts an override of the routing
-decision (§10.7). `iteration_limit` and `budget_exceeded` are different in kind — they take a grant,
-not a substitute value, since what is missing is not a result but permission to keep spending
-(§10.5, §10.6).
+(§10.3), and `expression_error` (§10.7) all accept an override of the step's `StepResult` in place
+of re-attempting. `routing_error` (§10.8) is the one exception: since the step's own result already
+exists by the time it is raised, its override is a routing decision, not a result. `iteration_limit`
+and `budget_exceeded` are different again — they take a grant, not a substitute value, since what is
+missing is not a result but permission to keep spending (§10.5, §10.6). A caller can tell which
+shape a given `errored` branch expects from its exception class alone, without inspecting the run's
+history for context.
 
 The payload a resume carries depends on what blocked the branch:
 
-| Branch state     | Raised by          | Payload                                                     | Effect                                                                          |
-| ----------------- | ------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `awaiting_input`  | a `human` step       | object matching `result_schema`                               | appended as the step's `StepResult`                                                |
-| `errored`         | `iteration_limit`   | integer, additional iterations                                | grant recorded (§11.6); the step is entered                                       |
-| `errored`         | `budget_exceeded`   | Decimal USD, at most two decimal places                       | grant recorded (§11.6); the step is entered                                       |
-| `errored`         | `harness_error`     | none, or an object matching `result_schema`                   | the step re-runs on the same harness session; if a payload is given, that result is appended instead (§11.7) |
-| `errored`         | `schema_violation`  | none, or an object matching `result_schema`                   | the step re-runs as a new agent turn; if a payload is given, that result is appended instead |
-| `errored`         | `expression_error`  | none, or (before the step's result exists) an object matching `result_schema`, or (routing) a `StepName` from the step's own `next` | the entry re-attempts, or the given result is appended, or the given target is routed to (§10.7) |
+| Branch state     | Raised by          | Payload                                       | Effect                                                                          |
+| ----------------- | ------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `awaiting_input`  | a `human` step       | object matching `result_schema`                   | appended as the step's `StepResult`                                                |
+| `errored`         | `iteration_limit`   | integer, additional iterations                    | grant recorded (§11.6); the step is entered                                       |
+| `errored`         | `budget_exceeded`   | Decimal USD, at most two decimal places           | grant recorded (§11.6); the step is entered                                       |
+| `errored`         | `harness_error`     | none, or an object matching `result_schema`       | the step re-runs on the same harness session; if a payload is given, that result is appended instead (§11.7) |
+| `errored`         | `schema_violation`  | none, or an object matching `result_schema`       | the step re-runs as a new agent turn; if a payload is given, that result is appended instead |
+| `errored`         | `expression_error`  | none, or an object matching `result_schema` (or, for a `result` step, any JSON value) | the entry re-attempts; if a payload is given, that result is appended instead (§10.7) |
+| `errored`         | `routing_error`     | none, or a `StepName` from the step's own `next`  | the `when` list re-evaluates; if a payload is given, that target is routed to instead (§10.8) |
 
 ### 11.5 Rejected resumes
 
 A payload that does not match the row it is addressed to — an object that fails `result_schema`
 validation, a grant of the wrong type, a `StepName` not among the addressed step's own declared
-`next` targets (§10.7), or a resume addressed to a class it does not apply to — MUST be rejected at
+`next` targets (§10.8), or a resume addressed to a class it does not apply to — MUST be rejected at
 the call. The branch keeps the state it had, and nothing is appended: this is the same rule §10.4
 states for a `human` step's invalid input, generalized to every row of the table in §11.4. A
 rejected resume is not an attempt and not a failure; the run has not moved.
