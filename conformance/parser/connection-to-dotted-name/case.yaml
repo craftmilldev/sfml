@@ -1,0 +1,4 @@
+description: "to is a StepName"
+clauses: ["§6.9"]
+expect:
+  parse: reject

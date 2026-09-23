@@ -1,0 +1,4 @@
+description: "no on_error"
+clauses: ["§5.4"]
+expect:
+  parse: reject

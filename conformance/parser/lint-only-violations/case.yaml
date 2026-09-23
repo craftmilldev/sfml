@@ -1,0 +1,4 @@
+description: "Passes the schema but fails lint: non-total-routing, unknown-step-reference, and unreachable-step. The schema deliberately leaves graph rules to clause 8."
+clauses: ["§4.2", "§8.2", "§8.3", "§8.4"]
+expect:
+  parse: accept

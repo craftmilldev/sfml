@@ -1,0 +1,4 @@
+description: "assignee is a String"
+clauses: ["§6.11"]
+expect:
+  parse: reject

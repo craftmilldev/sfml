@@ -2,3 +2,4 @@ description: A step object with two `next` keys is a parse error, not "last valu
 clauses: ["§5.6"]
 expect:
   parse: reject
+  message: "unique"

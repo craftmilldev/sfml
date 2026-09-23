@@ -1,0 +1,4 @@
+description: "a result step MUST NOT declare next"
+clauses: ["§6.8"]
+expect:
+  parse: reject

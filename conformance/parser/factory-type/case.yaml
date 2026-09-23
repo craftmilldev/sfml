@@ -1,0 +1,4 @@
+description: "type: factory is not accepted"
+clauses: ["§1.2"]
+expect:
+  parse: reject

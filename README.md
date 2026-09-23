@@ -22,7 +22,8 @@ npm install
 node tools/validate-schema.mjs path/to/factory.yaml
 ```
 
-`npm run validate:schema` runs the schema against its fixtures in `tests/schema/`.
+`npm run validate:schema` runs the schema against the conformance suite's `conformance/parser/`
+fixtures.
 
 ## Tests
 

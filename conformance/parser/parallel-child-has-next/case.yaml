@@ -1,0 +1,4 @@
+description: "a child MUST NOT declare next"
+clauses: ["§6.7"]
+expect:
+  parse: reject

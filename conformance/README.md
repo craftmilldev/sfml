@@ -44,10 +44,11 @@ Paths inside a test are relative to its folder. `models.json` is the only file s
 
 ```yaml
 # parser/duplicate-step-key/case.yaml
-description: A step object with two `next` keys is a parse error.
+description: A step object with two `next` keys is a parse error, not "last value wins".
 clauses: ["§5.6"]
 expect:
   parse: reject          # accept | reject
+  message: "unique"      # optional; case-insensitive regex the rejection's diagnostic must match
 ```
 
 ```yaml
@@ -59,7 +60,14 @@ expect:
 ```
 
 - A parser test's document is `factory.yaml`, or `factory.json` when the test is about JSON input
-  (SPEC §5.1). SPEC.md defines no parse diagnostics, so accept or reject is the whole output.
+  (SPEC §5.1). SPEC.md defines no parse diagnostics, so `expect.parse` (accept or reject) is the
+  whole normative output.
+- `expect.message`, present only when `expect.parse: reject`, is optional: a regex, tested
+  case-insensitively against the implementation's rejection message, that pins the test to the
+  *reason* it must be rejected (SPEC.md defines no diagnostic identifiers for parse errors, so this
+  is looser than `lint`'s `diagnostics`). A consumer that only cares about accept/reject can ignore
+  it; one that wants to assert a fixture trips the right check (rather than being rejected for an
+  unrelated reason) can use it instead of hardcoding a fixture→pattern map of its own.
 - `diagnostics` is the set of §8.7 identifiers the Linter reports. Order and duplicates don't
   matter. Every listed identifier must be reported, and no other. `[]` means the factory is valid.
 

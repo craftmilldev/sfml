@@ -1,58 +1,55 @@
-// Exercises sfml-to-mermaid.js against the repository's own schema conformance fixtures
-// (tests/schema/), rather than inventing separate ones, so the two suites can't drift apart.
+// Exercises sfml-to-mermaid.js against the repository's own conformance suite parser/ fixtures
+// (conformance/parser/), rather than inventing separate ones, so the two suites can't drift apart.
+// Each fixture's case.yaml states whether it must be accepted or rejected, and a rejected one may
+// also carry expect.message: a regex the rejection's message must match, so a change that made
+// parseFactory reject a fixture for the *wrong* reason (or stopped invoking the path it's meant to
+// exercise) would still be caught — without hardcoding that knowledge here.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import YAML from "yaml";
 
 import { parseFactory, render } from "./sfml-to-mermaid.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const script = join(here, "sfml-to-mermaid.js");
-const schemaTestsDir = join(here, "..", "tests", "schema");
-const valid = (name) => join(schemaTestsDir, "valid", name);
-const invalid = (name) => join(schemaTestsDir, "invalid", name);
-const fixturesIn = (dir) =>
-  readdirSync(dir)
-    .filter((f) => /\.(ya?ml|json)$/.test(f))
-    .sort();
+const parserDir = join(here, "..", "conformance", "parser");
 
-for (const name of fixturesIn(join(schemaTestsDir, "valid"))) {
-  test(`parseFactory accepts tests/schema/valid/${name}`, () => {
-    assert.doesNotThrow(() => parseFactory(valid(name)));
+const parserTests = readdirSync(parserDir)
+  .sort()
+  .map((name) => {
+    const dir = join(parserDir, name);
+    const testCase = YAML.parse(readFileSync(join(dir, "case.yaml"), "utf8"));
+    const factory = existsSync(join(dir, "factory.yaml")) ? join(dir, "factory.yaml") : join(dir, "factory.json");
+    return { name, factory, ...testCase };
+  });
+
+for (const { name, factory, expect } of parserTests.filter((t) => t.expect.parse === "accept")) {
+  test(`parseFactory accepts conformance/parser/${name}`, () => {
+    assert.doesNotThrow(() => parseFactory(factory));
   });
 }
 
-// Every file under tests/schema/invalid/ must be rejected. A few are also named here with the
-// pattern their rejection message must match, so a change that made parseFactory reject a fixture
-// for the *wrong* reason (or stopped invoking the §5.1/§5.4/§5.6/Annex-A path each is meant to
-// exercise) would still be caught, without a separate one-off test duplicating the same fixture.
-const expectedDiagnostic = {
-  "duplicate-step-key.yaml": /unique/i, // §5.6
-  "unknown-step-field.yaml": /unevaluated propert/i, // §5.4
-  "agent-missing-result-schema.yaml": /data model/i, // Annex A
-  "invalid-utf8.yaml": /utf-8/i, // §5.1
-};
-
-for (const name of fixturesIn(join(schemaTestsDir, "invalid"))) {
-  test(`parseFactory rejects tests/schema/invalid/${name}`, () => {
-    assert.throws(() => parseFactory(invalid(name)), expectedDiagnostic[name]);
+for (const { name, factory, expect } of parserTests.filter((t) => t.expect.parse === "reject")) {
+  test(`parseFactory rejects conformance/parser/${name}`, () => {
+    assert.throws(() => parseFactory(factory), expect.message ? new RegExp(expect.message, "i") : undefined);
   });
 }
 
-// tests/schema/valid/full.yaml (its own header comment: "Every step type and every optional
-// field, in one factory") declares an agent (`plan`), a parallel step (`checks`, with an agent
-// child `lint` and a human child `signoff`), a human step (`review`) with two conditional edges
-// and one fallback, and two result steps (`shipped`: complete, `give_up`: terminal_failure).
-const full = valid("full.yaml");
+// conformance/parser/full/case.yaml ("Every step type and every optional field, in one factory")
+// declares an agent (`plan`), a parallel step (`checks`, with an agent child `lint` and a human
+// child `signoff`), a human step (`review`) with two conditional edges and one fallback, and two
+// result steps (`shipped`: complete, `give_up`: terminal_failure).
+const full = join(parserDir, "full", "factory.yaml");
 
 // tests/sfml-to-mermaid/full.mmd is a golden fixture: the exact, byte-for-byte mermaid full.yaml
 // must render to. A change to render()'s output — a new shape, a reordered field, different
 // escaping — is expected to change this file too; regenerate it with:
-//   node examples/sfml-to-mermaid.js tests/schema/valid/full.yaml > tests/sfml-to-mermaid/full.mmd
+//   node examples/sfml-to-mermaid.js conformance/parser/full/factory.yaml > tests/sfml-to-mermaid/full.mmd
 // and review the diff before committing it, the same way you'd review any other fixture update.
 const fullMermaidFixture = join(here, "..", "tests", "sfml-to-mermaid", "full.mmd");
 
@@ -163,7 +160,8 @@ test("CLI writes mermaid source to stdout for a valid file", () => {
 });
 
 test("CLI exits non-zero and writes nothing to stdout for an invalid file", () => {
-  assert.throws(() => execFileSync("node", [script, invalid("unknown-step-field.yaml")], { encoding: "utf8" }), (err) => {
+  const unknownStepField = join(parserDir, "unknown-step-field", "factory.yaml");
+  assert.throws(() => execFileSync("node", [script, unknownStepField], { encoding: "utf8" }), (err) => {
     assert.equal(err.status, 1);
     assert.equal(err.stdout, "");
     assert.match(err.stderr, /does not conform/);

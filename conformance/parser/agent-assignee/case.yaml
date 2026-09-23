@@ -1,0 +1,4 @@
+description: "assignee does not apply to agent"
+clauses: ["§6.4"]
+expect:
+  parse: reject

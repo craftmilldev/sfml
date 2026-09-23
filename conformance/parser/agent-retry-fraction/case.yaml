@@ -1,0 +1,4 @@
+description: "retry is an Integer"
+clauses: ["§6.1"]
+expect:
+  parse: reject

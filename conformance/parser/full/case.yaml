@@ -1,0 +1,4 @@
+description: "Every step type and every optional field, in one factory."
+clauses: ["§6"]
+expect:
+  parse: accept

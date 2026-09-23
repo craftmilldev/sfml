@@ -1,0 +1,4 @@
+description: "type is required"
+clauses: ["§6.4"]
+expect:
+  parse: reject

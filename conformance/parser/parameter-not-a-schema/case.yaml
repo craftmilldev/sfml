@@ -1,0 +1,4 @@
+description: "each parameter is a JSON Schema"
+clauses: ["§6.3"]
+expect:
+  parse: reject

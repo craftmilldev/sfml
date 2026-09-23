@@ -1,0 +1,4 @@
+description: "a child MUST NOT be parallel"
+clauses: ["§6.7"]
+expect:
+  parse: reject

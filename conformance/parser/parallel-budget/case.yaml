@@ -1,0 +1,4 @@
+description: "a parallel step MUST NOT declare budget"
+clauses: ["§6.7"]
+expect:
+  parse: reject

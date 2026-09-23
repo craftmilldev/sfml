@@ -1,0 +1,4 @@
+description: "outcome is complete or terminal_failure"
+clauses: ["§6.8"]
+expect:
+  parse: reject

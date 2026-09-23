@@ -1,0 +1,4 @@
+description: "prompt_vars values are Expressions"
+clauses: ["§6.5"]
+expect:
+  parse: reject

@@ -1,0 +1,4 @@
+description: "Plan and plan are distinct steps; names may contain anything but '.'."
+clauses: ["§5.2"]
+expect:
+  parse: accept

@@ -1,0 +1,5 @@
+description: "result_schema is required on agent"
+clauses: ["§6.4"]
+expect:
+  parse: reject
+  message: "result_schema"

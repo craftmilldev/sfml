@@ -12,7 +12,12 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["parse"],
-      "properties": { "parse": { "enum": ["accept", "reject"] } }
+      "properties": {
+        "parse": { "enum": ["accept", "reject"] },
+        "message": { "type": "string", "minLength": 1 }
+      },
+      "if": { "properties": { "parse": { "const": "accept" } } },
+      "then": { "not": { "required": ["message"] } }
     }
   }
 }

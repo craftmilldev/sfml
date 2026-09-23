@@ -1,0 +1,4 @@
+description: "result_schema is required on human"
+clauses: ["§6.4"]
+expect:
+  parse: reject

@@ -1,0 +1,4 @@
+description: "this schema is v0.1 only"
+clauses: ["§13.1"]
+expect:
+  parse: reject

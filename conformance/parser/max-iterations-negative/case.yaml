@@ -1,0 +1,4 @@
+description: "max_iterations is non-negative"
+clauses: ["§9.6"]
+expect:
+  parse: reject

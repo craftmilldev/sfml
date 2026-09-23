@@ -1,0 +1,4 @@
+description: "exactly one of prompt_path or prompt"
+clauses: ["§6.5"]
+expect:
+  parse: reject

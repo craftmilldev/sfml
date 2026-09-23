@@ -1,0 +1,5 @@
+description: "unknown fields are rejected"
+clauses: ["§5.4"]
+expect:
+  parse: reject
+  message: "unevaluated propert"

@@ -1,0 +1,4 @@
+description: "when is an Expression"
+clauses: ["§6.9"]
+expect:
+  parse: reject
