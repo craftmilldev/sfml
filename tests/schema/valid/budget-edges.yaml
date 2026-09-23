@@ -1,0 +1,28 @@
+# Decimal USD edge values that are legal (§9.7): integers, zero, and two decimal places.
+sfml: "v0.1"
+start: a
+budget: 12
+steps:
+  a:
+    type: agent
+    harness: h
+    prompt: go
+    budget: 0.29
+    result_schema: {}
+    next: [{ to: b }]
+  b:
+    type: agent
+    harness: h
+    prompt: go
+    budget: 0.00
+    result_schema: {}
+    next: [{ to: c }]
+  c:
+    type: agent
+    harness: h
+    prompt: go
+    budget: 19.99
+    max_iterations: 0
+    result_schema: {}
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

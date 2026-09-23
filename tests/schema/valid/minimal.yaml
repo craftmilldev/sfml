@@ -1,0 +1,7 @@
+# The smallest document the schema accepts.
+sfml: "v0.1"
+start: done
+steps:
+  done:
+    type: result
+    outcome: complete

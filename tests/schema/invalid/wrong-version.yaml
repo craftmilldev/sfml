@@ -1,0 +1,5 @@
+# §13.1 this schema is v0.1 only
+sfml: "v0.2"
+start: done
+steps:
+  done: { type: result, outcome: complete }

@@ -1,0 +1,13 @@
+# Plan and plan are distinct steps (§5.2); names may contain anything but '.'.
+sfml: "v0.1"
+start: Plan
+steps:
+  Plan:
+    type: human
+    result_schema: {}
+    next: [{ to: plan }]
+  plan:
+    type: human
+    result_schema: {}
+    next: [{ to: "fin ✓" }]
+  "fin ✓": { type: result, outcome: complete }

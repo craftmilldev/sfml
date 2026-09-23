@@ -1,0 +1,4 @@
+# §6.2 start is required
+sfml: "v0.1"
+steps:
+  done: { type: result, outcome: complete }

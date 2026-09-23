@@ -1,0 +1,5 @@
+# §6.1 SFMLVersionString is a string
+sfml: 0.1
+start: done
+steps:
+  done: { type: result, outcome: complete }

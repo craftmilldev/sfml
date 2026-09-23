@@ -1,0 +1,11 @@
+# §6.7 a parallel step MUST NOT declare budget
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: parallel
+    budget: 1.00
+    steps:
+      h: { type: human, result_schema: {} }
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

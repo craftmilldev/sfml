@@ -1,0 +1,5 @@
+# §6.8 a result step MUST NOT declare next
+sfml: "v0.1"
+start: done
+steps:
+  done: { type: result, outcome: complete, next: [{ to: done }] }

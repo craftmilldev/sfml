@@ -1,0 +1,12 @@
+# §9.6 max_iterations is non-negative
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: agent
+    harness: h
+    prompt: go
+    result_schema: {}
+    max_iterations: -1
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

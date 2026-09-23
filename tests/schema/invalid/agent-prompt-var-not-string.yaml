@@ -1,0 +1,12 @@
+# §6.5 prompt_vars values are Expressions
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: agent
+    harness: h
+    prompt: go
+    result_schema: {}
+    prompt_vars: { n: 3 }
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

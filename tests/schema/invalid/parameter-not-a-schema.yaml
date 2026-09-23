@@ -1,0 +1,13 @@
+# §6.3 each parameter is a JSON Schema
+sfml: "v0.1"
+start: a
+parameters:
+  n: { type: 12 }
+steps:
+  a:
+    type: agent
+    harness: h
+    prompt: go
+    result_schema: {}
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

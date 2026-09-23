@@ -1,0 +1,8 @@
+# §6.4 type is required
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    result_schema: {}
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

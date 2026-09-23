@@ -1,0 +1,11 @@
+# §6.4 a parallel step MUST NOT declare result_schema
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: parallel
+    result_schema: {}
+    steps:
+      h: { type: human, result_schema: {} }
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

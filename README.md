@@ -8,8 +8,31 @@ The bet is that the factory graph will be defined in code and having a shared fo
 | ------------------ | -------------------------------------------------------------- |
 | [PRD.md](PRD.md)   | What SFML must do and what has been decided.    |
 | [SPEC.md](SPEC.md) | The specification. |
+| [sfml.schema.json](sfml.schema.json) | JSON Schema (2020-12) for a factory document's surface syntax (SPEC Annex A). |
 | [conformance/](conformance/README.md) | The conformance suite (Annex B) and its file formats. |
 | [conformance/mock-harness.md](conformance/mock-harness.md) | The `mock` harness contract: async API, sessions, events, and pricing. |
+
+## Validating a factory
+
+`sfml.schema.json` catches structural mistakes; the graph checks of SPEC clause 8 still need a
+Linter. To check a factory file against the schema:
+
+```sh
+npm install
+node tools/validate-schema.mjs path/to/factory.yaml
+```
+
+`npm run validate:schema` runs the schema against its fixtures in `tests/schema/`.
+
+## Tests
+
+```sh
+npm install && npm install --prefix example
+npm test
+```
+
+`npm test` validates the schema fixtures and the conformance suite, then runs the example's
+harness tests. CI runs it on every push to `main` and on every pull request.
 
 ## Status
 

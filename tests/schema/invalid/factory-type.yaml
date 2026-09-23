@@ -1,0 +1,8 @@
+# §1.2 type: factory is not accepted
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: factory
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

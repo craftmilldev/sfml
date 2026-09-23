@@ -1,0 +1,6 @@
+# §5.2 a StepName excludes '.'
+sfml: "v0.1"
+start: done
+steps:
+  a.b: { type: result, outcome: complete }
+  done: { type: result, outcome: complete }

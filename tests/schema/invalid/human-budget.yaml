@@ -1,0 +1,10 @@
+# §6.6 a human step MUST NOT declare budget
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: human
+    result_schema: {}
+    budget: 1.00
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }
