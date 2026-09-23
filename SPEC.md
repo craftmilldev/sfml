@@ -337,7 +337,9 @@ against `result_schema`.
 - A successful attempt's output is validated against `result_schema`; a failure to validate raises
   `schema_violation` (§10.4) once retry, if configured, is exhausted. Validation failure and harness
   failure are distinct: an attempt fails to validate only after the harness has already produced
-  output, which is why this is `schema_violation` and not `harness_error`.
+  output, which is why this is `schema_violation` and not `harness_error`. Output from which no
+  value can be obtained at all (for example, agent text with no parseable result in it) has still
+  been produced, and fails validation the same way (§10.4).
 - `budget` (§9.7) and `max_iterations` (§9.6), where present, bound the step's cost and iterations
   respectively.
 - `retry` (§6.10) governs re-attempting a harness failure the harness has classified as retryable.
@@ -822,7 +824,7 @@ selecting a `Connection`.
 
 | Class              | Raised when                                                                              |
 | ------------------- | ------------------------------------------------------------------------------------------ |
-| `schema_violation`  | An agent step's output fails `result_schema` validation and retry, where configured, has not fixed it. |
+| `schema_violation`  | An agent step's output fails `result_schema` validation, or yields no value to validate, and retry, where configured, has not fixed it. |
 | `harness_error`     | The harness fails to produce a result for a reason outside the agent's own output contract.              |
 | `iteration_limit`   | Entering a step would exceed its effective iteration bound (§9.6).                                       |
 | `budget_exceeded`   | A step's reported consumption reaches or exceeds its effective budget (§9.7).                            |
@@ -862,6 +864,13 @@ would be wrong for the next harness bound to it.
 payload is rejected at the call (§11.5): the resume fails, the step remains `awaiting_input`, and
 nothing is appended. There is no failed attempt to record and no exception to resume from in this
 case, because the run never left the state it was already in.
+
+How a harness turns an agent's output into the value validated against `result_schema` (a native
+structured-output feature, parsing a fenced block out of the agent's final text, or any other
+means) is the harness's own business (§3.3.4). When the harness has produced output but no value
+can be obtained from it, the attempt MUST be treated as failing `result_schema` validation: it
+raises `schema_violation`, not `harness_error`, and is subject to the retry and reprompt behavior
+below. `harness_error` (§10.3) remains the class for a harness that fails to produce output at all.
 
 - An implementation MUST permit retry of `schema_violation`, and SHOULD default to at least one
   automatic attempt with the validator's error fed back into the reprompt when no `retry` is defined.
