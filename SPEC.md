@@ -121,10 +121,9 @@ applies.
 
 #### 3.2.7 Prompt template
 
-The content named by an agent step's `prompt_path` or `prompt` (§6.5), rendered against that step's
-`PromptVars` (§7.5.2, §9.9) to produce the text sent to the harness. This specification does not
-define a template syntax; it defines only the value — `PromptVars` — a template renders against and
-the binding environment (§7.5) that value belongs to.
+The content named by an agent step's `prompt_path` or `prompt` (§6.5): text interspersed with
+placeholders (§7.9), rendered against that step's `PromptVars` (§7.5.2, §9.9) to produce the text
+sent to the harness.
 
 ### 3.3 Roles
 
@@ -522,6 +521,33 @@ An expression MUST NOT contain a user-defined function, arithmetic on a step res
 macro, or any construct outside the grammar of §7.2, even where the underlying CEL implementation
 would otherwise accept it. A Linter MUST reject such an expression.
 
+### 7.9 Prompt template placeholders
+
+A prompt template — the content of `prompt`, or of the file `prompt_path` names — MUST be encoded as
+UTF-8, independent of the factory document's own encoding (§5.1), so that the delimiter below is
+unambiguous.
+
+A placeholder in a prompt template (§3.2.7) is delimited by two consecutive `«` characters
+(U+00AB LEFT-POINTING DOUBLE ANGLE QUOTATION MARK, doubled) and closed by two consecutive `»`
+characters (U+00BB RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK, doubled) — `««` and `»»`, never a
+single guillemet. A single `«` or `»`, anywhere it appears, is ordinary literal text and MUST NOT be
+treated as part of a placeholder; only the doubled pair opens or closes one.
+
+- The text between a `««` and the next `»»` is a `PromptVars Expression` (§7.5.2). Leading and
+  trailing whitespace within the delimiters is insignificant.
+- At render time (§9.9), each placeholder's enclosed text MUST parse as a `PromptVars Expression`
+  per §7.2 and MUST evaluate against that step's `PromptVars`; a parse or evaluation failure raises
+  `expression_error` (§10.7). This specification does not define a fallback for text that merely
+  resembles a placeholder without being well-formed between a matched `««`/`»»` pair — a `««` with
+  no following `»»` in the same template is a parse failure, not literal text.
+- The evaluated value is substituted in place of the placeholder: a String value is inserted as-is;
+  any other value (a number, boolean, `null`, list, or object) is inserted as its canonical JSON
+  encoding. Everything outside a placeholder is copied to the output unchanged.
+
+This specification defines no escape for a literal `««` or `»»` in template text. A single `«` or
+`»` is unaffected by this rule and needs no special treatment; an author who needs the doubled
+sequence itself to appear literally, rather than open a placeholder, has no way to express that.
+
 ## 8. Graph validity
 
 ### 8.1 Validation stages
@@ -749,6 +775,11 @@ A prompt template therefore references `prompt_vars.issue`, not a bare `issue`: 
 future version of this specification add a sibling field to `PromptVars` without making an existing
 template's bare names ambiguous. `FactoryState` is not reachable from a prompt template; anything a
 template needs MUST be named first in the step's own `prompt_vars` (§7.5.2).
+
+Rendering means substituting every placeholder (§7.9) in the template's text with the string
+produced by evaluating it against `PromptVars`; the text sent to the harness is the result. A parse
+or evaluation failure in any placeholder raises `expression_error` (§10.7) before the harness is
+invoked for that entry.
 
 ### 9.10 Termination
 
