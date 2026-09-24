@@ -60,6 +60,7 @@ const factory: Factory = {
       next: [{ to: "done" }],
     },
     silent: { type: "human", result_schema: { type: "object" }, next: [{ to: "done" }] },
+    echo: { type: "human", result_schema: { type: "object" }, instructions: "last_result", next: [{ to: "done" }] },
     fan: {
       type: "parallel",
       next: [{ to: "done" }],
@@ -85,6 +86,15 @@ test("renderInstruction: undefined when the step declares no instructions", () =
 
 test("renderInstruction: undefined (not a throw) for an unknown step", () => {
   assert.equal(renderInstruction("nope", factory, state), undefined);
+});
+
+// Fixture: conformance/runner/last-result-parallel/factory.sfml has a human step whose
+// `instructions` is the bare `last_result` identifier -- a spec-supported pattern (§9.2). Without
+// `BlockedEntry.lastResult`, this instruction can't be rendered: `last_result` isn't in ObservedState
+// since it's per-step, not global run state.
+test("renderInstruction: an instructions expression referencing bare last_result resolves via the passed-in lastResult", () => {
+  assert.equal(renderInstruction("echo", factory, state, { tag: "widget" }), '{"tag":"widget"}');
+  assert.equal(renderInstruction("echo", factory, state), "null", "defaults to null, matching env(forStep)'s has()-guarded lookup");
 });
 
 // --- reportBlocked: stderr formatting, and never a raw JSON dump -----------------------------------
@@ -115,6 +125,17 @@ test("reportBlocked: awaiting_input prints the rendered instruction, not the raw
   assert.match(out, /resume payload: an object matching the step's result_schema/);
   assert.match(out, /sfml resume f\.sfml --run abc-123 --step review --payload '\{\}'/);
   assert.ok(!out.includes('"parameters"') && !out.includes('"results"'), "must not dump the observed state JSON");
+});
+
+test("reportBlocked: a blocked human step whose instructions reference last_result renders it, not '(none declared)'", () => {
+  const observation: Observation = {
+    status: "awaiting_input",
+    blocked: [{ step: "echo", state: "awaiting_input", lastResult: { tag: "widget" } }],
+    state,
+  };
+  const out = captureStderr(() => reportBlocked(observation, factory, "f.sfml", ["--run", "abc-123"]));
+  assert.match(out, /instruction: \{"tag":"widget"\}/);
+  assert.ok(!out.includes("(none declared)"));
 });
 
 test("reportBlocked: errored shows the exception class and any message (context)", () => {
@@ -183,18 +204,52 @@ test("integration: a run that blocks at a human step reports human-readable guid
     assert.match(runResult.stderr, /awaiting input/);
     assert.match(runResult.stderr, /instruction: widget/);
     assert.match(runResult.stderr, /resume payload: an object matching the step's result_schema/);
-    // `run` always mints and reports its own --run <id>, even when --state was also given.
-    const runIdMatch = runResult.stderr.match(/^run: (\S+)$/m);
-    assert.ok(runIdMatch, "expected `run: <id>` on stderr");
-    assert.match(
-      runResult.stderr,
-      new RegExp(`sfml resume ${factoryPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")} --run ${runIdMatch![1]} --step review --payload '\\{\\}'`),
-    );
+    // An explicit --state was given to `run`, so the copy-pasteable command must resume via --state
+    // (the default --run <id> path is never written to in that case) -- not --run.
+    const escapedFactoryPath = factoryPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escapedStatePath = statePath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    assert.match(runResult.stderr, new RegExp(`sfml resume ${escapedFactoryPath} --state ${escapedStatePath} --step review --payload '\\{\\}'`));
+    assert.ok(!runResult.stderr.includes("--run "), "must not suggest --run when the state was written to a custom --state path");
 
     const resumeResult = runCli(["resume", factoryPath, "--state", statePath, "--step", "review", "--payload", '{"approved":true}'], dir);
     assert.equal(resumeResult.status, 0);
     const printed = JSON.parse(resumeResult.stdout) as Observation;
     assert.equal(printed.status, "terminal");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("integration: a run with no --state prints --run (the default path `run` actually wrote)", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sfml-cli-test-"));
+  try {
+    const factoryPath = join(dir, "factory.sfml");
+    writeFileSync(
+      factoryPath,
+      [
+        'sfml: "v0.1"',
+        "start: review",
+        "parameters:",
+        "  title: { type: string }",
+        "steps:",
+        "  review:",
+        "    type: human",
+        "    result_schema: { type: object }",
+        "    next:",
+        "      - to: done",
+        "  done:",
+        "    type: result",
+        "    outcome: complete",
+        "",
+      ].join("\n"),
+    );
+
+    const runResult = runCli(["run", factoryPath, "--param", "title=widget"], dir);
+    assert.equal(runResult.status, 0);
+    const runIdMatch = runResult.stderr.match(/^run: (\S+)$/m);
+    assert.ok(runIdMatch, "expected `run: <id>` on stderr");
+    const escapedFactoryPath = factoryPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    assert.match(runResult.stderr, new RegExp(`sfml resume ${escapedFactoryPath} --run ${runIdMatch![1]} --step review --payload '\\{\\}'`));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

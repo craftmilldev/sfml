@@ -107,15 +107,17 @@ function logEvent(event: RunnerEvent): void {
 
 /** Looks up a (possibly parallel-child) step's `HumanStep.instructions` and renders it against the
  * observed state, or returns undefined if there's no instruction or it fails to evaluate (defensive:
- * it already evaluated once for the branch to reach `awaiting_input`). */
-export function renderInstruction(step: string, factory: Factory, state: Observation["state"]): string | undefined {
+ * it already evaluated once for the branch to reach `awaiting_input`). `lastResult` is the blocked
+ * step's own `BlockedEntry.lastResult` -- ObservedState doesn't carry it (it's per-step, not global),
+ * but `instructions` may reference the bare `last_result` identifier (SPEC §9.2). */
+export function renderInstruction(step: string, factory: Factory, state: Observation["state"], lastResult: unknown = null): string | undefined {
   const [parentName, childName] = step.includes(".") ? splitQualified(step) : [step, undefined];
   const parent = factory.steps[parentName];
   if (!parent) return undefined;
   const target = childName !== undefined ? (parent.type === "parallel" ? parent.steps[childName] : undefined) : parent;
   if (!target || target.type !== "human" || target.instructions === undefined) return undefined;
   try {
-    const value = evaluateExpression(target.instructions, { parameters: state.parameters, results: state.results } as unknown as Env);
+    const value = evaluateExpression(target.instructions, { parameters: state.parameters, results: state.results, last_result: lastResult } as unknown as Env);
     return typeof value === "string" ? value : JSON.stringify(value);
   } catch {
     return undefined;
@@ -157,7 +159,7 @@ export function reportBlocked(
   for (const entry of observation.blocked) {
     w(`  ${entry.step}\n`);
     if (entry.state === "awaiting_input") {
-      const instruction = renderInstruction(entry.step, factory, observation.state);
+      const instruction = renderInstruction(entry.step, factory, observation.state, entry.lastResult);
       w(`    instruction: ${instruction ?? "(none declared)"}\n`);
     } else {
       w(`    error: ${entry.exception}${entry.exceededScope ? ` (${entry.exceededScope} budget)` : ""}\n`);
@@ -210,7 +212,8 @@ async function main(): Promise<void> {
     // unconstrained. This CLI mints one and always persists to it (or to --state, if given), so a run
     // that blocks is never unrecoverable just because the caller forgot --state up front.
     const runId = randomUUID();
-    const statePath = flags.get("state")?.[0] ?? defaultStatePath(runId);
+    const explicitStatePath = flags.get("state")?.[0];
+    const statePath = explicitStatePath ?? defaultStatePath(runId);
     mkdirSync(dirname(statePath), { recursive: true });
     process.stderr.write(`run: ${runId}\nstate: ${statePath}\n`);
 
@@ -222,7 +225,9 @@ async function main(): Promise<void> {
     writeFileSync(statePath, JSON.stringify(serializeRunState(admission.engine!.getState())));
     const observation = admission.result.observation;
     if (observation.status === "terminal") printObservation(observation);
-    else reportBlocked(observation, parsed.factory, factoryPath, ["--run", runId]);
+    // Mirror resume's choice below: if the caller gave --state explicitly, the copy-pasteable
+    // command must use it too -- --run reconstructs the default path, which was never written to.
+    else reportBlocked(observation, parsed.factory, factoryPath, explicitStatePath ? ["--state", statePath] : ["--run", runId]);
     return;
   }
 

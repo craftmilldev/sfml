@@ -22,6 +22,9 @@ export type BlockedEntry = {
   exception?: ExceptionClass;
   exceededScope?: "step" | "run";
   message?: string;
+  // The step's own last_result (§9.2), which env(forStep) would inject were it re-evaluating this
+  // step's expressions -- not part of ObservedState since it's per-step, not global run state.
+  lastResult?: unknown;
 };
 export type Observation =
   | { status: "terminal"; outcome: "complete" | "terminal_failure"; value: unknown; state: ObservedState }
@@ -182,6 +185,9 @@ export class Engine {
       ...(b.exception && { exception: b.exception }),
       ...(b.exceededScope && { exceededScope: b.exceededScope }),
       ...(b.message !== undefined && { message: b.message }),
+      // Same has()-guarded lookup env(forStep) uses, so a re-evaluation of this step's expressions
+      // (e.g. rendering `instructions`) sees the same last_result the step itself saw.
+      lastResult: this.state.lastResult.has(b.step) ? this.state.lastResult.get(b.step) : null,
     }));
     const status = blocked.some((b) => b.state === "errored") ? "errored" : "awaiting_input";
     return { status, blocked, state: this.snapshotState() };
