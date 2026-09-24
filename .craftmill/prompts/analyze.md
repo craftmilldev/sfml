@@ -48,6 +48,7 @@ Each outer array is a new set of comments.
 
 ### If you are ready
 
+- Work with git worktrees
 - Create a new git branch off the target branch for this feature, using a short
   kebab-case name derived from the feature request. The target is `main` unless
   ««prompt_vars.ticket_url»» is a comment on a PR, in which case it's that PR's own
