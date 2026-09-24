@@ -1,0 +1,32 @@
+description: >
+  A `parallel` step's children inherit the same `last_result` the `parallel` step itself saw --
+  here, `a`'s result -- not the parallel's own not-yet-produced result. Child `one`'s `instructions`
+  reads `last_result` and must not raise `expression_error`. The step `p` routes to afterward, `d`,
+  sees `p`'s joined `{one: ..., two: ...}` object as its own `last_result`.
+clauses: ["§6.7", "§9.2", "§9.8"]
+actions:
+  - start: {}
+    expect:
+      status: awaiting_input
+      blocked: [{ step: a, state: awaiting_input }]
+  - resume: { step: a, payload: { tag: "hello" } }
+    expect:
+      status: awaiting_input
+      blocked:
+        - { step: p.one, state: awaiting_input }
+        - { step: p.two, state: awaiting_input }
+  - resume: { step: p.one, payload: { echo: "one-done" } }
+    expect:
+      status: awaiting_input
+      blocked: [{ step: p.two, state: awaiting_input }]
+  - resume: { step: p.two, payload: { echo: "two-done" } }
+expect:
+  status: terminal
+  outcome: complete
+  value: { one: { echo: "one-done" }, two: { echo: "two-done" } }
+  state:
+    parameters: {}
+    results:
+      a: [{ tag: "hello" }]
+      p: [{ one: { echo: "one-done" }, two: { echo: "two-done" } }]
+      d: [{ one: { echo: "one-done" }, two: { echo: "two-done" } }]

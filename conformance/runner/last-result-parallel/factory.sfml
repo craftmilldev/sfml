@@ -1,0 +1,33 @@
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: human
+    result_schema:
+      type: object
+      required: [tag]
+      properties: { tag: { type: string } }
+    next:
+      - to: p
+  p:
+    type: parallel
+    steps:
+      one:
+        type: human
+        instructions: last_result
+        result_schema:
+          type: object
+          required: [echo]
+          properties: { echo: { type: string } }
+      two:
+        type: human
+        result_schema:
+          type: object
+          required: [echo]
+          properties: { echo: { type: string } }
+    next:
+      - to: d
+  d:
+    type: result
+    outcome: complete
+    value: last_result

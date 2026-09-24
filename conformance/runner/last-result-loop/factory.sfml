@@ -1,0 +1,26 @@
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: human
+    result_schema:
+      type: object
+      required: [tag]
+      properties: { tag: { type: string } }
+    next:
+      - to: b
+  b:
+    type: human
+    max_iterations: 3
+    result_schema:
+      type: object
+      required: [tag]
+      properties: { tag: { type: string } }
+    next:
+      - when: last_result.tag == "from-a"
+        to: b
+      - to: d
+  d:
+    type: result
+    outcome: complete
+    value: last_result

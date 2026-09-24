@@ -1,0 +1,25 @@
+description: >
+  `c` has two incoming Connections, from `a1` and from `a2`. Whichever one actually routes into `c`
+  determines `c`'s `last_result` (SPEC §6.9, §9.2) -- here `parameters.path` sends the run through
+  `a2`, so `c`'s value must equal `a2`'s result, not `a1`'s.
+clauses: ["§9.2", "§6.9"]
+actions:
+  - start: { parameters: { path: "a2" } }
+    expect:
+      status: awaiting_input
+      blocked: [{ step: route, state: awaiting_input }]
+  - resume: { step: route, payload: {} }
+    expect:
+      status: awaiting_input
+      blocked: [{ step: a2, state: awaiting_input }]
+  - resume: { step: a2, payload: { tag: "from-a2" } }
+expect:
+  status: terminal
+  outcome: complete
+  value: { tag: "from-a2" }
+  state:
+    parameters: { path: "a2" }
+    results:
+      route: [{}]
+      a2: [{ tag: "from-a2" }]
+      c: [{ tag: "from-a2" }]
