@@ -1,0 +1,6 @@
+description: >
+  The same unclosed placeholder, in the file `prompt_path` names instead of inline. The Linter reads
+  the file to find it.
+clauses: ["§6.5", "§7.9"]
+expect:
+  diagnostics: [invalid-prompt-template]

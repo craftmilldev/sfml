@@ -12,8 +12,8 @@ conformance/
   mock-harness.md    the mock harness that runner tests play back (Annex B)
   models.json        the price table the mock uses
   schema/            JSON Schemas (2020-12) for every file below
-  parser/<test>/     clause 5: Parser, Linter, and Runner run these
-  lint/<test>/       clause 8: Linter and Runner run these
+  parser/<test>/     Parser rules (SPEC §4.3): Parser, Linter, and Runner run these
+  lint/<test>/       Linter rules (SPEC §4.3): Linter and Runner run these
   runner/<test>/     clauses 9–12: Runner runs these
 ```
 
@@ -27,8 +27,8 @@ submodule) and point its test runner at it. The folder a test sits in gives its 
 | Folder    | Files                                                                             | What the implementation does                                                                       |
 | --------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `parser/` | `case.yaml`, `factory.sfml` or `factory.sfml.json`                                | Parse the document; accept or reject it.                                                           |
-| `lint/`   | `case.yaml`, `factory.sfml`                                                       | Lint the factory; report diagnostics.                                                               |
-| `runner/` | `case.yaml`, `factory.sfml`, and `transcript.yaml` if the factory has agent steps | Perform `actions` against the factory, with the mock playing `transcript.yaml` (mock-harness.md). |
+| `lint/`   | `case.yaml`, `factory.sfml`, and `prompts/` if the factory names prompt files      | Lint the factory; report diagnostics.                                                               |
+| `runner/` | `case.yaml`, `factory.sfml`, `transcript.yaml` if the factory has agent steps, and `prompts/` if it names prompt files | Perform `actions` against the factory, with the mock playing `transcript.yaml` (mock-harness.md). |
 
 Every `case.yaml` has the same frame:
 
@@ -38,7 +38,8 @@ clauses: ["§8.3"]      # the SPEC.md clauses it exercises
 expect: …              # the outputs to check; shape depends on the folder
 ```
 
-Paths inside a test are relative to its folder. `models.json` is the only file shared across tests.
+Paths inside a test are relative to its folder, which is also the directory a `prompt_path` resolves
+against (SPEC §6.5). Prompt files live under `prompts/`. `models.json` is the only file shared across tests.
 
 ## 2. `parser/` and `lint/` tests
 
@@ -83,11 +84,10 @@ expect:
   may_also_report: [unreachable-step, no-path-to-result]
 ```
 
-- The fixtures for the §8.2 structural rules (`invalid-parallel-child-type`,
-  `parallel-child-has-next`, `nested-parallel`, `field-not-applicable-to-type`) are documents that a
-  Parser also rejects, since clause 6 forbids the same shapes. SPEC §8.2 still obligates a Linter to
-  report their identifiers, so a Linter must lint such a document, not stop at its parse
-  rejection. Each other `lint/` fixture parses cleanly.
+- Every `lint/` fixture parses: a Linter only ever sees a factory its Parser accepted (SPEC §4.1.2).
+  So a rule the Parser owns, such as a field on the wrong step type or a `parallel` child that
+  declares `next`, is tested only in `parser/`, never in `lint/`. SPEC §4.3 lists which class owns
+  each rule.
 
 ## 3. `runner/` tests
 
@@ -184,6 +184,3 @@ These are settled for the suite only; SPEC.md is unchanged.
    fixed it". `runner/schema-violation-override` reads `retry: 2` as two attempts in total.
 5. **Process death mid-turn.** `restart` happens only once the run has settled, so no test covers a
    harness turn in flight at process death.
-6. **Expressions that aren't CEL.** SPEC §7.1 says every expression MUST parse as CEL, but not
-   whether the Parser or the Linter rejects one that doesn't, or with what identifier. The
-   `prohibited-expression-construct` tests (SPEC §7.8) use only valid CEL, so no test depends on it.

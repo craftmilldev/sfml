@@ -43,6 +43,9 @@ check("models.schema.json", models, join(root, "models.json"));
 
 // --- per-folder rules --------------------------------------------------------------------------
 
+// Prompt templates a factory names with prompt_path live under this directory (README §1).
+const PROMPTS = "prompts";
+
 /** `required` must all be present, and nothing outside `allowed` may be. */
 function checkFiles(dir, required, allowed) {
   const present = readdirSync(dir);
@@ -58,7 +61,7 @@ function checkParser(dir) {
 }
 
 function checkLint(dir, testCase) {
-  checkFiles(dir, ["case.yaml", "factory.sfml"], ["case.yaml", "factory.sfml"]);
+  checkFiles(dir, ["case.yaml", "factory.sfml"], ["case.yaml", "factory.sfml", PROMPTS]);
   if (existsSync(join(dir, "factory.sfml"))) load(join(dir, "factory.sfml"));
   const { diagnostics, may_also_report: optional = [] } = testCase.expect;
   for (const id of optional) if (diagnostics.includes(id)) fail(dir, `'${id}' is in both diagnostics and may_also_report`);
@@ -90,7 +93,7 @@ function checkRunner(dir, testCase) {
   }
 
   const files = ["case.yaml", "factory.sfml", ...(agents.size > 0 && testCase.expect?.admitted !== false ? ["transcript.yaml"] : [])];
-  checkFiles(dir, files, files);
+  checkFiles(dir, files, [...files, PROMPTS]);
   const transcriptPath = join(dir, "transcript.yaml");
   if (files.includes("transcript.yaml") && existsSync(transcriptPath)) checkTranscript(transcriptPath, agents);
 

@@ -1,6 +1,0 @@
-description: >
-  A parallel step declares `result_schema`, though its result comes from its children. A Parser also
-  rejects this document (§6.4), but a Linter must still report the §8.7 identifier (§8.2).
-clauses: ["§6.4", "§6.7", "§8.2"]
-expect:
-  diagnostics: [field-not-applicable-to-type]

@@ -156,14 +156,23 @@ Software that parses, lints, or runs factory files in conformance with this spec
 
 #### 4.1.1 Parser
 
-A **Parser** accepts a document's surface syntax and encoding (clause 5) and produces a value
-conforming to the data model of clause 6, or rejects the document. A Parser does not evaluate
-expressions and does not perform the checks of clause 8.
+A **Parser** converts a document into the data model of clause 6, or rejects it. Its question is
+whether every part of the document maps to something this specification defines, the way a
+reader of a binary format rejects a byte sequence that maps to no known structure. A Parser rejects
+a document whose bytes are not valid UTF-8, whose syntax is not valid YAML, that has a duplicate
+key, that has a field this specification does not define at that position, that lacks a required
+field, or that has a value not of its field's declared type (§4.3). A Parser treats an expression
+and a prompt template as opaque strings, does not resolve one name in the document against
+another, and reads no file but the document itself.
 
 #### 4.1.2 Linter
 
-A **Linter** accepts a parsed factory and performs every check in clause 8 and the expression
-check of §7.8, reporting the stable identifier (§8.7) of each violated rule. A Linter does not execute a run.
+A **Linter** accepts a factory a Parser has produced and checks the rules that depend on
+relationships between its parts or on the content of its strings and files: that names resolve
+(§8.2), the graph's routing, reachability, and termination (§8.3–§8.5), expressions (§7.1, §7.8,
+§8.6), and prompt templates, including the files `prompt_path` names (§7.9). It reports the stable
+identifier (§8.7) of each violated rule. A Linter never sees a document its Parser rejected, and
+does not execute a run.
 
 #### 4.1.3 Runner
 
@@ -177,10 +186,10 @@ constrains.
 
 | Requirement                                                         | Parser | Linter | Runner |
 | -------------------------------------------------------------------- | :----: | :----: | :----: |
-| Reject documents violating clause 5 (encoding, unknown keys)          |  MUST  |  MUST  |  MUST  |
-| Produce the clause 6 data model from a valid document                |  MUST  |  MUST  |  MUST  |
-| Report every clause 8 and §7.8 diagnostic with its §8.7 identifier    |   —    |  MUST  |  MUST  |
-| Refuse to start a run of a factory with any clause 8 violation        |   —    |   —    |  MUST  |
+| Reject every document that does not map to the clause 6 data model (§4.3) |  MUST  |  MUST  |  MUST  |
+| Produce the clause 6 data model from a document that does            |  MUST  |  MUST  |  MUST  |
+| Report every Linter rule's violation with its §8.7 identifier (§4.3)  |   —    |  MUST  |  MUST  |
+| Refuse to start a run of a factory that fails linting (§4.3)          |   —    |   —    |  MUST  |
 | Implement admission (§9.1)                                            |   —    |   —    |  MUST  |
 | Implement the execution model of clause 9                             |   —    |   —    |  MUST  |
 | Raise the exception classes of clause 10 under their stated conditions|   —    |   —    |  MUST  |
@@ -191,12 +200,46 @@ A single piece of software MAY implement more than one conformance class. An imp
 claims the Runner class MUST also satisfy the Parser and Linter requirements, since a Runner MUST
 refuse to start a run of a factory that fails linting.
 
+### 4.3 Division of checks between Parser and Linter
+
+Every static rule in this specification belongs to exactly one of the two classes. The test is what
+the rule needs to see:
+
+- A rule decidable from the document alone, one field at a time — the field's name, its position,
+  and its value against the field's declared type in clause 6 — is a **Parser** rule. A declared
+  type includes the constraints this specification states for it: a Decimal USD has at most two
+  decimal places and is non-negative (§6.1, §9.7), a `StepName` or `Name` excludes `.` (§5.2),
+  `retry` is at least 1 (§6.10), `max_iterations` is non-negative (§9.6), `harness` has the form
+  `<name>[@<version>]` (§6.12), and `sfml` names a supported version (§13.1). Which fields a step
+  of each `type` may declare, and which it must, is part of the data model too (§6.4–§6.8),
+  including a `parallel` step's children (§6.7).
+- A rule that needs to relate one part of the document to another (a name to its declaration, a
+  step to the graph), to look inside an expression or a prompt template, or to read a file other
+  than the document, is a **Linter** rule. Every Linter rule has an identifier in §8.7.
+
+| Checked by the Parser                                             | Checked by the Linter                                         |
+| ----------------------------------------------------------------- | -------------------------------------------------------------- |
+| UTF-8 encoding and YAML syntax (§5.1)                               | `start` and every `to` name a declared step (§8.2)             |
+| No duplicate keys (§5.6)                                            | Routing is total (§8.3)                                        |
+| No field this specification doesn't define at that position (§5.4) | Every step is reachable and reaches a result (§8.4)           |
+| Every required field present (§6.2–§6.9)                            | Every cycle is bounded (§8.5)                                  |
+| Every value of its field's declared type (§6.1)                     | Every expression is valid CEL, within §7.2's grammar (§7.1, §7.8) |
+| No field on a step type it doesn't apply to (§6.4)                  | Every reference resolves and is reachable, in its binding environment (§8.6) |
+| Exactly one of `prompt` and `prompt_path` (§6.5)                    | The file `prompt_path` names can be read as UTF-8 (§7.9)      |
+| A `parallel` child is an `agent` or `human` step with no `next` (§6.7) | Every prompt template's placeholders are well-formed (§7.9) |
+
+A Parser reports no identifiers: this specification defines only whether a document is accepted.
+A document the Parser rejects is never linted, so a Linter rule never needs to handle a document
+that doesn't map to the data model.
+
 ### 4.4 Precedence of this document over Annex A
 
-Annex A provides a JSON Schema for the surface syntax of a factory document. Where the schema and the
-normative text of this document disagree, this document governs. The schema is provided to make
-common structural mistakes cheap to catch; it is not a substitute for the checks of clause 8, which
-require graph-level reasoning a schema validator cannot perform.
+Annex A provides a JSON Schema for the data model of a factory document, covering most Parser rules
+(§4.3). Where the schema and the normative text of this document disagree, this document governs.
+The schema is provided to make the Parser's checks cheap to implement; it is not a complete Parser
+(it cannot detect duplicate keys, and leaves the two-decimal-place limit on Decimal USD to the
+Parser, since common validators test it with binary floating point), and it is not a substitute for
+the Linter rules, which need reasoning across the document that a schema validator cannot perform.
 
 ## 5. Document format
 
@@ -265,7 +308,7 @@ reject a factory for the number of steps, connections, or `parallel` children it
 | Integer              | A YAML/JSON integer with no fractional component.                                                        |
 | Decimal USD          | A non-negative decimal number of United States dollars with at most two decimal places (§9.7).           |
 | JSON Schema          | A value conforming to the JSON Schema specification referenced in clause 2.                              |
-| Expression           | A string that parses as an SFML expression (clause 7). Two flavors exist: `FactoryState Expression` and `PromptVars Expression` (§7.5), distinguished by the binding environment they resolve against, not by syntax. |
+| Expression           | A String holding an SFML expression (clause 7). A Parser checks only that it is a String; whether its content is a valid expression is a Linter rule (§4.3, §7.1). Two flavors exist: `FactoryState Expression` and `PromptVars Expression` (§7.5), distinguished by the binding environment they resolve against, not by syntax. |
 | StepName             | A name identifying a step, per §5.2.                                                                      |
 | SFMLVersionString    | A string of the form `v<major>.<minor>`, e.g. `"v0.1"`. |
 
@@ -335,6 +378,10 @@ against `result_schema`.
 
 - `harness` is REQUIRED and names, per §6.12, the harness that executes the step.
 - Exactly one of `prompt_path` or `prompt` MUST be present.
+- `prompt_path` is a String naming a file that holds the step's prompt template. A relative path is
+  resolved against the directory containing the factory document; where a document has no location
+  of its own, the base is implementation-defined. A Parser checks only that `prompt_path` is a
+  String; that the file can be read is a Linter rule (§7.9).
 - `prompt_vars` is evaluated as a set of `FactoryState Expression`s (§7.5.1) before the step runs,
   and the resulting bindings are what the prompt template renders against, as `PromptVars` (§7.5.2,
   §9.9). `FactoryState` itself is not reachable from the template. Declaring `prompt_vars` per step
@@ -482,6 +529,12 @@ function library of §7.4 registered as extensions, or MAY implement the subset 
 defines directly in a language with no usable CEL binding; either satisfies this clause provided it
 accepts exactly the grammar of §7.2 and rejects everything else.
 
+Checking an expression is a Linter rule, at every expression site and in every prompt template
+placeholder (§7.9). A Linter MUST reject an expression that does not parse as CEL, reporting
+`invalid-expression` (§8.7). An expression that parses as CEL but uses a construct outside §7.2 is
+instead reported as `prohibited-expression-construct` (§7.8), so a Linter must recognize CEL's
+syntax, not only the subset, to tell the two apart.
+
 ### 7.2 Grammar subset
 
 An SFML expression is drawn from a closed, small subset of CEL: field selection, indexing,
@@ -568,11 +621,13 @@ treated as part of a placeholder; only the doubled pair opens or closes one.
 
 - The text between a `««` and the next `»»` is a `PromptVars Expression` (§7.5.2). Leading and
   trailing whitespace within the delimiters is insignificant.
-- At render time (§9.9), each placeholder's enclosed text MUST parse as a `PromptVars Expression`
-  per §7.2 and MUST evaluate against that step's `PromptVars`; a parse or evaluation failure raises
-  `expression_error` (§10.7). This specification does not define a fallback for text that merely
-  resembles a placeholder without being well-formed between a matched `««`/`»»` pair — a `««` with
-  no following `»»` in the same template is a parse failure, not literal text.
+- This specification does not define a fallback for text that merely resembles a placeholder
+  without being well-formed between a matched `««`/`»»` pair — a `««` with no following `»»` in
+  the same template is a malformed template, not literal text.
+- At render time (§9.9), each placeholder's enclosed text MUST evaluate against that step's
+  `PromptVars`; an evaluation failure raises `expression_error` (§10.7). So does a template that
+  fails to parse at render time, which can happen only if it differs from the template that was
+  linted (for example, a `prompt_path` file edited after the run started).
 - The evaluated value is substituted in place of the placeholder: a String value is inserted as-is;
   any other value (a number, boolean, `null`, list, or object) is inserted as its canonical JSON
   encoding. Everything outside a placeholder is copied to the output unchanged.
@@ -581,37 +636,41 @@ This specification defines no escape for a literal `««` or `»»` in template 
 `»` is unaffected by this rule and needs no special treatment; an author who needs the doubled
 sequence itself to appear literally, rather than open a placeholder, has no way to express that.
 
+Checking a prompt template is a Linter rule (§4.3). For every agent step, a Linter MUST:
+
+- read the file `prompt_path` names (§6.5), reporting `prompt-file-unreadable` (§8.7) if no readable
+  file is there, or `prompt-file-not-utf8` if its content is not valid UTF-8;
+- report `invalid-prompt-template` for a template, inline `prompt` or file, with a `««` that no `»»`
+  closes;
+- check each placeholder's enclosed text as an expression: `invalid-expression` (§7.1),
+  `prohibited-expression-construct` (§7.8), and the reference and binding rules of §8.6.
+
 ## 8. Graph validity
 
 ### 8.1 Validation stages
 
-Validity is checked in three stages, each with a different reach: parse (clause 5, structural shape
-of the document), lint (this clause, static properties of the graph), and admission (§9.1, checks
-that require information outside the file itself, such as an identity system). A document that
-passes lint is not thereby known to be admittable, and the two stages MUST be kept distinct by a
-conforming implementation.
+Validity is checked in three stages, each with a different reach: parse (§4.1.1, whether the
+document maps to the data model of clause 6), lint (§4.1.2, the rules of this clause and of §7.1,
+§7.8, and §7.9 across a parsed factory and the prompt files it names), and admission (§9.1, checks
+that require information outside the factory, such as an identity system). §4.3 assigns every static
+rule to exactly one of parse and lint. Each stage runs only on what the one before it accepted: a
+document that fails to parse is never linted, and a factory that fails lint is never admitted. A
+document that passes lint is not thereby known to be admittable, and the stages MUST be kept distinct
+by a conforming implementation.
 
-### 8.2 Structural rules
+### 8.2 Step references
 
-Each of the following restates a constraint the data model of clause 6 already states normatively.
-Restating it here is deliberate: it obligates a Linter to detect a violation and report it with the
-diagnostic identifier registered in §8.7 (§4.1.2), a duty clause 6 does not itself impose.
-
-A Linter MUST enforce:
-
-- Every step referenced by `start` or by a `Connection`'s `to` is declared in `steps`.
-- A `parallel` step's child is an `agent` or `human` step.
-- A `parallel` step's child declares no `next`.
-- A `parallel` step's child is not itself `type: parallel`.
-- Every field present on a step is one this specification assigns to that step's `type` (§6.4).
+The data model gives `start` and a `Connection`'s `to` the type `StepName` (§6.2, §6.9), which a
+Parser checks. Whether the name is declared is a relationship between two parts of the document,
+so it is a Linter rule. A Linter MUST enforce that every step referenced by `start` or by a
+`Connection`'s `to` is declared in `steps`.
 
 ### 8.3 Totality of routing
 
 This is a Linter rule, not a schema rule: it constrains the *last item of an ordered list*
 positionally, which JSON Schema (Annex A) can only express awkwardly and which is, in any case, the
 class of graph-level reasoning §4.4 reserves for clause 8 rather than for the schema. Its name
-describes the property it establishes — that routing is total — not the mechanism, which is why it
-stays here rather than moving under §8.2.
+describes the property it establishes — that routing is total — not the mechanism.
 
 The last `Connection` of every non-`result` step MUST omit `when` (§6.9). A Linter MUST reject a
 step whose `next` list does not end this way. This is what makes the reachability check of §8.4
@@ -661,18 +720,14 @@ example, that `budget` (§9.7) has at most two decimal places, or that `assignee
 
 ### 8.7 Diagnostics and error identifiers
 
-Every rule in this clause, and the expression rule of §7.8, has a stable, unique identifier that a
-conforming Linter MUST report on failure. Message text accompanying an identifier is implementation-defined. This subclause holds the
-registry of identifiers for this specification; an identifier, once assigned, MUST NOT be reused or
-renumbered by a later version of this document.
+Every Linter rule (§4.3) — the rules of this clause and of §7.1, §7.8, and §7.9 — has a stable,
+unique identifier that a conforming Linter MUST report on failure. Parser rules have none.
+Message text accompanying an identifier is implementation-defined. This subclause holds the registry of identifiers for this
+specification; an identifier, once assigned, MUST NOT be reused or renumbered by a later version of this document.
 
 | Identifier                        | Clause | Rule                                                                 |
 | ---------------------------------- | ------ | --------------------------------------------------------------------- |
 | `unknown-step-reference`           | §8.2   | `start` or a `Connection`'s `to` names a step not declared in `steps`. |
-| `invalid-parallel-child-type`      | §8.2   | A `parallel` step's child is not an `agent` or `human` step.           |
-| `parallel-child-has-next`          | §8.2   | A `parallel` step's child declares `next`.                             |
-| `nested-parallel`                  | §8.2   | A `parallel` step's child is itself `type: parallel`.                  |
-| `field-not-applicable-to-type`     | §8.2   | A step declares a field this specification does not assign to its `type` (§6.4). |
 | `non-total-routing`                | §8.3   | The last `Connection` of a non-`result` step does not omit `when`.     |
 | `unreachable-step`                 | §8.4   | A step is not reachable from `start`.                                  |
 | `no-path-to-result`                | §8.4   | A path from `start` does not reach a `result` step.                    |
@@ -681,6 +736,10 @@ renumbered by a later version of this document.
 | `unknown-step-result-reference`    | §8.6   | An expression references `results.<name>` for an undeclared `<name>`.  |
 | `unreachable-reference`            | §8.6   | An expression references `results.X` from step `Y` with no path `X → … → Y`. |
 | `binding-environment-violation`    | §8.6   | An expression references a value outside the binding environment bound to its site (§7.5). |
+| `invalid-expression`               | §7.1   | An expression, or a prompt template placeholder's enclosed text, does not parse as CEL. |
+| `invalid-prompt-template`          | §7.9   | A prompt template has a `««` that no `»»` closes.                      |
+| `prompt-file-unreadable`           | §7.9   | No readable file is at the path an agent step's `prompt_path` names.  |
+| `prompt-file-not-utf8`             | §7.9   | The file an agent step's `prompt_path` names is not valid UTF-8.      |
 | `prohibited-expression-construct`  | §7.8   | An expression uses a user-defined function, arithmetic, a collection macro, a function outside §7.4, or any other construct outside the grammar of §7.2. |
 
 ### 8.8 What lint cannot check
@@ -1155,14 +1214,14 @@ repository. Where it conflicts with the normative text of this document, this do
 ## Annex B (normative) — Conformance test suite
 
 The conformance test suite is the `conformance/` directory of this repository, organized into one
-top-level category per conformance class (§4.1): `parser/` for the document-format checks of
-clause 5, `lint/` for the static checks of clause 8, and `runner/` for the execution-model behavior
+top-level category per conformance class (§4.1): `parser/` for the Parser rules of
+§4.3, `lint/` for the Linter rules of §4.3, and `runner/` for the execution-model behavior
 of clauses 9–11. Each holds one subdirectory per case, and an implementation conforms with respect
 to a given class once its test suite passes every case in that class's directory — a Linter need
 not pass `runner/`, but a Runner MUST pass `parser/` and `lint/` as well as `runner/`, per §4.1.3.
 
 A case's directory supplies: the SFML file (or, for `parser/`, the raw document) under test, valid
-or invalid as the case requires; for a `lint/` case, the diagnostic identifier (§8.7) it MUST raise,
+or invalid as the case requires, and any prompt files its agent steps name; for a `lint/` case, the diagnostic identifier (§8.7) it MUST raise,
 if any; for a `runner/` case, the `FactoryState` (§9.2) the case MUST produce, and a result file
 stating whether the case is expected to succeed or to raise a named exception (clause 10); and,
 where the case invokes an agent step, a script of canned agent messages for the mock harness to

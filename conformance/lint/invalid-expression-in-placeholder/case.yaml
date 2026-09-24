@@ -1,0 +1,5 @@
+description: >
+  An inline prompt's placeholder is well-delimited, but the text inside it does not parse as CEL.
+clauses: ["§7.1", "§7.9"]
+expect:
+  diagnostics: [invalid-expression]

@@ -1,0 +1,6 @@
+description: >
+  `prompt_path` names a readable UTF-8 file with well-formed placeholders that stay inside PromptVars.
+  The Linter reports nothing.
+clauses: ["§6.5", "§7.9"]
+expect:
+  diagnostics: []

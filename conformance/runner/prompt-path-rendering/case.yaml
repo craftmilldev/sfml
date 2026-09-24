@@ -1,0 +1,17 @@
+description: >
+  The agent step's template lives in the file `prompt_path` names, resolved against the factory's
+  directory. The rendered prompt is the file's content with the placeholder substituted, trailing
+  newline included.
+clauses: ["§6.5", "§7.9", "§9.9"]
+actions:
+  - start:
+      parameters: { issue: "add a --verbose flag" }
+expect:
+  status: terminal
+  outcome: complete
+  value: { plan: "add the flag to parse()" }
+  state:
+    parameters: { issue: "add a --verbose flag" }
+    results:
+      plan: [{ plan: "add the flag to parse()" }]
+      done: [{ plan: "add the flag to parse()" }]

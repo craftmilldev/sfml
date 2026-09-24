@@ -1,13 +1,12 @@
 sfml: "v0.1"
-start: checks
+start: plan
 steps:
-  checks:
-    type: parallel
+  plan:
+    type: agent
+    harness: mock
+    harness_config: { agent: planner }
+    prompt_path: prompts/missing.md
     result_schema: { type: object }
-    steps:
-      design:
-        type: human
-        result_schema: { type: object }
     next:
       - to: done
   done:

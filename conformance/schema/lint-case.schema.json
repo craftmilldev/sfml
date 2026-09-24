@@ -33,10 +33,6 @@
     "Identifier": {
       "enum": [
         "unknown-step-reference",
-        "invalid-parallel-child-type",
-        "parallel-child-has-next",
-        "nested-parallel",
-        "field-not-applicable-to-type",
         "non-total-routing",
         "unreachable-step",
         "no-path-to-result",
@@ -45,6 +41,10 @@
         "unknown-step-result-reference",
         "unreachable-reference",
         "binding-environment-violation",
+        "invalid-expression",
+        "invalid-prompt-template",
+        "prompt-file-unreadable",
+        "prompt-file-not-utf8",
         "prohibited-expression-construct"
       ]
     }

@@ -1,0 +1,6 @@
+description: >
+  The file `prompt_path` names references `parameters` directly from a placeholder. The binding rule
+  of §8.6 applies inside prompt files as it does to inline prompts.
+clauses: ["§7.5.2", "§7.9", "§8.6"]
+expect:
+  diagnostics: [binding-environment-violation]

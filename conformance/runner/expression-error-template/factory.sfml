@@ -8,8 +8,8 @@ steps:
     prompt: "Fetch the deploy log."
     result_schema:
       type: object
-      required: [text]
-      properties: { text: { type: string } }
+      required: [lines]
+      properties: { lines: { type: array, items: { type: string } } }
     next:
       - to: summarize
   summarize:
@@ -17,8 +17,8 @@ steps:
     harness: mock
     harness_config: { agent: summarizer }
     prompt_vars:
-      text: last(results.fetch).text
-    prompt: "Summarize: ««prompt_vars.text"
+      lines: last(results.fetch).lines
+    prompt: "Summarize, starting from: ««prompt_vars.lines[0]»»"
     result_schema:
       type: object
       required: [summary]

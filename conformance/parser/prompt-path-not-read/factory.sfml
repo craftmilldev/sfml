@@ -1,0 +1,16 @@
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: agent
+    harness: h
+    prompt_path: prompts/does-not-exist.md
+    result_schema: {}
+    next: [{ to: b }]
+  b:
+    type: agent
+    harness: h
+    prompt: "Plan ««prompt_vars.issue"
+    result_schema: {}
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }
