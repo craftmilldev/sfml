@@ -43,7 +43,7 @@ steps:
     prompt_path: prompts/analyze.md
     prompt_vars:
       ticket_url: parameters.ticket_url
-      notes: last(results.human_refine).notes
+      notes: results.human_refine
     max_iterations: 8
     result_schema:
       type: object
@@ -70,7 +70,9 @@ steps:
         decision:
           type: string
           enum: [retry, abandon]
-        notes: { type: string }
+        notes:
+          type: array
+          items: { type: string }
     next:
       - when: "last(results.human_refine).decision == 'abandon'"
         to: abandoned

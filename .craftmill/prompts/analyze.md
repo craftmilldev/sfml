@@ -16,9 +16,14 @@ view`, `gh pr view`, `gh api`) to fetch it:
 
 ## If you're being re-entered after Human Refine
 
-««prompt_vars.notes»» holds whatever a human last recorded when this run looped back
+The block below holds whatever a human recorded when this run looped back
 here (empty the first time through). Treat it as the answer to whatever you asked, or as
-a fresh instruction if you had not yet asked anything.
+a fresh instruction if you had not yet asked anything. This is an array of array of comments.
+Each outer array is a new set of comments.
+
+```json
+««prompt_vars.notes»»
+```
 
 ## Instructions
 

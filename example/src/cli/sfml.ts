@@ -4,6 +4,7 @@
 // a factory at this repository's own issues.
 //
 // Usage:
+//   sfml lint <factory.sfml>
 //   sfml run <factory.sfml> [--param key=value ...] [--state <path>]
 //   sfml resume <factory.sfml> --state <path> --step <name> [--payload <json>]
 //
@@ -27,6 +28,7 @@ function usage(): never {
   process.stderr.write(
     [
       "Usage:",
+      "  sfml lint <factory.sfml>",
       "  sfml run <factory.sfml> [--param key=value ...] [--state <path>]",
       "  sfml resume <factory.sfml> --state <path> --step <name> [--payload <json>]",
       "",
@@ -65,7 +67,7 @@ function printObservation(observation: Observation): void {
 
 async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2);
-  if (!command || (command !== "run" && command !== "resume")) usage();
+  if (!command || (command !== "lint" && command !== "run" && command !== "resume")) usage();
 
   const { positional, flags } = parseFlags(rest);
   const factoryPath = positional[0];
@@ -83,6 +85,7 @@ async function main(): Promise<void> {
     process.stderr.write(`lint failed:\n${diagnostics.map((d) => `  ${d.id}: ${d.message}`).join("\n")}\n`);
     process.exit(1);
   }
+  if (command === "lint") return;
 
   const statePath = flags.get("state")?.[0];
   const harnesses = buildHarnesses();

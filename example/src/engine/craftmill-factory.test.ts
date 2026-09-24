@@ -1,30 +1,20 @@
 // This project's own factory (.craftmill/factory.sfml) is a real-world SFML document, not a
-// conformance fixture. Keep it parsing and linting clean as the engine evolves.
+// conformance fixture. Keep it parsing and linting clean as the engine evolves -- via the CLI's own
+// `sfml lint` (exit 0 on success, exit 1 with diagnostics on stderr otherwise), so this test exercises
+// the same path a person running the CLI would.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseFactory } from "./parser.js";
-import { lintFactory } from "./linter.js";
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
-const baseDir = join(repoRoot, ".craftmill");
-const factoryPath = join(baseDir, "factory.sfml");
+const here = dirname(fileURLToPath(import.meta.url));
+const repoRoot = join(here, "..", "..", "..");
+const factoryPath = join(repoRoot, ".craftmill", "factory.sfml");
+const cliPath = join(here, "..", "cli", "sfml.js");
 
-test(".craftmill/factory.sfml parses as a valid SFML v0.1 document", () => {
-  const parsed = parseFactory(readFileSync(factoryPath), "yaml");
-  assert.equal(parsed.ok, true, parsed.ok ? "" : parsed.message);
-});
-
-test(".craftmill/factory.sfml lints clean (no §8.7 diagnostics)", () => {
-  const parsed = parseFactory(readFileSync(factoryPath), "yaml");
-  assert.ok(parsed.ok);
-  if (!parsed.ok) return;
-  const diagnostics = lintFactory(parsed.factory, baseDir);
-  assert.deepEqual(
-    diagnostics.map((d) => d.id),
-    [],
-  );
+test(".craftmill/factory.sfml lints clean via `sfml lint`", () => {
+  const result = spawnSync(process.execPath, [cliPath, "lint", factoryPath], { encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
 });
