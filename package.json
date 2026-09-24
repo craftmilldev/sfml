@@ -8,7 +8,8 @@
     "validate:conformance": "node tools/validate-conformance.mjs",
     "test:example": "npm --prefix example test",
     "test:examples": "node --test examples/*.test.mjs",
-    "test": "npm run validate:schema && npm run validate:conformance && npm run test:example && npm run test:examples"
+    "lint:craftmill": "node example/dist/cli/sfml.js lint .craftmill/factory.sfml",
+    "test": "npm run validate:schema && npm run validate:conformance && npm run test:example && npm run lint:craftmill && npm run test:examples"
   },
   "dependencies": {
     "ajv": "^8.17.1",
