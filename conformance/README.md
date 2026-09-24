@@ -30,9 +30,6 @@ submodule) and point its test runner at it. The folder a test sits in gives its 
 | `lint/`   | `case.yaml`, `factory.sfml`, and `prompts/` if the factory names prompt files      | Lint the factory; report diagnostics.                                                               |
 | `runner/` | `case.yaml`, `factory.sfml`, `transcript.yaml` if the factory has agent steps, and `prompts/` if it names prompt files | Perform `actions` against the factory, with the mock playing `transcript.yaml` (mock-harness.md). |
 
-A `parser/` test may also hold a `factory.mmd`: a non-normative Mermaid rendering of the factory,
-used by this repo's `tools/sfml-to-mermaid.mjs` golden test. Implementations ignore it.
-
 Every `case.yaml` has the same frame:
 
 ```yaml

@@ -4,7 +4,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync, statSync, mkdtempSync, rmSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,7 +29,7 @@ for (const name of listDirs(join(conformanceRoot, "parser"))) {
   test(`parser/${name}`, () => {
     const dir = join(conformanceRoot, "parser", name);
     const testCase = readYaml(join(dir, "case.yaml")) as { expect: { parse: "accept" | "reject"; message?: string } };
-    const factoryFile = ["factory.sfml", "factory.sfml.json"].find((f) => existsSync(join(dir, f)));
+    const factoryFile = readdirSync(dir).find((f) => f.startsWith("factory."));
     assert.ok(factoryFile, `${name}: no factory.sfml.* fixture`);
     const bytes = readFileSync(join(dir, factoryFile!));
     const result = parseFactory(bytes, factoryFile!.endsWith(".json") ? "json" : "yaml");

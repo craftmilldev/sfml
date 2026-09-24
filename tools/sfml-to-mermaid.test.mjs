@@ -8,7 +8,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
@@ -47,12 +48,13 @@ for (const { name, factory, expect } of parserTests.filter((t) => t.expect.parse
 const full = join(parserDir, "full", "factory.sfml");
 
 // Committed renderings, each checked byte-for-byte against a fresh render of its factory.
-// conformance/parser/full/factory.mmd is render()'s golden fixture; .craftmill/factory.mmd is the
-// repo's own factory, kept fresh so it can be read on GitHub. After changing render() or either
-// factory, regenerate both with `npm run render:mermaid` and review the diff.
+// tests/sfml-to-mermaid/full.mmd is render()'s golden fixture, kept out of conformance/ since that
+// suite holds only normative files; .craftmill/factory.mmd is the repo's own factory, kept fresh so
+// it can be read on GitHub. After changing render() or either factory, regenerate both with
+// `npm run render:mermaid` and review the diff.
 const repoRoot = join(here, "..");
 const renderings = [
-  ["conformance/parser/full/factory.sfml", "conformance/parser/full/factory.mmd"],
+  ["conformance/parser/full/factory.sfml", "tests/sfml-to-mermaid/full.mmd"],
   [".craftmill/factory.sfml", ".craftmill/factory.mmd"],
 ];
 
@@ -162,6 +164,31 @@ test("CLI prints usage and exits non-zero with no argument", () => {
 test("CLI writes mermaid source to stdout for a valid file", () => {
   const stdout = execFileSync("node", [script, full], { encoding: "utf8" });
   assert.match(stdout, /^flowchart TD/);
+});
+
+test("CLI --out writes the rendering to the given file", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sfml-to-mermaid-"));
+  try {
+    const out = join(dir, "full.mmd");
+    const stdout = execFileSync("node", [script, full, "--out", out], { encoding: "utf8" });
+    assert.equal(stdout, "");
+    assert.equal(readFileSync(out, "utf8"), render(parseFactory(full)));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("CLI --out leaves an existing file untouched when the factory is invalid", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sfml-to-mermaid-"));
+  try {
+    const out = join(dir, "full.mmd");
+    writeFileSync(out, "previous\n");
+    const invalid = join(parserDir, "unknown-step-field", "factory.sfml");
+    assert.throws(() => execFileSync("node", [script, invalid, "--out", out], { encoding: "utf8" }), (err) => err.status === 1);
+    assert.equal(readFileSync(out, "utf8"), "previous\n");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test("CLI exits non-zero and writes nothing to stdout for an invalid file", () => {
