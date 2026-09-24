@@ -1,0 +1,9 @@
+description: >
+  The supplied `priority` fails its declared JSON Schema, so the run is rejected at admission, even
+  though the parameter has a default that would have been valid.
+clauses: ["§6.3", "§9.1"]
+actions:
+  - start:
+      parameters: { priority: "high" }
+expect:
+  admitted: false

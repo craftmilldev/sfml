@@ -1,0 +1,3 @@
+- send: { session: plan-1, agent: planner, model: mock-small }
+- reply: { session: plan-1, usage: { output_tokens: 100 }, result: { files: [] } }
+# implement never invokes its harness: its prompt_vars fail, then the override supplies its result

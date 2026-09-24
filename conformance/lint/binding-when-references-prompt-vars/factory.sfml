@@ -1,0 +1,25 @@
+sfml: "v0.1"
+parameters:
+  strict: { type: boolean }
+start: plan
+steps:
+  plan:
+    type: agent
+    harness: mock
+    harness_config: { agent: planner }
+    prompt_vars:
+      strict: parameters.strict
+    prompt: "Plan it. Strict: ««prompt_vars.strict»»"
+    result_schema: { type: object }
+    next:
+      - when: prompt_vars.strict
+        to: review
+      - to: done
+  review:
+    type: human
+    result_schema: { type: object }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete

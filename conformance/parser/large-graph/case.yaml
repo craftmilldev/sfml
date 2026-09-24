@@ -1,0 +1,4 @@
+description: "There is no maximum on the number of steps, connections, or parallel children."
+clauses: ["§5.7"]
+expect:
+  parse: accept

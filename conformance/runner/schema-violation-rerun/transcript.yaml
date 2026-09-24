@@ -1,0 +1,4 @@
+- send: { session: draft-1, agent: writer, model: mock-small }
+- reply: { session: draft-1, usage: { output_tokens: 50 }, result: { headline: "Wrong key" } }
+- send: { session: draft-1 }                                     # the resume continues the session
+- reply: { session: draft-1, usage: { output_tokens: 50 }, result: { title: "Add a --verbose flag" } }

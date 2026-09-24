@@ -1,0 +1,6 @@
+description: >
+  The unbounded-cycle factory with `max_iterations: 0` on one step of the cycle. Zero is finite, and
+  one bounded step bounds the whole cycle, so the Linter reports nothing.
+clauses: ["§8.5", "§9.6"]
+expect:
+  diagnostics: []

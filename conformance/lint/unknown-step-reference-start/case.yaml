@@ -1,0 +1,7 @@
+description: >
+  `start` names a step that is not declared. With no start step, the declared steps can't be
+  reached, so a Linter may also report unreachable-step and no-path-to-result.
+clauses: ["§8.2"]
+expect:
+  diagnostics: [unknown-step-reference]
+  may_also_report: [unreachable-step, no-path-to-result]

@@ -1,0 +1,14 @@
+sfml: "v0.1"
+parameters:
+  priority: { type: integer, default: 2 }
+start: review
+steps:
+  review:
+    type: human
+    instructions: parameters.priority
+    result_schema: { type: object }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete

@@ -1,0 +1,6 @@
+description: >
+  `draft` and `review` form a cycle, and neither declares `max_iterations`. The cycle has an exit to
+  a result step, so the only violation is that it is unbounded.
+clauses: ["§8.5"]
+expect:
+  diagnostics: [unbounded-cycle]

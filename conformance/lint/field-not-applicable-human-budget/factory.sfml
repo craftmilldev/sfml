@@ -1,0 +1,12 @@
+sfml: "v0.1"
+start: review
+steps:
+  review:
+    type: human
+    budget: 1.00
+    result_schema: { type: object }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete

@@ -1,0 +1,5 @@
+description: "Two `steps` entries with the same StepName are a parse error, not \"last value wins\"."
+clauses: ["§5.6"]
+expect:
+  parse: reject
+  message: "unique|duplicate"

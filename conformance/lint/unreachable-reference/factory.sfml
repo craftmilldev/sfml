@@ -1,0 +1,17 @@
+sfml: "v0.1"
+start: draft
+steps:
+  draft:
+    type: human
+    instructions: last(results.review).notes
+    result_schema: { type: object }
+    next:
+      - to: review
+  review:
+    type: human
+    result_schema: { type: object, required: [notes], properties: { notes: { type: string } } }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete

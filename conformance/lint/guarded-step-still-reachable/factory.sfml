@@ -1,0 +1,18 @@
+sfml: "v0.1"
+start: review
+steps:
+  review:
+    type: human
+    result_schema: { type: object }
+    next:
+      - when: "false"
+        to: never
+      - to: done
+  never:
+    type: human
+    result_schema: { type: object }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete

@@ -1,0 +1,6 @@
+description: >
+  A parallel step's child is a `result` step. A Parser also rejects this document (§6.7), but a
+  Linter must still report the §8.7 identifier (§8.2).
+clauses: ["§6.7", "§8.2"]
+expect:
+  diagnostics: [invalid-parallel-child-type]

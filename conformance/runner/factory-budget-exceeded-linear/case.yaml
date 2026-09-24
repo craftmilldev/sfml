@@ -1,0 +1,31 @@
+description: >
+  A run budget of 0.20 and no step budgets. The first step spends 0.10; the second's report brings
+  the run to 0.20, so budget_exceeded is addressed to the step being run when the run-level ceiling
+  was reached. A resume addressed to the first step, which isn't blocked, is rejected. A 0.10 grant
+  applies to the run and continues the second step's session.
+clauses: ["§6.2", "§9.7", "§10.6", "§11.3", "§11.5", "§11.7"]
+actions:
+  - start: {}
+    expect:
+      status: errored
+      blocked: [{ step: second, state: errored, exception: budget_exceeded }]
+      state:
+        parameters: {}
+        results:
+          first: [{ n: 1 }]
+  - resume: { step: first, payload: 0.10 }
+    expect:
+      accepted: false
+      status: errored
+      blocked: [{ step: second, state: errored, exception: budget_exceeded }]
+  - resume: { step: second, payload: 0.10 }
+expect:
+  status: terminal
+  outcome: complete
+  value: { n: 2 }
+  state:
+    parameters: {}
+    results:
+      first: [{ n: 1 }]
+      second: [{ n: 2 }]
+      done: [{ n: 2 }]

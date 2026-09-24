@@ -1,0 +1,26 @@
+sfml: "v0.1"
+start: form
+steps:
+  form:
+    type: human
+    max_iterations: 2
+    instructions: last(results.form).name
+    result_schema:
+      type: object
+      required: [name, tags]
+      properties:
+        name: { type: string }
+        tags: { type: array, items: { type: string } }
+    next:
+      - when: notEmpty(last(results.form).name)
+        to: named
+      - when: empty(last(results.form).tags)
+        to: form
+      - to: untagged
+  named:
+    type: result
+    outcome: complete
+    value: last(results.form)
+  untagged:
+    type: result
+    outcome: terminal_failure

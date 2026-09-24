@@ -1,0 +1,32 @@
+description: >
+  An agent step with `budget: 0.00` raises budget_exceeded on arrival, before invoking the harness.
+  A grant with three decimal places is rejected. A grant of 0 is a no-op. A grant of 0.10 enters the
+  step, which opens a new session: the entry being resumed never invoked the harness, so there is no
+  session to continue.
+clauses: ["§9.7", "§10.6", "§11.4", "§11.5", "§11.7"]
+actions:
+  - start: {}
+    expect:
+      status: errored
+      blocked: [{ step: work, state: errored, exception: budget_exceeded }]
+      state: { parameters: {}, results: {} }
+  - resume: { step: work, payload: 0.005 }
+    expect:
+      accepted: false
+      status: errored
+      blocked: [{ step: work, state: errored, exception: budget_exceeded }]
+  - resume: { step: work, payload: 0 }
+    expect:
+      status: errored
+      blocked: [{ step: work, state: errored, exception: budget_exceeded }]
+      state: { parameters: {}, results: {} }
+  - resume: { step: work, payload: 0.10 }
+expect:
+  status: terminal
+  outcome: complete
+  value: { ok: true }
+  state:
+    parameters: {}
+    results:
+      work: [{ ok: true }]
+      done: [{ ok: true }]

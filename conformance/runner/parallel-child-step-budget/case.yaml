@@ -1,0 +1,29 @@
+description: >
+  Inside a parallel step, the `lint` child exceeds its own step budget. That is a step-level overrun,
+  addressed to the qualified child `checks.lint`; its sibling finishes unaffected. A grant addressed
+  to the parallel step is rejected, since the parallel step isn't what is blocked. A grant to
+  `checks.lint` continues its session, and the step joins.
+clauses: ["§5.3", "§6.7", "§9.7", "§10.6", "§11.1", "§11.3", "§11.5", "§11.7"]
+actions:
+  - start: {}
+    expect:
+      status: errored
+      blocked: [{ step: checks.lint, state: errored, exception: budget_exceeded }]
+      state: { parameters: {}, results: {} }
+  - resume: { step: checks, payload: 0.10 }
+    expect:
+      accepted: false
+      status: errored
+      blocked: [{ step: checks.lint, state: errored, exception: budget_exceeded }]
+  - resume: { step: checks.lint, payload: 0.10 }
+expect:
+  status: terminal
+  outcome: complete
+  value:
+    lint: { passed: true }
+    test: { failures: 0 }
+  state:
+    parameters: {}
+    results:
+      checks: [{ lint: { passed: true }, test: { failures: 0 } }]
+      done: [{ lint: { passed: true }, test: { failures: 0 } }]

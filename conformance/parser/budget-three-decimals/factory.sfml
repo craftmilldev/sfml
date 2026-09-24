@@ -1,0 +1,11 @@
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: agent
+    harness: h
+    prompt: go
+    budget: 1.005
+    result_schema: {}
+    next: [{ to: done }]
+  done: { type: result, outcome: complete }

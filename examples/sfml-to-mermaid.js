@@ -57,6 +57,20 @@ export function parseFactory(path) {
     throw new Error(`does not conform to the SFML v0.1 data model (Annex A): ${detail}`);
   }
 
+  // §9.7: a Decimal USD has at most two decimal places. The schema leaves this to a Parser (see
+  // DecimalUSD in sfml.schema.json). Dividing a whole number of cents by 100 gives the same double
+  // YAML parses from a two-place literal, so this test has no binary-float false negatives.
+  const budgets = [["/budget", factory.budget]];
+  for (const [name, step] of Object.entries(factory.steps)) {
+    budgets.push([`/steps/${name}/budget`, step.budget]);
+    for (const [child, s] of Object.entries(step.steps ?? {})) budgets.push([`/steps/${name}/steps/${child}/budget`, s.budget]);
+  }
+  for (const [where, budget] of budgets) {
+    if (budget !== undefined && Math.round(budget * 100) / 100 !== budget) {
+      throw new Error(`${where} has more than two decimal places (§9.7)`);
+    }
+  }
+
   return factory;
 }
 

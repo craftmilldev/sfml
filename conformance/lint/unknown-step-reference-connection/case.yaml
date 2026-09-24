@@ -1,0 +1,7 @@
+description: >
+  A guarded connection's `to` names a step that is not declared. The step's fallback still reaches a
+  result, but a Linter may also report no-path-to-result for the dangling edge.
+clauses: ["§8.2"]
+expect:
+  diagnostics: [unknown-step-reference]
+  may_also_report: [no-path-to-result]

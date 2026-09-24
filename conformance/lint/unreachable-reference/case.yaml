@@ -1,0 +1,6 @@
+description: >
+  `draft`'s instructions reference `results.review`, but `review` comes only after `draft` and never
+  loops back, so there is no path `review → … → draft`.
+clauses: ["§8.6"]
+expect:
+  diagnostics: [unreachable-reference]

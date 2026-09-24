@@ -1,0 +1,6 @@
+description: >
+  A result step declares `harness`. A Parser also rejects this document (§6.8), but a Linter must
+  still report the §8.7 identifier (§8.2).
+clauses: ["§6.4", "§6.8", "§8.2"]
+expect:
+  diagnostics: [field-not-applicable-to-type]

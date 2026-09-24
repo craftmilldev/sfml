@@ -1,0 +1,8 @@
+description: >
+  A parallel step's child is itself `type: parallel`. A Parser also rejects this document (§6.7),
+  but a Linter must still report the §8.7 identifier (§8.2). A nested parallel is also "not an agent
+  or human step", so a Linter may report invalid-parallel-child-type as well.
+clauses: ["§6.7", "§8.2"]
+expect:
+  diagnostics: [nested-parallel]
+  may_also_report: [invalid-parallel-child-type]

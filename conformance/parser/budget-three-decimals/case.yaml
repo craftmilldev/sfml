@@ -1,0 +1,4 @@
+description: "Decimal USD has at most two decimal places; 1.005 must be rejected wherever budget appears."
+clauses: ["§6.1", "§9.7"]
+expect:
+  parse: reject

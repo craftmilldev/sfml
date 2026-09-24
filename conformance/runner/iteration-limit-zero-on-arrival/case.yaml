@@ -1,0 +1,31 @@
+description: >
+  A human step with `max_iterations: 0` raises iteration_limit on arrival, before it ever waits for
+  input. A human-shaped payload is the wrong shape for that exception and is rejected. A grant of 1
+  lets the step wait for input, and the input finishes the run.
+clauses: ["§9.6", "§10.5", "§11.4", "§11.5"]
+actions:
+  - start: {}
+    expect:
+      status: errored
+      blocked: [{ step: review, state: errored, exception: iteration_limit }]
+      state: { parameters: {}, results: {} }
+  - resume: { step: review, payload: { approved: true } }
+    expect:
+      accepted: false
+      status: errored
+      blocked: [{ step: review, state: errored, exception: iteration_limit }]
+  - resume: { step: review, payload: 1 }
+    expect:
+      status: awaiting_input
+      blocked: [{ step: review, state: awaiting_input }]
+      state: { parameters: {}, results: {} }
+  - resume: { step: review, payload: { approved: true } }
+expect:
+  status: terminal
+  outcome: complete
+  value: { approved: true }
+  state:
+    parameters: {}
+    results:
+      review: [{ approved: true }]
+      done: [{ approved: true }]

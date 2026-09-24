@@ -1,0 +1,6 @@
+description: >
+  A prompt template's placeholder references `results`. A template resolves against PromptVars only
+  (§7.5.2), even though the path `review → fix` exists.
+clauses: ["§7.5.2", "§8.6"]
+expect:
+  diagnostics: [binding-environment-violation]

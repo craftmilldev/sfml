@@ -1,0 +1,17 @@
+sfml: "v0.1"
+parameters:
+  reviewers: { type: array, items: { type: string } }
+start: review
+steps:
+  review:
+    type: human
+    result_schema:
+      type: object
+      required: [approved]
+      properties: { approved: { type: boolean } }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete
+    value: parameters.reviewers[0]

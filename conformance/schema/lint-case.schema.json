@@ -14,27 +14,38 @@
       "required": ["diagnostics"],
       "properties": {
         "diagnostics": {
+          "description": "Identifiers the Linter MUST report. It reports no others, except those in may_also_report.",
           "type": "array",
           "uniqueItems": true,
-          "items": {
-            "enum": [
-              "unknown-step-reference",
-              "invalid-parallel-child-type",
-              "parallel-child-has-next",
-              "nested-parallel",
-              "field-not-applicable-to-type",
-              "non-total-routing",
-              "unreachable-step",
-              "no-path-to-result",
-              "unbounded-cycle",
-              "unknown-parameter-reference",
-              "unknown-step-result-reference",
-              "unreachable-reference",
-              "binding-environment-violation"
-            ]
-          }
+          "items": { "$ref": "#/$defs/Identifier" }
+        },
+        "may_also_report": {
+          "description": "Identifiers the Linter MAY also report: knock-on diagnostics SPEC.md's wording makes defensible. Disjoint from diagnostics.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/Identifier" }
         }
       }
+    }
+  },
+  "$defs": {
+    "Identifier": {
+      "enum": [
+        "unknown-step-reference",
+        "invalid-parallel-child-type",
+        "parallel-child-has-next",
+        "nested-parallel",
+        "field-not-applicable-to-type",
+        "non-total-routing",
+        "unreachable-step",
+        "no-path-to-result",
+        "unbounded-cycle",
+        "unknown-parameter-reference",
+        "unknown-step-result-reference",
+        "unreachable-reference",
+        "binding-environment-violation"
+      ]
     }
   }
 }

@@ -1,0 +1,21 @@
+description: >
+  With `retry: 2`, two retryable failures use up the entry's attempts and raise harness_error. A
+  resume with no payload opens a new entry on the same session, and `retry` applies fresh to it: one
+  more retryable failure is retried, and the second attempt succeeds.
+clauses: ["§6.10", "§10.3", "§11.4", "§11.7"]
+actions:
+  - start: {}
+    expect:
+      status: errored
+      blocked: [{ step: work, state: errored, exception: harness_error }]
+      state: { parameters: {}, results: {} }
+  - resume: { step: work }
+expect:
+  status: terminal
+  outcome: complete
+  value: { ok: true }
+  state:
+    parameters: {}
+    results:
+      work: [{ ok: true }]
+      done: [{ ok: true }]

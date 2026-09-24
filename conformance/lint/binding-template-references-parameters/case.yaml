@@ -1,0 +1,6 @@
+description: >
+  A prompt template's placeholder references a declared parameter directly. A parameter must first
+  be bound into the step's prompt_vars (§6.3, §7.5.2).
+clauses: ["§6.3", "§7.5.2", "§8.6"]
+expect:
+  diagnostics: [binding-environment-violation]

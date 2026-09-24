@@ -1,0 +1,4 @@
+description: "a result step MUST NOT declare harness"
+clauses: ["§6.8"]
+expect:
+  parse: reject

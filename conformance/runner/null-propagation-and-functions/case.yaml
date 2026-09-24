@@ -1,0 +1,30 @@
+description: >
+  On its first entry, `form`'s instructions read `last(results.form).name` over an empty list. That
+  is null, not an error, so the step waits for input. The first input has an empty name and no tags,
+  so `notEmpty` is false, `empty` is true, and the step loops. The second input matches both guards;
+  routing takes the first one in declared order.
+clauses: ["§6.9", "§7.3", "§7.4", "§9.5"]
+actions:
+  - start: {}
+    expect:
+      status: awaiting_input
+      blocked: [{ step: form, state: awaiting_input }]
+      state: { parameters: {}, results: {} }
+  - resume: { step: form, payload: { name: "", tags: [] } }
+    expect:
+      status: awaiting_input
+      blocked: [{ step: form, state: awaiting_input }]
+      state:
+        parameters: {}
+        results:
+          form: [{ name: "", tags: [] }]
+  - resume: { step: form, payload: { name: "Ada", tags: [] } }
+expect:
+  status: terminal
+  outcome: complete
+  value: { name: "Ada", tags: [] }
+  state:
+    parameters: {}
+    results:
+      form: [{ name: "", tags: [] }, { name: "Ada", tags: [] }]
+      named: [{ name: "Ada", tags: [] }]

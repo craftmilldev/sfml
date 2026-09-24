@@ -1,0 +1,17 @@
+sfml: "v0.1"
+start: checks
+steps:
+  checks:
+    type: parallel
+    steps:
+      review:
+        type: human
+        result_schema: { type: object }
+      finish:
+        type: result
+        outcome: complete
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete

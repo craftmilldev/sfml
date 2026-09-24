@@ -1,0 +1,9 @@
+{
+  "sfml": "v0.1",
+  "start": "review",
+  "start": "done",
+  "steps": {
+    "review": { "type": "human", "result_schema": {}, "next": [{ "to": "done" }] },
+    "done": { "type": "result", "outcome": "complete" }
+  }
+}

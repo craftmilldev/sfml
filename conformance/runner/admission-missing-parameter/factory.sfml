@@ -1,0 +1,14 @@
+sfml: "v0.1"
+parameters:
+  issue: { type: string }
+start: review
+steps:
+  review:
+    type: human
+    instructions: parameters.issue
+    result_schema: { type: object }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete

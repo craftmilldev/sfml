@@ -1,0 +1,11 @@
+description: >
+  The harness produces output but no value can be obtained from it, twice, within `retry: 2`. That is
+  a failed validation, not a harness failure, so the run ends blocked on schema_violation rather
+  than harness_error.
+clauses: ["§6.5", "§10.2", "§10.4"]
+actions:
+  - start: {}
+expect:
+  status: errored
+  blocked: [{ step: draft, state: errored, exception: schema_violation }]
+  state: { parameters: {}, results: {} }

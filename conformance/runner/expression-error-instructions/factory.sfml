@@ -1,0 +1,22 @@
+sfml: "v0.1"
+parameters:
+  checklist: { type: array, items: { type: string } }
+start: review
+steps:
+  review:
+    type: human
+    instructions: parameters.checklist[0]
+    result_schema:
+      type: object
+      required: [approved]
+      properties: { approved: { type: boolean } }
+    next:
+      - when: last(results.review).approved
+        to: ship
+      - to: hold
+  ship:
+    type: result
+    outcome: complete
+  hold:
+    type: result
+    outcome: terminal_failure

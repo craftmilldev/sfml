@@ -1,0 +1,48 @@
+sfml: "v0.1"
+parameters:
+  issue: { type: string }
+start: plan
+steps:
+  plan:
+    type: agent
+    harness: mock
+    harness_config: { agent: planner }
+    max_iterations: 3
+    prompt_vars:
+      issue: parameters.issue
+      feedback: last(results.review).notes
+    prompt: "Plan ««prompt_vars.issue»». Feedback so far: ««prompt_vars.feedback»»"
+    result_schema: { type: object, required: [plan], properties: { plan: { type: string } } }
+    next:
+      - to: checks
+  checks:
+    type: parallel
+    steps:
+      lint:
+        type: agent
+        harness: mock
+        harness_config: { agent: linter }
+        prompt: "Lint the branch."
+        result_schema: { type: object }
+      signoff:
+        type: human
+        assignee: security
+        instructions: last(results.plan).plan
+        result_schema: { type: object }
+    next:
+      - to: review
+  review:
+    type: human
+    instructions: last(results.plan).plan
+    result_schema:
+      type: object
+      required: [approved, notes]
+      properties: { approved: { type: boolean }, notes: { type: string } }
+    next:
+      - when: last(results.review).approved
+        to: done
+      - to: plan
+  done:
+    type: result
+    outcome: complete
+    value: last(results.checks)

@@ -69,7 +69,25 @@ expect:
   it; one that wants to assert a fixture trips the right check (rather than being rejected for an
   unrelated reason) can use it instead of hardcoding a fixture→pattern map of its own.
 - `diagnostics` is the set of §8.7 identifiers the Linter reports. Order and duplicates don't
-  matter. Every listed identifier must be reported, and no other. `[]` means the factory is valid.
+  matter. Every listed identifier must be reported, and no other except those in
+  `may_also_report`. `[]` means the factory is valid.
+- `may_also_report`, optional, lists identifiers the Linter MAY report as well. It is for knock-on
+  diagnostics that SPEC.md's wording makes defensible but doesn't require. For example, when
+  `start` names an undeclared step, every declared step is arguably also unreachable. It never
+  overlaps `diagnostics`.
+
+```yaml
+# lint/unknown-step-reference-start/case.yaml
+expect:
+  diagnostics: [unknown-step-reference]
+  may_also_report: [unreachable-step, no-path-to-result]
+```
+
+- The fixtures for the §8.2 structural rules (`invalid-parallel-child-type`,
+  `parallel-child-has-next`, `nested-parallel`, `field-not-applicable-to-type`) are documents that a
+  Parser also rejects, since clause 6 forbids the same shapes. SPEC §8.2 still obligates a Linter to
+  report their identifiers, so a Linter must lint such a document, not stop at its parse
+  rejection. Each other `lint/` fixture parses cleanly.
 
 ## 3. `runner/` tests
 
@@ -117,7 +135,7 @@ The top-level `expect` states how the run stands after the last action. An actio
 
 | Key        | Where                  | Meaning                                                                            |
 | ---------- | ---------------------- | ---------------------------------------------------------------------------------- |
-| `admitted` | `start`, or top level  | `false`: the run was rejected at admission (SPEC §9.1). It has no run id and no state, so nothing else is expected. `true` is the default. |
+| `admitted` | `start`, or top level  | `false`: the Runner refused to start the run, either at admission (SPEC §9.1) or because the factory fails lint (SPEC §4.2). It has no run id and no state, so nothing else is expected. `true` is the default. |
 | `accepted` | a `resume`             | `false`: the resume was rejected at the call (SPEC §11.5) and the run is unchanged. `true` is the default. |
 | `status`   | anywhere               | Run status (SPEC §11.2): `terminal`, `errored`, or `awaiting_input`.               |
 | `blocked`  | anywhere               | Exactly the set of blocked branches, each `{ step, state, exception? }`. `exception` is required when `state` is `errored`. Order doesn't matter. |
@@ -142,6 +160,7 @@ stops a stream a `close` row names, shows up. No test depends on elapsed time.
 then checks what a schema can't:
 
 - each test has exactly the files its folder calls for;
+- a lint test's `may_also_report` doesn't repeat an identifier from its `diagnostics`;
 - transcript rows reference sessions correctly: a label's first `send` names its agent and model,
   and replies and closes only name labels that have been opened;
 - transcript agents and models match `factory.sfml` and `models.json`, and no agent serves two steps;
@@ -165,3 +184,13 @@ These are settled for the suite only; SPEC.md is unchanged.
    fixed it". `runner/schema-violation-override` reads `retry: 2` as two attempts in total.
 5. **Process death mid-turn.** `restart` happens only once the run has settled, so no test covers a
    harness turn in flight at process death.
+6. **Prohibited expression constructs have no identifier.** SPEC §7.8 says a Linter MUST reject an
+   expression using a collection macro, arithmetic on a step result, or anything else outside the
+   §7.2 grammar. But §8.7 registers no identifier for that rule, so a `lint/` test can't state what
+   to report, and the suite has none. The same goes for an expression that isn't valid CEL at all
+   (SPEC §7.1): SPEC.md doesn't say whether the Parser or the Linter rejects it.
+7. **Negative grants.** SPEC §11.5 says there is "no way to lower a ceiling", but not whether a
+   negative grant is rejected or treated some other way. No test sends one.
+8. **Missing keys.** SPEC §7.3 makes field access on `null` yield `null`, but doesn't say what
+   selecting a key an object lacks yields. No test depends on it; the `expression_error` tests fail
+   by indexing past the end of a list instead (SPEC §7.7's own example).

@@ -1,0 +1,31 @@
+sfml: "v0.1"
+start: fetch
+steps:
+  fetch:
+    type: agent
+    harness: mock
+    harness_config: { agent: fetcher }
+    prompt: "Fetch the deploy log."
+    result_schema:
+      type: object
+      required: [text]
+      properties: { text: { type: string } }
+    next:
+      - to: summarize
+  summarize:
+    type: agent
+    harness: mock
+    harness_config: { agent: summarizer }
+    prompt_vars:
+      text: last(results.fetch).text
+    prompt: "Summarize: ««prompt_vars.text"
+    result_schema:
+      type: object
+      required: [summary]
+      properties: { summary: { type: string } }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete
+    value: last(results.summarize)

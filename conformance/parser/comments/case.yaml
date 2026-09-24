@@ -1,0 +1,4 @@
+description: "Comments carry no meaning, wherever they appear, including ones that look like fields."
+clauses: ["§5.1"]
+expect:
+  parse: accept

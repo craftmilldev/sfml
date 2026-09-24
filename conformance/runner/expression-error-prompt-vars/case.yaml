@@ -1,0 +1,39 @@
+description: >
+  `implement`'s prompt_vars indexes the first file of an empty list, so the entry raises
+  expression_error before the harness is invoked, and nothing is appended. A resume with no payload
+  re-attempts the entry, which fails the same way. An override that fails result_schema is
+  rejected; a valid one is appended as the step's result.
+clauses: ["§6.5", "§7.7", "§9.9", "§10.7", "§11.4", "§11.5"]
+actions:
+  - start: {}
+    expect:
+      status: errored
+      blocked: [{ step: implement, state: errored, exception: expression_error }]
+      state:
+        parameters: {}
+        results:
+          plan: [{ files: [] }]
+  - resume: { step: implement }
+    expect:
+      status: errored
+      blocked: [{ step: implement, state: errored, exception: expression_error }]
+      state:
+        parameters: {}
+        results:
+          plan: [{ files: [] }]
+  - resume: { step: implement, payload: { branch: 7 } }
+    expect:
+      accepted: false
+      status: errored
+      blocked: [{ step: implement, state: errored, exception: expression_error }]
+  - resume: { step: implement, payload: { branch: "feat/manual" } }
+expect:
+  status: terminal
+  outcome: complete
+  value: { branch: "feat/manual" }
+  state:
+    parameters: {}
+    results:
+      plan: [{ files: [] }]
+      implement: [{ branch: "feat/manual" }]
+      done: [{ branch: "feat/manual" }]

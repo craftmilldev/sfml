@@ -1,0 +1,18 @@
+sfml: "v0.1"
+start: draft
+steps:
+  draft:
+    type: agent
+    harness: mock
+    harness_config: { agent: writer }
+    retry: 2
+    prompt: "Write a title."
+    result_schema:
+      type: object
+      required: [title]
+      properties: { title: { type: string } }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete

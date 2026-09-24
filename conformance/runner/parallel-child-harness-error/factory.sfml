@@ -1,0 +1,27 @@
+sfml: "v0.1"
+start: checks
+steps:
+  checks:
+    type: parallel
+    steps:
+      lint:
+        type: agent
+        harness: mock
+        harness_config: { agent: linter }
+        prompt: "Lint the branch."
+        result_schema:
+          type: object
+          required: [passed]
+          properties: { passed: { type: boolean } }
+      review:
+        type: human
+        result_schema:
+          type: object
+          required: [approved]
+          properties: { approved: { type: boolean } }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete
+    value: last(results.checks)

@@ -1,0 +1,4 @@
+- send: { session: draft-1, agent: writer, model: mock-small }
+- reply: { session: draft-1, usage: { output_tokens: 80 }, no_value: "I wasn't able to settle on a title." }
+- send: { session: draft-1 }                                     # the re-attempt continues the session
+- reply: { session: draft-1, usage: { output_tokens: 80 }, no_value: "Here are some thoughts on titles…" }

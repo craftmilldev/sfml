@@ -1,0 +1,18 @@
+sfml: "v0.1"
+start: draft
+steps:
+  draft:
+    type: human
+    result_schema: { type: object }
+    next:
+      - to: review
+  review:
+    type: human
+    result_schema: { type: object, required: [approved], properties: { approved: { type: boolean } } }
+    next:
+      - when: last(results.review).approved
+        to: done
+      - to: draft
+  done:
+    type: result
+    outcome: complete

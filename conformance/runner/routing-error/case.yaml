@@ -1,0 +1,51 @@
+description: >
+  A human step's result is appended, then its first `when` indexes an empty list and raises
+  routing_error. The result stays appended. A resume with no payload re-evaluates the `when` list,
+  fails the same way, and appends nothing more. Naming a step outside `next` (here the step itself) is rejected, and so is
+  a result object. Naming `hold` routes there, and the run ends with its default failure value.
+clauses: ["§6.8", "§6.9", "§7.7", "§10.8", "§11.1", "§11.4", "§11.5"]
+actions:
+  - start: {}
+    expect:
+      status: awaiting_input
+      blocked: [{ step: check, state: awaiting_input }]
+  - resume: { step: check, payload: { labels: [] } }
+    expect:
+      status: errored
+      blocked: [{ step: check, state: errored, exception: routing_error }]
+      state:
+        parameters: {}
+        results:
+          check: [{ labels: [] }]
+  - resume: { step: check }
+    expect:
+      status: errored
+      blocked: [{ step: check, state: errored, exception: routing_error }]
+      state:
+        parameters: {}
+        results:
+          check: [{ labels: [] }]
+  - resume: { step: check, payload: "check" }
+    expect:
+      accepted: false
+      status: errored
+      blocked: [{ step: check, state: errored, exception: routing_error }]
+  - resume: { step: check, payload: { labels: ["ship"] } }
+    expect:
+      accepted: false
+      status: errored
+      blocked: [{ step: check, state: errored, exception: routing_error }]
+      state:
+        parameters: {}
+        results:
+          check: [{ labels: [] }]
+  - resume: { step: check, payload: "hold" }
+expect:
+  status: terminal
+  outcome: terminal_failure
+  value: { ok: false }
+  state:
+    parameters: {}
+    results:
+      check: [{ labels: [] }]
+      hold: [{ ok: false }]

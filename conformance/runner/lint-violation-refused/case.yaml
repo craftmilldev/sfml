@@ -1,0 +1,8 @@
+description: >
+  The factory parses but fails lint (non-total-routing). A Runner refuses to start a run of it, so
+  no run id is minted and there is no state.
+clauses: ["§4.1.3", "§4.2", "§8.3"]
+actions:
+  - start: {}
+expect:
+  admitted: false

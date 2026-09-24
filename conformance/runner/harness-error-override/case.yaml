@@ -1,0 +1,32 @@
+description: >
+  With `retry` absent, a retryable failure on the only attempt raises harness_error at once. An
+  override that fails result_schema is rejected, and so is a grant, which is the wrong shape for
+  harness_error. A valid override is appended as the step's result without invoking the harness.
+clauses: ["§6.10", "§10.3", "§11.4", "§11.5", "§11.7"]
+actions:
+  - start: {}
+    expect:
+      status: errored
+      blocked: [{ step: work, state: errored, exception: harness_error }]
+      state: { parameters: {}, results: {} }
+  - resume: { step: work, payload: { ok: "yes" } }
+    expect:
+      accepted: false
+      status: errored
+      blocked: [{ step: work, state: errored, exception: harness_error }]
+      state: { parameters: {}, results: {} }
+  - resume: { step: work, payload: 2 }
+    expect:
+      accepted: false
+      status: errored
+      blocked: [{ step: work, state: errored, exception: harness_error }]
+  - resume: { step: work, payload: { ok: true } }
+expect:
+  status: terminal
+  outcome: complete
+  value: { ok: true }
+  state:
+    parameters: {}
+    results:
+      work: [{ ok: true }]
+      done: [{ ok: true }]

@@ -1,0 +1,5 @@
+description: >
+  A connection's `when` references `results.reveiw`, but the step is named `review`.
+clauses: ["§8.6"]
+expect:
+  diagnostics: [unknown-step-result-reference]

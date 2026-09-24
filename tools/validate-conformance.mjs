@@ -57,9 +57,11 @@ function checkParser(dir) {
   // The document is deliberately not parsed: a parser test may hold one that must be rejected.
 }
 
-function checkLint(dir) {
+function checkLint(dir, testCase) {
   checkFiles(dir, ["case.yaml", "factory.sfml"], ["case.yaml", "factory.sfml"]);
   if (existsSync(join(dir, "factory.sfml"))) load(join(dir, "factory.sfml"));
+  const { diagnostics, may_also_report: optional = [] } = testCase.expect;
+  for (const id of optional) if (diagnostics.includes(id)) fail(dir, `'${id}' is in both diagnostics and may_also_report`);
 }
 
 /** Yields [qualifiedName, step] for every step, parallel children included. */

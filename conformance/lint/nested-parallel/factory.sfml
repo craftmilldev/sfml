@@ -1,0 +1,20 @@
+sfml: "v0.1"
+start: outer
+steps:
+  outer:
+    type: parallel
+    steps:
+      design:
+        type: human
+        result_schema: { type: object }
+      inner:
+        type: parallel
+        steps:
+          security:
+            type: human
+            result_schema: { type: object }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete
