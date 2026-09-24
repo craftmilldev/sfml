@@ -9,7 +9,7 @@
     "test:example": "npm --prefix example test",
     "lint:craftmill": "node example/dist/cli/sfml.js lint .craftmill/factory.sfml",
     "test:tools": "node --test tools/*.test.mjs",
-    "render:mermaid": "node tools/sfml-to-mermaid.mjs .craftmill/factory.sfml --out .craftmill/factory.mmd && node tools/sfml-to-mermaid.mjs conformance/parser/full/factory.sfml --out tests/sfml-to-mermaid/full.mmd",
+    "render:mermaid": "node tools/sfml-to-mermaid.mjs .craftmill/factory.sfml --out .craftmill/factory.mmd && node tools/sfml-to-mermaid.mjs conformance/parser/full/factory.sfml --out tools/sfml-to-mermaid.test.full.mmd",
     "test": "npm run validate:schema && npm run validate:conformance && npm run test:example && npm run lint:craftmill && npm run test:tools"
   },
   "dependencies": {
