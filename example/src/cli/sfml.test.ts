@@ -46,6 +46,12 @@ test("payloadHint: covers all six exception classes plus awaiting_input, none fa
   for (const exception of ALL_CLASSES) assert.notEqual(payloadHint({ step: "s", state: "errored", exception }), "(unknown)");
 });
 
+test("payloadHint: appends the actual result_schema JSON when one is passed", () => {
+  const schema = { type: "object", required: ["approved"], properties: { approved: { type: "boolean" } } };
+  assert.match(payloadHint({ step: "s", state: "awaiting_input" }, schema), /result_schema: \{"type":"object".*"approved"/);
+  assert.match(payloadHint({ step: "s", state: "errored", exception: "schema_violation" }, schema), /result_schema to supply the result directly: \{"type":"object"/);
+});
+
 // --- renderInstruction -----------------------------------------------------------------------------
 
 const factory: Factory = {
@@ -122,9 +128,39 @@ test("reportBlocked: awaiting_input prints the rendered instruction, not the raw
   };
   const out = captureStderr(() => reportBlocked(observation, factory, "f.sfml", ["--run", "abc-123"]));
   assert.match(out, /instruction: widget/);
-  assert.match(out, /resume payload: an object matching the step's result_schema/);
+  assert.match(out, /resume payload: an object matching the step's result_schema: \{"type":"object"\}/);
   assert.match(out, /sfml resume f\.sfml --run abc-123 --step review --payload '\{\}'/);
   assert.ok(!out.includes('"parameters"') && !out.includes('"results"'), "must not dump the observed state JSON");
+});
+
+test("reportBlocked: errored schema_violation/harness_error include the step's result_schema", () => {
+  const observation: Observation = {
+    status: "errored",
+    blocked: [{ step: "review", state: "errored", exception: "schema_violation", message: "/ must have required property 'title'" }],
+    state,
+  };
+  const out = captureStderr(() => reportBlocked(observation, factory, "f.sfml", ["--run", "abc-123"]));
+  assert.match(out, /resume payload: .*result_schema to supply the result directly: \{"type":"object"\}/);
+});
+
+test("reportBlocked: expression_error on a result step has no result_schema to show", () => {
+  const observation: Observation = {
+    status: "errored",
+    blocked: [{ step: "done", state: "errored", exception: "expression_error" }],
+    state,
+  };
+  const out = captureStderr(() => reportBlocked(observation, factory, "f.sfml", ["--run", "abc-123"]));
+  assert.match(out, /resume payload: omit to re-attempt the step, or an object matching result_schema \(any JSON value for a result step\) to supply the result directly\n/);
+});
+
+test("reportBlocked: a parallel child step resolves its own result_schema", () => {
+  const observation: Observation = {
+    status: "awaiting_input",
+    blocked: [{ step: "fan.design", state: "awaiting_input" }],
+    state,
+  };
+  const out = captureStderr(() => reportBlocked(observation, factory, "f.sfml", ["--run", "abc-123"]));
+  assert.match(out, /resume payload: an object matching the step's result_schema: \{"type":"object"\}/);
 });
 
 test("reportBlocked: a blocked human step whose instructions reference last_result renders it, not '(none declared)'", () => {

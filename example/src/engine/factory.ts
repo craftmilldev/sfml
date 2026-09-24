@@ -64,7 +64,7 @@ export interface Factory {
   budget?: number;
 }
 
-export function isAgentOrHuman(step: Step): step is AgentStep | HumanStep {
+export function isAgentOrHuman(step: Step | ParallelChild): step is AgentStep | HumanStep | ParallelChild {
   return step.type === "agent" || step.type === "human";
 }
 
