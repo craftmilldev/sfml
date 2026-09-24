@@ -65,11 +65,30 @@ function printObservation(observation: Observation): void {
   process.stdout.write(JSON.stringify(observation, (_k, v) => (typeof v === "bigint" ? v.toString() : v), 2) + "\n");
 }
 
-/** Prints why a step blocked as it happens, since `Observation.blocked` (SPEC's own shape) carries
- * only the exception class, not the harness's or validator's actual message. */
+/**
+ * Prints what the Runner is doing as it happens, to stderr (stdout stays reserved for the final
+ * `Observation` JSON): entering a step can be the only sign of life for as long as a real harness
+ * invocation takes, and a blocked branch's reason (the harness's or validator's actual message)
+ * isn't in `Observation.blocked` at all -- that's SPEC's own shape, just the exception class.
+ */
 function logEvent(event: RunnerEvent): void {
-  if (event.type === "step-blocked" && event.state === "errored" && event.message) {
-    process.stderr.write(`${event.step}: ${event.exception}: ${event.message}\n`);
+  const at = new Date().toISOString().slice(11, 19); // HH:MM:SS, local detail doesn't matter here
+  switch (event.type) {
+    case "step-entered":
+      process.stderr.write(`[${at}] → ${event.step}\n`);
+      return;
+    case "step-succeeded":
+      process.stderr.write(`[${at}] ✓ ${event.step}\n`);
+      return;
+    case "routed":
+      process.stderr.write(`[${at}]   ${event.from} → ${event.to}\n`);
+      return;
+    case "step-blocked":
+      process.stderr.write(`[${at}] ${event.state === "awaiting_input" ? "⏸" : "✗"} ${event.step}: ${event.state}${event.exception ? `: ${event.exception}` : ""}${event.message ? `: ${event.message}` : ""}\n`);
+      return;
+    case "terminal":
+      process.stderr.write(`[${at}] ${event.outcome === "complete" ? "✓" : "✗"} ${event.step}: ${event.outcome}\n`);
+      return;
   }
 }
 

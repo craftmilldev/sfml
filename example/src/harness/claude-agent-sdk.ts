@@ -193,9 +193,13 @@ function fromModelUsage(usage: ModelUsage): Tokens {
   };
 }
 
-/** Model ids can carry a context-window suffix such as "[1m]"; prices are keyed by the bare id. */
+/**
+ * Model ids can carry a context-window suffix such as "[1m]", and the live API returns a dated
+ * snapshot id (e.g. "claude-haiku-4-5-20251001") even when the request named the bare alias
+ * ("claude-haiku-4-5"); prices are keyed by the bare id in both cases.
+ */
 function normalizeModel(model: string): string {
-  return model.replace(/\[[^\]]*\]$/, "");
+  return model.replace(/\[[^\]]*\]$/, "").replace(/-\d{8}$/, "");
 }
 
 function handle(sessionId: string, priced: Record<string, Tokens>): SessionHandle {

@@ -144,6 +144,11 @@ test("a model with no price is a non-retryable failure", async () => {
   assert.deepEqual(events.at(-1), { type: "failure", retryable: false, message: "no price for model 'claude-unknown-9' in the price table" });
 });
 
+test("a dated snapshot id (the live API's actual response) prices against its bare alias in the table", async () => {
+  const events = await invoke(new ClaudeAgentSdkHarness(prices, fakeQuery([assistant("m1", "claude-haiku-4-5-20251001", 1000, 0)])));
+  assert.deepEqual(costs(events), [100_000n]); // claude-haiku-4-5 input: $1.00/1e6 tokens; 1000 tokens = 1e-8 * 100000
+});
+
 test("output that yields no value is no_value (schema_violation), not a failure", async () => {
   const events = await invoke(new ClaudeAgentSdkHarness(prices, fakeQuery([result({ result: "I could not finish.", modelUsage: {} })])));
   assert.equal(events.at(-1)!.type, "no_value");
