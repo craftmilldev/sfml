@@ -25,7 +25,7 @@ import { lintFactory } from "../engine/linter.js";
 import { Engine, splitQualified, type BlockedEntry, type Observation, type RunnerEvent } from "../engine/runner.js";
 import { deserializeRunState, serializeRunState } from "../engine/state.js";
 import { evaluateExpression, type Env } from "../engine/expr.js";
-import type { Factory } from "../engine/factory.js";
+import { isAgentOrHuman, type Factory, type ParallelChild, type JsonSchema, type Step } from "../engine/factory.js";
 import { ClaudeAgentSdkHarness } from "../harness/claude-agent-sdk.js";
 import { loadPriceTable } from "../harness/pricing.js";
 import type { Harness } from "../harness/types.js";
@@ -105,16 +105,24 @@ function logEvent(event: RunnerEvent): void {
   }
 }
 
+/** Resolves a (possibly parallel-child, dotted) step name to its Step/ParallelChild
+ * definition, or undefined if the step or its parent doesn't exist / isn't a
+ * parallel step for a dotted name. */
+function resolveStep(step: string, factory: Factory): Step | ParallelChild | undefined {
+  const [parentName, childName] = step.includes(".") ? splitQualified(step) : [step, undefined];
+  const parent = factory.steps[parentName];
+  if (!parent) return undefined;
+  if (childName === undefined) return parent;
+  return parent.type === "parallel" ? parent.steps[childName] : undefined;
+}
+
 /** Looks up a (possibly parallel-child) step's `HumanStep.instructions` and renders it against the
  * observed state, or returns undefined if there's no instruction or it fails to evaluate (defensive:
  * it already evaluated once for the branch to reach `awaiting_input`). `lastResult` is the blocked
  * step's own `BlockedEntry.lastResult` -- ObservedState doesn't carry it (it's per-step, not global),
  * but `instructions` may reference the bare `last_result` identifier (SPEC §9.2). */
 export function renderInstruction(step: string, factory: Factory, state: Observation["state"], lastResult: unknown = null): string | undefined {
-  const [parentName, childName] = step.includes(".") ? splitQualified(step) : [step, undefined];
-  const parent = factory.steps[parentName];
-  if (!parent) return undefined;
-  const target = childName !== undefined ? (parent.type === "parallel" ? parent.steps[childName] : undefined) : parent;
+  const target = resolveStep(step, factory);
   if (!target || target.type !== "human" || target.instructions === undefined) return undefined;
   try {
     const value = evaluateExpression(target.instructions, { parameters: state.parameters, results: state.results, last_result: lastResult } as unknown as Env);
@@ -125,19 +133,20 @@ export function renderInstruction(step: string, factory: Factory, state: Observa
 }
 
 /** SPEC §11.4's table of what payload each blocked state accepts, as guidance text for a human. */
-export function payloadHint(entry: BlockedEntry): string {
-  if (entry.state === "awaiting_input") return "an object matching the step's result_schema";
+export function payloadHint(entry: BlockedEntry, resultSchema?: JsonSchema): string {
+  const schemaSuffix = resultSchema !== undefined ? `: ${JSON.stringify(resultSchema)}` : "";
+  if (entry.state === "awaiting_input") return `an object matching the step's result_schema${schemaSuffix}`;
   switch (entry.exception) {
     case "iteration_limit":
       return "a non-negative integer: additional iterations to grant";
     case "budget_exceeded":
       return `a non-negative USD amount (≤2 decimals): additional ${entry.exceededScope ?? "step"} budget to grant`;
     case "harness_error":
-      return "omit to retry on the same session, or an object matching result_schema to supply the result directly";
+      return `omit to retry on the same session, or an object matching result_schema to supply the result directly${schemaSuffix}`;
     case "schema_violation":
-      return "omit to retry as a new agent turn on the same session, or an object matching result_schema to supply the result directly";
+      return `omit to retry as a new agent turn on the same session, or an object matching result_schema to supply the result directly${schemaSuffix}`;
     case "expression_error":
-      return "omit to re-attempt the step, or an object matching result_schema (any JSON value for a result step) to supply the result directly";
+      return `omit to re-attempt the step, or an object matching result_schema (any JSON value for a result step) to supply the result directly${schemaSuffix}`;
     case "routing_error":
       return "omit to re-evaluate routing, or a StepName from this step's own `next` list to route there directly";
     default:
@@ -158,6 +167,8 @@ export function reportBlocked(
   w(`\n${observation.status === "errored" ? "✗ errored" : "⏸ awaiting input"} (${observation.blocked.length} step${observation.blocked.length === 1 ? "" : "s"} blocked)\n\n`);
   for (const entry of observation.blocked) {
     w(`  ${entry.step}\n`);
+    const resolved = resolveStep(entry.step, factory);
+    const resultSchema = resolved && isAgentOrHuman(resolved) ? resolved.result_schema : undefined;
     if (entry.state === "awaiting_input") {
       const instruction = renderInstruction(entry.step, factory, observation.state, entry.lastResult);
       w(`    instruction: ${instruction ?? "(none declared)"}\n`);
@@ -165,7 +176,7 @@ export function reportBlocked(
       w(`    error: ${entry.exception}${entry.exceededScope ? ` (${entry.exceededScope} budget)` : ""}\n`);
       if (entry.message) w(`    context: ${entry.message}\n`);
     }
-    w(`    resume payload: ${payloadHint(entry)}\n`);
+    w(`    resume payload: ${payloadHint(entry, resultSchema)}\n`);
     w(`    sfml resume ${factoryPath} ${resumeIdArgs.join(" ")} --step ${entry.step} --payload '{}'\n\n`);
   }
 }
