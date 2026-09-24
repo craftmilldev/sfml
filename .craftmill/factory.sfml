@@ -1,0 +1,193 @@
+# This project's own feature factory: turns a GitHub issue (or a comment on one, or on a
+# PR) into a reviewed, merged pull request.
+#
+# Adapted from https://github.com/mcwhittemore/blodget/blob/main/.blodget/factory.yaml,
+# blodget's own dogfooding pipeline, restated as SFML v0.1. Differences from that source
+# worth noting for anyone comparing the two:
+#   - blodget's separate `code_review` and `pr_review` steps collapse into one `ai_review`
+#     step here: `human_review` (see below) is what looks at the actual GitHub PR review,
+#     so the agent-side review here always means "review the diff on this branch,"
+#     whichever iteration it is.
+#   - `human_refine` and `human_review` mirror blodget's own two human steps: the first
+#     is reached only when Analyze has open questions and only ever loops back to
+#     Analyze; the second is reached only once a pull request is open and decides
+#     between more implementation work or merging.
+#   - blodget has no notion of iteration/budget ceilings (it bounds a review loop with its
+#     own `maxCrossings`); this file uses `max_iterations` (SPEC §9.6) for the same job,
+#     since every cycle in an SFML factory must be bounded (SPEC §8.5).
+#   - blodget's `{{ARG[0]}}` becomes the `ticket_url` parameter. There is no `plan_path`
+#     parameter: Analyze decides where it writes the plan and reports that path as part
+#     of its own result (`results.analyze.plan`), which is what every later step reads
+#     via its own `prompt_vars` — a parameter would have wrongly implied the caller
+#     supplies it (SPEC §6.3 — a prompt template can never reach `parameters` directly
+#     either, which is why every value a template needs is threaded through as a
+#     `prompt_vars` entry, not read inline).
+
+sfml: "v0.1"
+description: >
+  Takes a GitHub ticket (issue, PR, or a comment on either) from analysis through
+  implementation, review, and human-approved merge.
+start: analyze
+budget: 100.00
+parameters:
+  ticket_url:
+    type: string
+    description: The GitHub issue, PR, or comment URL this run is working from.
+
+steps:
+  analyze:
+    type: agent
+    description: Decides whether the ticket is ready to plan, or needs a human answer first.
+    harness: claude-agent-sdk
+    harness_config: { cwd: ".", permission_mode: "bypassPermissions" }
+    prompt_path: prompts/analyze.md
+    prompt_vars:
+      ticket_url: parameters.ticket_url
+      notes: results.human_refine
+    max_iterations: 8
+    result_schema:
+      type: object
+      required: [ready]
+      properties:
+        ready: { type: boolean }
+        plan: { type: string }
+        branch: { type: string }
+    next:
+      - when: "!last(results.analyze).ready"
+        to: human_refine
+      - to: implement
+
+  human_refine:
+    type: human
+    description: Answers Analyze's open questions (posted on the ticket), then sends it back to try again.
+    assignee: "on-call-reviewer"
+    instructions: "'Analyze has open questions on the ticket. Answer them there, then record your decision.'"
+    max_iterations: 10
+    result_schema:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [retry, abandon]
+        notes:
+          type: array
+          items: { type: string }
+    next:
+      - when: "last(results.human_refine).decision == 'abandon'"
+        to: abandoned
+      - to: analyze
+
+  implement:
+    type: agent
+    description: Builds the approved plan (or addresses the latest review feedback) on the branch.
+    harness: claude-agent-sdk
+    harness_config: { cwd: ".", permission_mode: "bypassPermissions" }
+    prompt_path: prompts/implement.md
+    prompt_vars:
+      ticket_url: parameters.ticket_url
+      branch: last(results.analyze).branch
+      plan_path: last(results.analyze).plan
+      review_comments: last(results.ai_review).comments
+    max_iterations: 20
+    result_schema:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+    next:
+      - to: ai_review
+
+  ai_review:
+    type: agent
+    description: Reviews the current diff on the branch; loops back to Implement if it has feedback.
+    harness: claude-agent-sdk
+    harness_config: { cwd: ".", permission_mode: "bypassPermissions" }
+    prompt_path: prompts/ai_review.md
+    prompt_vars:
+      ticket_url: parameters.ticket_url
+      branch: last(results.analyze).branch
+      pr_url: last(results.create_update_pr).url
+    max_iterations: 20
+    result_schema:
+      type: object
+      required: [comments]
+      properties:
+        comments:
+          type: array
+          items: { type: string }
+    next:
+      - when: "notEmpty(last(results.ai_review).comments)"
+        to: implement
+      - to: create_update_pr
+
+  create_update_pr:
+    type: agent
+    description: Opens the pull request, or pushes the latest commits to the one already open.
+    harness: claude-agent-sdk
+    harness_config: { cwd: ".", permission_mode: "bypassPermissions" }
+    prompt_path: prompts/create_update_pr.md
+    prompt_vars:
+      ticket_url: parameters.ticket_url
+      branch: last(results.analyze).branch
+      plan_path: last(results.analyze).plan
+      pr_url: last(results.create_update_pr).url
+    max_iterations: 10
+    result_schema:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        url: { type: string }
+        head_sha: { type: string }
+    next:
+      - to: human_review
+
+  human_review:
+    type: human
+    description: Reviews the open pull request, then decides whether it needs more work or is ready to merge.
+    assignee: "on-call-reviewer"
+    instructions: "'A pull request is open for review. Review it on GitHub, then record your decision.'"
+    max_iterations: 30
+    result_schema:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [request_changes, approve, abandon]
+        notes: { type: string }
+    next:
+      - when: "last(results.human_review).decision == 'abandon'"
+        to: abandoned
+      - when: "last(results.human_review).decision == 'request_changes'"
+        to: implement
+      - to: merge
+
+  merge:
+    type: agent
+    description: Merges the human-approved pull request.
+    harness: claude-agent-sdk
+    harness_config: { cwd: ".", permission_mode: "bypassPermissions" }
+    prompt_path: prompts/merge.md
+    prompt_vars:
+      ticket_url: parameters.ticket_url
+      pr_url: last(results.create_update_pr).url
+    budget: 5.00
+    result_schema:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        merged_sha: { type: string }
+    next:
+      - to: success
+
+  success:
+    type: result
+    outcome: complete
+    value: last(results.merge)
+
+  abandoned:
+    type: result
+    outcome: terminal_failure

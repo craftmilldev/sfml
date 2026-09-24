@@ -1,5 +1,5 @@
 // Renders an SFML factory document (SPEC.md clause 6) as a Mermaid flowchart.
-// Usage: node sfml-to-mermaid.js <path-to-factory.sfml>
+// Usage: node tools/sfml-to-mermaid.mjs <path-to-factory.sfml> [--out <file>]
 //
 // This is a conforming Parser (§4.1.1): it rejects clause 5 violations — non-UTF-8 encoding
 // (§5.1), duplicate keys (§5.6) — and validates the document against the Annex A schema
@@ -9,7 +9,7 @@
 // clause 8 (reachability, totality of routing, cycle bounds) — those require walking the graph
 // and expression ASTs, not just the document's shape.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
@@ -168,9 +168,13 @@ export function render(factory) {
 }
 
 function main() {
-  const path = process.argv[2];
-  if (!path) {
-    console.error("Usage: node sfml-to-mermaid.js <path-to-file>");
+  const args = process.argv.slice(2);
+  let outPath;
+  const outIdx = args.indexOf("--out");
+  if (outIdx !== -1) [, outPath] = args.splice(outIdx, 2);
+  const [path] = args;
+  if (!path || args.length !== 1 || (outIdx !== -1 && !outPath)) {
+    console.error("Usage: node tools/sfml-to-mermaid.mjs <path-to-factory.sfml> [--out <file>]");
     process.exit(1);
   }
 
@@ -182,7 +186,10 @@ function main() {
     process.exit(1);
   }
 
-  process.stdout.write(render(factory));
+  // Written only after a successful render, unlike a shell `>` redirect, so a failure leaves a
+  // committed rendering intact.
+  if (outPath) writeFileSync(outPath, render(factory));
+  else process.stdout.write(render(factory));
 }
 
 // Run the CLI only when this file is the program Node was invoked on, not when a test imports

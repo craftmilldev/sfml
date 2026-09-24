@@ -1,0 +1,37 @@
+flowchart TD
+  __start__(("start"))
+  __start__ --> analyze
+  analyze["analyze<br/>agent: claude-agent-sdk"]
+  human_refine[/"human_refine<br/>human: on-call-reviewer"/]
+  implement["implement<br/>agent: claude-agent-sdk"]
+  ai_review["ai_review<br/>agent: claude-agent-sdk"]
+  create_update_pr["create_update_pr<br/>agent: claude-agent-sdk"]
+  human_review[/"human_review<br/>human: on-call-reviewer"/]
+  merge["merge<br/>agent: claude-agent-sdk"]
+  success(["success<br/>result: complete"])
+  abandoned(["abandoned<br/>result: terminal_failure"])
+  analyze -->|"!last(results.analyze).ready"| human_refine
+  analyze --> implement
+  human_refine -->|"last(results.human_refine).decision == 'abandon'"| abandoned
+  human_refine --> analyze
+  implement --> ai_review
+  ai_review -->|"notEmpty(last(results.ai_review).comments)"| implement
+  ai_review --> create_update_pr
+  create_update_pr --> human_review
+  human_review -->|"last(results.human_review).decision == 'abandon'"| abandoned
+  human_review -->|"last(results.human_review).decision == 'request_changes'"| implement
+  human_review --> merge
+  merge --> success
+  classDef agentStep fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a;
+  classDef humanStep fill:#fef3c7,stroke:#b45309,color:#78350f;
+  classDef parallelStep fill:#ede9fe,stroke:#6d28d9,color:#4c1d95;
+  classDef resultStep fill:#dcfce7,stroke:#15803d,color:#14532d;
+  class analyze agentStep;
+  class human_refine humanStep;
+  class implement agentStep;
+  class ai_review agentStep;
+  class create_update_pr agentStep;
+  class human_review humanStep;
+  class merge agentStep;
+  class success resultStep;
+  class abandoned resultStep;
