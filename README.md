@@ -33,7 +33,10 @@ npm test
 ```
 
 `npm test` validates the schema fixtures and the conformance suite, then runs the example's
-harness tests. CI runs it on every push to `main` and on every pull request.
+harness tests. It also runs the `tools/` tests, which check that `.craftmill/factory.mmd` (a
+Mermaid rendering of `.craftmill/factory.sfml`, made by `tools/sfml-to-mermaid.mjs`) is up to
+date. After editing the factory, run `npm run render:mermaid`. CI runs `npm test` on every push to
+`main` and on every pull request.
 
 ## Status
 
