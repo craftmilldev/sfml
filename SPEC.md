@@ -1231,7 +1231,8 @@ exact file formats are documented in `conformance/README.md`, not in this docume
 
 ## Annex C (informative) — Worked example
 
-The worked example lives in `example/`, not in this document and not in `conformance/`: it is
-maintained separately so it can prioritize being a clear, readable factory over being an exhaustive
-conformance case. It runs on the mock harness of Annex B. This annex is informative; nothing in
-`example/` is itself normative, though the clauses it illustrates are.
+The worked example lives in `examples/worked-example/`, not in this document and not in
+`conformance/`: it is maintained separately so it can prioritize being a clear, readable factory
+over being an exhaustive conformance case. It runs on the mock harness of Annex B. This annex is
+informative; nothing in `examples/worked-example/` is itself normative, though the clauses it
+illustrates are.

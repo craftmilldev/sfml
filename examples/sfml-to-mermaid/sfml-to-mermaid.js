@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 import Ajv2020 from "ajv/dist/2020.js";
 
-const schemaPath = join(dirname(fileURLToPath(import.meta.url)), "..", "sfml.schema.json");
+const schemaPath = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "sfml.schema.json");
 const schema = JSON.parse(readFileSync(schemaPath, "utf8"));
 
 // Matches tools/validate-schema.mjs: strictTypes/strictRequired are off because the schema's

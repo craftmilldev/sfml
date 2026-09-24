@@ -10,7 +10,7 @@ import { loadPriceTable } from "./pricing.js";
 import type { HarnessEvent, Invocation, SessionHandle } from "./types.js";
 
 // Resolves the same from src/harness and dist/harness.
-const prices = loadPriceTable(fileURLToPath(new URL("../../../conformance/models.json", import.meta.url)));
+const prices = loadPriceTable(fileURLToPath(new URL("../../../../conformance/models.json", import.meta.url)));
 
 const parallelBudget: Row[] = [
   { send: { session: "lint-1", agent: "linter", model: "mock-small", prompt: "Lint." } },
@@ -170,7 +170,7 @@ test("close: stopping at the crossing usage passes; taking the result the Runner
 });
 
 test("every conformance transcript loads into the backend", () => {
-  const runnerDir = fileURLToPath(new URL("../../../conformance/runner/", import.meta.url));
+  const runnerDir = fileURLToPath(new URL("../../../../conformance/runner/", import.meta.url));
   let loaded = 0;
   for (const test of readdirSync(runnerDir)) {
     const transcript = join(runnerDir, test, "transcript.yaml");

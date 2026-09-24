@@ -17,7 +17,7 @@ import { parseFactory, render } from "./sfml-to-mermaid.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const script = join(here, "sfml-to-mermaid.js");
-const parserDir = join(here, "..", "conformance", "parser");
+const parserDir = join(here, "..", "..", "conformance", "parser");
 
 const parserTests = readdirSync(parserDir)
   .sort()
@@ -46,12 +46,12 @@ for (const { name, factory, expect } of parserTests.filter((t) => t.expect.parse
 // result steps (`shipped`: complete, `give_up`: terminal_failure).
 const full = join(parserDir, "full", "factory.sfml");
 
-// tests/sfml-to-mermaid/full.mmd is a golden fixture: the exact, byte-for-byte mermaid full.yaml
+// full.mmd is a golden fixture: the exact, byte-for-byte mermaid full.yaml
 // must render to. A change to render()'s output — a new shape, a reordered field, different
 // escaping — is expected to change this file too; regenerate it with:
-//   node examples/sfml-to-mermaid.js conformance/parser/full/factory.sfml > tests/sfml-to-mermaid/full.mmd
+//   node examples/sfml-to-mermaid/sfml-to-mermaid.js conformance/parser/full/factory.sfml > examples/sfml-to-mermaid/full.mmd
 // and review the diff before committing it, the same way you'd review any other fixture update.
-const fullMermaidFixture = join(here, "..", "tests", "sfml-to-mermaid", "full.mmd");
+const fullMermaidFixture = join(here, "full.mmd");
 
 test("render output for the full spec matches its golden mermaid fixture", () => {
   const out = render(parseFactory(full));

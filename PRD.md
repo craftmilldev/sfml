@@ -689,7 +689,7 @@ die. **The file describes the work, not the weather.**
 | ----- | -------------------------------------------------------------------------------- | ------------------------ |
 | 1     | Freeze the v0.1 core field set                                                   | **Done** — this document |
 | 2     | Spec document with RFC-2119 language                                             | **Done** — `SPEC.md`     |
-| 3     | `sfml.schema.json`, reference linter, `mock` harness, `conformance/`, `example/` | **Next**                 |
+| 3     | `sfml.schema.json`, reference linter, `mock` harness, `conformance/`, `examples/` | **Next**                 |
 | 4     | One real harness binding; port two real pipelines to SFML                        |                          |
 | 5     | v0.1 tag; collect what v0.2 must fix                                             |                          |
 

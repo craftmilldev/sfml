@@ -6,9 +6,9 @@
   "scripts": {
     "validate:schema": "node tools/validate-schema.mjs",
     "validate:conformance": "node tools/validate-conformance.mjs",
-    "test:example": "npm --prefix example test",
-    "test:examples": "node --test examples/*.test.mjs",
-    "test": "npm run validate:schema && npm run validate:conformance && npm run test:example && npm run test:examples"
+    "test:worked-example": "npm --prefix examples/worked-example test",
+    "test:sfml-to-mermaid": "node --test examples/sfml-to-mermaid/*.test.mjs",
+    "test": "npm run validate:schema && npm run validate:conformance && npm run test:worked-example && npm run test:sfml-to-mermaid"
   },
   "dependencies": {
     "ajv": "^8.17.1",
