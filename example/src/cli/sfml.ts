@@ -6,14 +6,18 @@
 // Usage:
 //   sfml lint <factory.sfml>
 //   sfml run <factory.sfml> [--param key=value ...] [--state <path>]
-//   sfml resume <factory.sfml> --state <path> --step <name> [--payload <json>]
+//   sfml resume <factory.sfml> (--run <id> | --state <path>) --step <name> [--payload <json>]
 //
 // A run that ends blocked (awaiting_input or errored, clause 11) is not a CLI failure: it prints the
-// observation and, with --state, persists it so `resume` can continue the same run later. `--state`
-// is this CLI's own durability choice (SPEC §12.1 leaves storage to the implementation); a state file
-// makes the Runner's `restart()` (engine's in-memory reload) meaningful across separate CLI processes.
+// observation and always persists state so `resume` can continue the same run later -- `run` mints a
+// run id (SPEC §11.3: "minted by the implementation") and, unless --state names a path itself, writes
+// to .sfml/runs/<id>.json, printing both to stderr so a caller who forgets --state can still resume.
+// This state file is this CLI's own durability choice (SPEC §12.1 leaves storage to the
+// implementation); it makes the Runner's `restart()` (engine's in-memory reload) meaningful across
+// separate CLI processes.
 
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseFactory } from "../engine/parser.js";
@@ -30,7 +34,7 @@ function usage(): never {
       "Usage:",
       "  sfml lint <factory.sfml>",
       "  sfml run <factory.sfml> [--param key=value ...] [--state <path>]",
-      "  sfml resume <factory.sfml> --state <path> --step <name> [--payload <json>]",
+      "  sfml resume <factory.sfml> (--run <id> | --state <path>) --step <name> [--payload <json>]",
       "",
     ].join("\n"),
   );
@@ -121,8 +125,8 @@ async function main(): Promise<void> {
   }
   if (command === "lint") return;
 
-  const statePath = flags.get("state")?.[0];
   const harnesses = buildHarnesses();
+  const defaultStatePath = (runId: string) => join(".sfml", "runs", `${runId}.json`);
 
   if (command === "run") {
     const params: Record<string, unknown> = {};
@@ -137,19 +141,29 @@ async function main(): Promise<void> {
         params[key] = raw;
       }
     }
+    // SPEC §11.3: a run has an id, "minted by the implementation," its type and encoding
+    // unconstrained. This CLI mints one and always persists to it (or to --state, if given), so a run
+    // that blocks is never unrecoverable just because the caller forgot --state up front.
+    const runId = randomUUID();
+    const statePath = flags.get("state")?.[0] ?? defaultStatePath(runId);
+    mkdirSync(dirname(statePath), { recursive: true });
+    process.stderr.write(`run: ${runId}\nstate: ${statePath}\n`);
+
     const admission = await Engine.start(parsed.factory, harnesses, params, logEvent, baseDir);
     if (!admission.result.admitted) {
       process.stderr.write(`rejected at admission: ${admission.result.message}\n`);
       process.exit(1);
     }
-    if (statePath) writeFileSync(statePath, JSON.stringify(serializeRunState(admission.engine!.getState())));
+    writeFileSync(statePath, JSON.stringify(serializeRunState(admission.engine!.getState())));
     printObservation(admission.result.observation);
     return;
   }
 
   // resume
+  const runId = flags.get("run")?.[0];
+  const statePath = flags.get("state")?.[0] ?? (runId ? defaultStatePath(runId) : undefined);
   if (!statePath || !existsSync(statePath)) {
-    process.stderr.write("resume requires --state <path> pointing at a file `run` wrote\n");
+    process.stderr.write("resume requires --run <id> (as `run` printed it) or --state <path> pointing at a file `run` wrote\n");
     process.exit(2);
   }
   const step = flags.get("step")?.[0];
