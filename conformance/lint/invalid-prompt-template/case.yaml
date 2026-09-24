@@ -1,0 +1,6 @@
+description: >
+  An inline prompt opens a placeholder with `««` and never closes it. That is a malformed template,
+  not literal text, and the Linter reports it before any run.
+clauses: ["§4.3", "§7.9"]
+expect:
+  diagnostics: [invalid-prompt-template]

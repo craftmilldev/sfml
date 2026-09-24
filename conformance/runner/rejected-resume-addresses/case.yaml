@@ -1,0 +1,49 @@
+description: >
+  While `review` awaits input, resumes are rejected when they name an undeclared step, name a
+  declared step that isn't blocked, carry no payload, or carry a grant instead of an object. Each
+  rejection leaves the run as it was. Once the run is terminal, a resume is rejected too, and the
+  run stays terminal across a restart.
+clauses: ["§6.6", "§6.8", "§9.10", "§11.3", "§11.4", "§11.5", "§12.1"]
+actions:
+  - start: {}
+    expect:
+      status: awaiting_input
+      blocked: [{ step: review, state: awaiting_input }]
+  - resume: { step: ghost, payload: { approved: true } }
+    expect:
+      accepted: false
+      status: awaiting_input
+      blocked: [{ step: review, state: awaiting_input }]
+  - resume: { step: done, payload: null }
+    expect:
+      accepted: false
+      status: awaiting_input
+      blocked: [{ step: review, state: awaiting_input }]
+  - resume: { step: review }
+    expect:
+      accepted: false
+      status: awaiting_input
+      blocked: [{ step: review, state: awaiting_input }]
+  - resume: { step: review, payload: 1 }
+    expect:
+      accepted: false
+      status: awaiting_input
+      blocked: [{ step: review, state: awaiting_input }]
+      state: { parameters: {}, results: {} }
+  - resume: { step: review, payload: { approved: true } }
+    expect:
+      status: terminal
+  - resume: { step: review, payload: { approved: false } }
+    expect:
+      accepted: false
+      status: terminal
+  - restart: {}
+expect:
+  status: terminal
+  outcome: complete
+  value: { ok: true }
+  state:
+    parameters: {}
+    results:
+      review: [{ approved: true }]
+      done: [{ ok: true }]

@@ -1,0 +1,2 @@
+- send: { session: plan-1, agent: planner, model: mock-small, prompt: "Plan this issue: add a --verbose flag\n" }
+- reply: { session: plan-1, usage: { output_tokens: 100 }, result: { plan: "add the flag to parse()" } }

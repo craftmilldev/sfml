@@ -1,0 +1,31 @@
+sfml: "v0.1"
+start: plan
+steps:
+  plan:
+    type: agent
+    harness: mock
+    harness_config: { agent: planner }
+    prompt: "List the files to change."
+    result_schema:
+      type: object
+      required: [files]
+      properties: { files: { type: array, items: { type: string } } }
+    next:
+      - to: implement
+  implement:
+    type: agent
+    harness: mock
+    harness_config: { agent: coder }
+    prompt_vars:
+      first: last(results.plan).files[0]
+    prompt: "Start with ««prompt_vars.first»»."
+    result_schema:
+      type: object
+      required: [branch]
+      properties: { branch: { type: string } }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete
+    value: last(results.implement)

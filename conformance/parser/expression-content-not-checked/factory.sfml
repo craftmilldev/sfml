@@ -1,0 +1,12 @@
+sfml: "v0.1"
+start: review
+steps:
+  review:
+    type: human
+    instructions: "(("
+    result_schema: {}
+    next:
+      - when: ""
+        to: done
+      - to: done
+  done: { type: result, outcome: complete, value: "last(" }

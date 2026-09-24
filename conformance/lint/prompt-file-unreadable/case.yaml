@@ -1,0 +1,6 @@
+description: >
+  `prompt_path` names a file that does not exist. The Parser accepted the path as a String; the
+  Linter resolves it against the factory's directory and reports it.
+clauses: ["§4.3", "§6.5", "§7.9"]
+expect:
+  diagnostics: [prompt-file-unreadable]

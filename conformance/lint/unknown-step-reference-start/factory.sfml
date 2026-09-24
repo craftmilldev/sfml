@@ -1,0 +1,6 @@
+sfml: "v0.1"
+start: begin
+steps:
+  done:
+    type: result
+    outcome: complete

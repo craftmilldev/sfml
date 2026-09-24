@@ -1,0 +1,4 @@
+- send: { session: lint-1, agent: linter, model: mock-small }
+- reply: { session: lint-1, usage: { input_tokens: 1000 }, error: { message: "403 repository access denied", retryable: false } }
+- send: { session: lint-1 }                                      # the resume continues the session
+- reply: { session: lint-1, usage: { input_tokens: 1000, output_tokens: 200 }, result: { passed: true } }

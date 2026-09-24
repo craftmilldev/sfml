@@ -1,0 +1,4 @@
+description: "a result step MUST NOT declare result_schema"
+clauses: ["§6.4", "§6.8"]
+expect:
+  parse: reject

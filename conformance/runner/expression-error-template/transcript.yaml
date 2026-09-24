@@ -1,0 +1,3 @@
+- send: { session: fetch-1, agent: fetcher, model: mock-small }
+- reply: { session: fetch-1, usage: { output_tokens: 100 }, result: { lines: [] } }
+# summarize never invokes its harness: its template fails to render

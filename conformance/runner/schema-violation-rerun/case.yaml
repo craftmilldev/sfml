@@ -1,0 +1,20 @@
+description: >
+  With `retry: 1`, the agent's only attempt fails result_schema and raises schema_violation. A resume
+  with no payload re-runs the step as a new turn on the same session, and it succeeds.
+clauses: ["§6.10", "§10.4", "§11.4", "§11.7"]
+actions:
+  - start: {}
+    expect:
+      status: errored
+      blocked: [{ step: draft, state: errored, exception: schema_violation }]
+      state: { parameters: {}, results: {} }
+  - resume: { step: draft }
+expect:
+  status: terminal
+  outcome: complete
+  value: { title: "Add a --verbose flag" }
+  state:
+    parameters: {}
+    results:
+      draft: [{ title: "Add a --verbose flag" }]
+      done: [{ title: "Add a --verbose flag" }]

@@ -1,0 +1,5 @@
+description: >
+  An agent step's prompt_vars references `parameters.isue`, but the factory declares only `issue`.
+clauses: ["§8.6"]
+expect:
+  diagnostics: [unknown-parameter-reference]

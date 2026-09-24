@@ -1,0 +1,29 @@
+description: >
+  A result step's `value` indexes an empty list, so reaching it raises expression_error, addressed to
+  the result step, and the run is not yet terminal. A result step declares no result_schema, so its
+  override may be any JSON value; `null` ends the run with the value null.
+clauses: ["§6.8", "§7.7", "§10.7", "§11.4"]
+actions:
+  - start:
+      parameters: { reviewers: [] }
+    expect:
+      status: awaiting_input
+      blocked: [{ step: review, state: awaiting_input }]
+  - resume: { step: review, payload: { approved: true } }
+    expect:
+      status: errored
+      blocked: [{ step: done, state: errored, exception: expression_error }]
+      state:
+        parameters: { reviewers: [] }
+        results:
+          review: [{ approved: true }]
+  - resume: { step: done, payload: null }
+expect:
+  status: terminal
+  outcome: complete
+  value: null
+  state:
+    parameters: { reviewers: [] }
+    results:
+      review: [{ approved: true }]
+      done: [null]

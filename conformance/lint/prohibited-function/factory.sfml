@@ -1,0 +1,14 @@
+sfml: "v0.1"
+parameters:
+  checklist: { type: array, items: { type: string } }
+start: review
+steps:
+  review:
+    type: human
+    instructions: size(parameters.checklist)
+    result_schema: { type: object }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete

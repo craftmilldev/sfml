@@ -1,0 +1,12 @@
+# on_error: retry   <- not a field; a comment
+sfml: "v0.1" # the version
+start: review
+steps:
+  # budget: 1.005
+  review:
+    type: human
+    result_schema: {} # anything
+    next:
+      # - when: "true"
+      - to: done
+  done: { type: result, outcome: complete }

@@ -47,6 +47,10 @@ const check = (p) => {
   }
 };
 
+// Parser tests whose rule the schema deliberately leaves to a Parser. The two-decimal-place limit
+// on Decimal USD is one: see the DecimalUSD description in sfml.schema.json.
+const beyondSchema = new Set(["budget-three-decimals"]);
+
 const args = process.argv.slice(2);
 let failed = 0;
 
@@ -61,6 +65,10 @@ if (args.length) {
   const dir = join(root, "conformance", "parser");
   for (const name of readdirSync(dir).sort()) {
     const testDir = join(dir, name);
+    if (beyondSchema.has(name)) {
+      console.log(`skip ${relative(root, testDir)} (a Parser rule the schema leaves out)`);
+      continue;
+    }
     const casePath = join(testDir, "case.yaml");
     const testCase = YAML.parse(readFileSync(casePath, "utf8"));
     const factoryPath = existsSync(join(testDir, "factory.sfml"))

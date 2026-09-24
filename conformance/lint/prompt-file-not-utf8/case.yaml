@@ -1,0 +1,6 @@
+description: >
+  The file `prompt_path` names is Latin-1, not UTF-8: it has a lone 0xAB byte where UTF-8 would spell
+  `«` as two bytes. A prompt template must be UTF-8 so the placeholder delimiter is unambiguous.
+clauses: ["§7.9"]
+expect:
+  diagnostics: [prompt-file-not-utf8]

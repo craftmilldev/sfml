@@ -1,0 +1,4 @@
+description: "A Parser reads no file but the document: a prompt_path naming a missing file, and an inline prompt with an unclosed placeholder, both parse. Both are Linter rules."
+clauses: ["§4.3", "§6.5", "§7.9"]
+expect:
+  parse: accept

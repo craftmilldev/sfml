@@ -1,0 +1,27 @@
+description: >
+  A human step's `instructions` indexes an empty list, so the step raises expression_error instead
+  of waiting for input. A resume with no payload re-attempts the entry and fails the same way. An
+  override supplies the step's result, and routing proceeds from it.
+clauses: ["§6.6", "§7.7", "§10.7", "§11.4"]
+actions:
+  - start:
+      parameters: { checklist: [] }
+    expect:
+      status: errored
+      blocked: [{ step: review, state: errored, exception: expression_error }]
+      state: { parameters: { checklist: [] }, results: {} }
+  - resume: { step: review }
+    expect:
+      status: errored
+      blocked: [{ step: review, state: errored, exception: expression_error }]
+      state: { parameters: { checklist: [] }, results: {} }
+  - resume: { step: review, payload: { approved: true } }
+expect:
+  status: terminal
+  outcome: complete
+  value: { ok: true }
+  state:
+    parameters: { checklist: [] }
+    results:
+      review: [{ approved: true }]
+      ship: [{ ok: true }]

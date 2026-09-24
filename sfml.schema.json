@@ -49,9 +49,8 @@
       "minimum": 0
     },
     "Expression": {
-      "description": "A string that parses as an SFML expression (clause 7). Parsing and binding are checked by a Linter, not by this schema.",
-      "type": "string",
-      "minLength": 1
+      "description": "A String holding an SFML expression (clause 7). Its content, including whether it is empty or valid CEL, is a Linter rule (SPEC §4.3, §7.1), not a Parser one.",
+      "type": "string"
     },
     "JSONSchema": {
       "description": "A JSON Schema, 2020-12 (clause 2).",
@@ -151,7 +150,7 @@
           "description": "Harness-defined keys, passed through unexamined (§6.12).",
           "type": "object"
         },
-        "prompt_path": { "type": "string", "minLength": 1 },
+        "prompt_path": { "description": "Whether the file exists and is readable is a Linter rule (SPEC §4.3, §7.9).", "type": "string" },
         "prompt": { "type": "string" },
         "prompt_vars": {
           "description": "FactoryState Expressions bound as the template's PromptVars (§6.5, §9.9).",

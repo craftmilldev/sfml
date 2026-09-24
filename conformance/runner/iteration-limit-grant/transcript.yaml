@@ -1,0 +1,7 @@
+- send: { session: poll-1, agent: poller, model: mock-small }
+- reply: { session: poll-1, usage: { output_tokens: 100 }, result: { done: false } }
+- send: { session: poll-2, agent: poller, model: mock-small }
+- reply: { session: poll-2, usage: { output_tokens: 100 }, result: { done: false } }
+# iteration_limit on the third arrival; the zero grant re-raises it without a send
+- send: { session: poll-3, agent: poller, model: mock-small }                          # after the grant of 1: a new entry, a new session
+- reply: { session: poll-3, usage: { output_tokens: 100 }, result: { done: true } }

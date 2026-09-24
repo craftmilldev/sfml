@@ -12,8 +12,8 @@ conformance/
   mock-harness.md    the mock harness that runner tests play back (Annex B)
   models.json        the price table the mock uses
   schema/            JSON Schemas (2020-12) for every file below
-  parser/<test>/     clause 5: Parser, Linter, and Runner run these
-  lint/<test>/       clause 8: Linter and Runner run these
+  parser/<test>/     Parser rules (SPEC §4.3): Parser, Linter, and Runner run these
+  lint/<test>/       Linter rules (SPEC §4.3): Linter and Runner run these
   runner/<test>/     clauses 9–12: Runner runs these
 ```
 
@@ -27,8 +27,8 @@ submodule) and point its test runner at it. The folder a test sits in gives its 
 | Folder    | Files                                                                             | What the implementation does                                                                       |
 | --------- | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `parser/` | `case.yaml`, `factory.sfml` or `factory.sfml.json`                                | Parse the document; accept or reject it.                                                           |
-| `lint/`   | `case.yaml`, `factory.sfml`                                                       | Lint the factory; report diagnostics.                                                               |
-| `runner/` | `case.yaml`, `factory.sfml`, and `transcript.yaml` if the factory has agent steps | Perform `actions` against the factory, with the mock playing `transcript.yaml` (mock-harness.md). |
+| `lint/`   | `case.yaml`, `factory.sfml`, and `prompts/` if the factory names prompt files      | Lint the factory; report diagnostics.                                                               |
+| `runner/` | `case.yaml`, `factory.sfml`, `transcript.yaml` if the factory has agent steps, and `prompts/` if it names prompt files | Perform `actions` against the factory, with the mock playing `transcript.yaml` (mock-harness.md). |
 
 Every `case.yaml` has the same frame:
 
@@ -38,7 +38,8 @@ clauses: ["§8.3"]      # the SPEC.md clauses it exercises
 expect: …              # the outputs to check; shape depends on the folder
 ```
 
-Paths inside a test are relative to its folder. `models.json` is the only file shared across tests.
+Paths inside a test are relative to its folder, which is also the directory a `prompt_path` resolves
+against (SPEC §6.5). Prompt files live under `prompts/`. `models.json` is the only file shared across tests.
 
 ## 2. `parser/` and `lint/` tests
 
@@ -69,7 +70,24 @@ expect:
   it; one that wants to assert a fixture trips the right check (rather than being rejected for an
   unrelated reason) can use it instead of hardcoding a fixture→pattern map of its own.
 - `diagnostics` is the set of §8.7 identifiers the Linter reports. Order and duplicates don't
-  matter. Every listed identifier must be reported, and no other. `[]` means the factory is valid.
+  matter. Every listed identifier must be reported, and no other except those in
+  `may_also_report`. `[]` means the factory is valid.
+- `may_also_report`, optional, lists identifiers the Linter MAY report as well. It is for knock-on
+  diagnostics that SPEC.md's wording makes defensible but doesn't require. For example, when
+  `start` names an undeclared step, every declared step is arguably also unreachable. It never
+  overlaps `diagnostics`.
+
+```yaml
+# lint/unknown-step-reference-start/case.yaml
+expect:
+  diagnostics: [unknown-step-reference]
+  may_also_report: [unreachable-step, no-path-to-result]
+```
+
+- Every `lint/` fixture parses: a Linter only ever sees a factory its Parser accepted (SPEC §4.1.2).
+  So a rule the Parser owns, such as a field on the wrong step type or a `parallel` child that
+  declares `next`, is tested only in `parser/`, never in `lint/`. SPEC §4.3 lists which class owns
+  each rule.
 
 ## 3. `runner/` tests
 
@@ -117,7 +135,7 @@ The top-level `expect` states how the run stands after the last action. An actio
 
 | Key        | Where                  | Meaning                                                                            |
 | ---------- | ---------------------- | ---------------------------------------------------------------------------------- |
-| `admitted` | `start`, or top level  | `false`: the run was rejected at admission (SPEC §9.1). It has no run id and no state, so nothing else is expected. `true` is the default. |
+| `admitted` | `start`, or top level  | `false`: the Runner refused to start the run, either at admission (SPEC §9.1) or because the factory fails lint (SPEC §4.2). It has no run id and no state, so nothing else is expected. `true` is the default. |
 | `accepted` | a `resume`             | `false`: the resume was rejected at the call (SPEC §11.5) and the run is unchanged. `true` is the default. |
 | `status`   | anywhere               | Run status (SPEC §11.2): `terminal`, `errored`, or `awaiting_input`.               |
 | `blocked`  | anywhere               | Exactly the set of blocked branches, each `{ step, state, exception? }`. `exception` is required when `state` is `errored`. Order doesn't matter. |
@@ -142,6 +160,7 @@ stops a stream a `close` row names, shows up. No test depends on elapsed time.
 then checks what a schema can't:
 
 - each test has exactly the files its folder calls for;
+- a lint test's `may_also_report` doesn't repeat an identifier from its `diagnostics`;
 - transcript rows reference sessions correctly: a label's first `send` names its agent and model,
   and replies and closes only name labels that have been opened;
 - transcript agents and models match `factory.sfml` and `models.json`, and no agent serves two steps;

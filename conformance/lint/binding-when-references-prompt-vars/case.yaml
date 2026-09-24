@@ -1,0 +1,6 @@
+description: >
+  A connection's `when` references `prompt_vars`. `when` is a FactoryState Expression (§7.5.1), and
+  PromptVars is not part of FactoryState.
+clauses: ["§7.5.1", "§8.6"]
+expect:
+  diagnostics: [binding-environment-violation]

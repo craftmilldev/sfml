@@ -1,0 +1,16 @@
+sfml: "v0.1"
+start: review
+steps:
+  review:
+    type: human
+    result_schema: { type: object, required: [approved], properties: { approved: { type: boolean } } }
+    next:
+      - when: "last(results.review).approved &&"
+        to: done
+      - to: rejected
+  done:
+    type: result
+    outcome: complete
+  rejected:
+    type: result
+    outcome: terminal_failure

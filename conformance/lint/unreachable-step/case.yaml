@@ -1,0 +1,5 @@
+description: >
+  `orphan` would reach a result step, but nothing routes to it from `start`.
+clauses: ["§8.4"]
+expect:
+  diagnostics: [unreachable-step]

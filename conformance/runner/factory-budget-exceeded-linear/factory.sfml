@@ -1,0 +1,24 @@
+sfml: "v0.1"
+start: first
+budget: 0.20
+steps:
+  first:
+    type: agent
+    harness: mock
+    harness_config: { agent: agent-a }
+    prompt: "First."
+    result_schema: { type: object, required: [n], properties: { n: { type: integer } } }
+    next:
+      - to: second
+  second:
+    type: agent
+    harness: mock
+    harness_config: { agent: agent-b }
+    prompt: "Second."
+    result_schema: { type: object, required: [n], properties: { n: { type: integer } } }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete
+    value: last(results.second)

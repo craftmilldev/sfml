@@ -1,0 +1,23 @@
+sfml: "v0.1"
+start: draft
+steps:
+  draft:
+    type: human
+    max_iterations: 3
+    instructions: last(results.review).notes
+    result_schema: { type: object }
+    next:
+      - to: review
+  review:
+    type: human
+    result_schema:
+      type: object
+      required: [approved, notes]
+      properties: { approved: { type: boolean }, notes: { type: string } }
+    next:
+      - when: last(results.review).approved
+        to: done
+      - to: draft
+  done:
+    type: result
+    outcome: complete

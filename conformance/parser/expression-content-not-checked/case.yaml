@@ -1,0 +1,4 @@
+description: "A Parser treats an Expression as an opaque String: `((` is not CEL, but that is a Linter rule (invalid-expression), not a parse error."
+clauses: ["§4.3", "§6.1"]
+expect:
+  parse: accept

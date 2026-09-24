@@ -1,0 +1,21 @@
+sfml: "v0.1"
+start: poll
+steps:
+  poll:
+    type: agent
+    harness: mock
+    harness_config: { agent: poller }
+    max_iterations: 2
+    prompt: "Is the deploy finished?"
+    result_schema:
+      type: object
+      required: [done]
+      properties: { done: { type: boolean } }
+    next:
+      - when: last(results.poll).done
+        to: finish
+      - to: poll
+  finish:
+    type: result
+    outcome: complete
+    value: last(results.poll)

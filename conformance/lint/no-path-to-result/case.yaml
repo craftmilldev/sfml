@@ -1,0 +1,6 @@
+description: >
+  Every step is reachable and every cycle is bounded, but the path through `trap` only loops back to
+  `trap` and never reaches a result step.
+clauses: ["§8.4"]
+expect:
+  diagnostics: [no-path-to-result]

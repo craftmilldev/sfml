@@ -1,0 +1,38 @@
+description: >
+  `form`'s result schema makes every field optional, and the input omits them all. Its `when` reads
+  the missing `urgent` field. That is an error, not null, and since it happens in a `when` it raises
+  routing_error. After the routing override, `review`'s instructions read the missing `note` field
+  and raise expression_error. An override supplies review's result.
+clauses: ["§7.3", "§7.7", "§10.7", "§10.8", "§11.4"]
+actions:
+  - start: {}
+    expect:
+      status: awaiting_input
+      blocked: [{ step: form, state: awaiting_input }]
+  - resume: { step: form, payload: {} }
+    expect:
+      status: errored
+      blocked: [{ step: form, state: errored, exception: routing_error }]
+      state:
+        parameters: {}
+        results:
+          form: [{}]
+  - resume: { step: form, payload: "review" }
+    expect:
+      status: errored
+      blocked: [{ step: review, state: errored, exception: expression_error }]
+      state:
+        parameters: {}
+        results:
+          form: [{}]
+  - resume: { step: review, payload: { approved: true } }
+expect:
+  status: terminal
+  outcome: complete
+  value: { ok: true }
+  state:
+    parameters: {}
+    results:
+      form: [{}]
+      review: [{ approved: true }]
+      done: [{ ok: true }]

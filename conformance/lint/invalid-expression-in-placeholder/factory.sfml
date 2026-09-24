@@ -1,0 +1,18 @@
+sfml: "v0.1"
+parameters:
+  issue: { type: string }
+start: plan
+steps:
+  plan:
+    type: agent
+    harness: mock
+    harness_config: { agent: planner }
+    prompt_vars:
+      issue: parameters.issue
+    prompt: "Plan ««prompt_vars.issue ==»»"
+    result_schema: { type: object }
+    next:
+      - to: done
+  done:
+    type: result
+    outcome: complete

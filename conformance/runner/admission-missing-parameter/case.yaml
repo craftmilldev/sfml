@@ -1,0 +1,8 @@
+description: >
+  `issue` has no default, so it is required. A run started without it is rejected at admission: no
+  run id, no state, and no exception.
+clauses: ["§6.3", "§9.1"]
+actions:
+  - start: {}
+expect:
+  admitted: false

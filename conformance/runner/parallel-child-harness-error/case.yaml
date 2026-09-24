@@ -1,0 +1,31 @@
+description: >
+  A parallel step with an agent child and a human child. The agent child fails non-retryably, so the
+  run has one errored branch and one awaiting_input branch, and its status is errored. Each is
+  resumed by its qualified name: the human child with its input, the agent child with no payload,
+  which continues its session. The step then joins.
+clauses: ["§5.3", "§9.8", "§10.3", "§11.1", "§11.2", "§11.3", "§11.7"]
+actions:
+  - start: {}
+    expect:
+      status: errored
+      blocked:
+        - { step: checks.lint, state: errored, exception: harness_error }
+        - { step: checks.review, state: awaiting_input }
+      state: { parameters: {}, results: {} }
+  - resume: { step: checks.review, payload: { approved: true } }
+    expect:
+      status: errored
+      blocked: [{ step: checks.lint, state: errored, exception: harness_error }]
+      state: { parameters: {}, results: {} }
+  - resume: { step: checks.lint }
+expect:
+  status: terminal
+  outcome: complete
+  value:
+    lint: { passed: true }
+    review: { approved: true }
+  state:
+    parameters: {}
+    results:
+      checks: [{ lint: { passed: true }, review: { approved: true } }]
+      done: [{ lint: { passed: true }, review: { approved: true } }]

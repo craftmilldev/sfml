@@ -1,0 +1,3 @@
+- send: { session: work-1, agent: worker, model: mock-small }
+- reply: { session: work-1, usage: { input_tokens: 1000 }, error: { message: "429 rate limited", retryable: true } }
+# no retry, and the override invokes no harness

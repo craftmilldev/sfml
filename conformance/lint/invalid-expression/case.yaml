@@ -1,0 +1,6 @@
+description: >
+  A connection's `when` ends in a dangling `&&`, so it does not parse as CEL. The Parser accepted it
+  as a String; the Linter reports it.
+clauses: ["§4.3", "§7.1"]
+expect:
+  diagnostics: [invalid-expression]

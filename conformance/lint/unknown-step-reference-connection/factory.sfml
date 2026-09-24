@@ -1,0 +1,13 @@
+sfml: "v0.1"
+start: review
+steps:
+  review:
+    type: human
+    result_schema: { type: object, required: [approved], properties: { approved: { type: boolean } } }
+    next:
+      - when: last(results.review).approved
+        to: publish
+      - to: done
+  done:
+    type: result
+    outcome: complete

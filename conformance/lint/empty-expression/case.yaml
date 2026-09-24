@@ -1,0 +1,6 @@
+description: >
+  A result step's `value` is the empty string. It is a String, so the Parser accepts it, but it is
+  not a CEL expression.
+clauses: ["§4.3", "§7.1"]
+expect:
+  diagnostics: [invalid-expression]

@@ -1,0 +1,6 @@
+description: >
+  A factory that uses every step type, a bounded loop, a loop-back reference, a parallel region,
+  prompt_vars, and every expression site, and breaks no rule. The Linter reports nothing.
+clauses: ["§8.2", "§8.3", "§8.4", "§8.5", "§8.6"]
+expect:
+  diagnostics: []

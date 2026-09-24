@@ -1,0 +1,7 @@
+description: >
+  `never` sits behind a guard that can't be true, but the syntactic reachability check treats every
+  connection as traversable (§8.4). A semantic check MUST NOT reject a factory the syntactic one
+  accepts, so the Linter reports nothing.
+clauses: ["§8.4"]
+expect:
+  diagnostics: []

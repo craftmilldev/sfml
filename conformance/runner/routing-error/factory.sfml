@@ -1,0 +1,19 @@
+sfml: "v0.1"
+start: check
+steps:
+  check:
+    type: human
+    result_schema:
+      type: object
+      required: [labels]
+      properties: { labels: { type: array, items: { type: string } } }
+    next:
+      - when: last(results.check).labels[0] == "ship"
+        to: ship
+      - to: hold
+  ship:
+    type: result
+    outcome: complete
+  hold:
+    type: result
+    outcome: terminal_failure
