@@ -76,7 +76,9 @@ async function main(): Promise<void> {
     process.stderr.write(`parse error: ${parsed.message}\n`);
     process.exit(1);
   }
-  const diagnostics = lintFactory(parsed.factory);
+  // An agent step's prompt_path resolves against the factory's own directory (§7.9).
+  const baseDir = dirname(factoryPath);
+  const diagnostics = lintFactory(parsed.factory, baseDir);
   if (diagnostics.length) {
     process.stderr.write(`lint failed:\n${diagnostics.map((d) => `  ${d.id}: ${d.message}`).join("\n")}\n`);
     process.exit(1);
@@ -98,7 +100,7 @@ async function main(): Promise<void> {
         params[key] = raw;
       }
     }
-    const admission = await Engine.start(parsed.factory, harnesses, params);
+    const admission = await Engine.start(parsed.factory, harnesses, params, undefined, baseDir);
     if (!admission.result.admitted) {
       process.stderr.write(`rejected at admission: ${admission.result.message}\n`);
       process.exit(1);
@@ -119,7 +121,7 @@ async function main(): Promise<void> {
   const payload = hasPayload ? JSON.parse(flags.get("payload")![0]!) : undefined;
 
   const state = deserializeRunState(JSON.parse(readFileSync(statePath, "utf8")));
-  const engine = new Engine(parsed.factory, harnesses, state);
+  const engine = new Engine(parsed.factory, harnesses, state, undefined, baseDir);
   const result = await engine.resume(step, hasPayload, payload);
   writeFileSync(statePath, JSON.stringify(serializeRunState(engine.getState())));
   if (!result.accepted) {

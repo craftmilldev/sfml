@@ -55,7 +55,7 @@ for (const name of listDirs(join(conformanceRoot, "lint"))) {
     const parsed = parseFactory(bytes, "yaml");
     assert.ok(parsed.ok, "lint fixtures parse cleanly");
     if (!parsed.ok) return;
-    const diagnostics = new Set(lintFactory(parsed.factory).map((d) => d.id));
+    const diagnostics = new Set(lintFactory(parsed.factory, dir).map((d) => d.id));
     assert.deepEqual([...diagnostics].sort(), [...new Set(testCase.expect.diagnostics)].sort());
   });
 }
@@ -94,7 +94,7 @@ for (const name of listDirs(join(conformanceRoot, "runner"))) {
         let accepted: boolean | undefined;
 
         if ("start" in action) {
-          const admission = await Engine.start(factory, harnesses(), action.start.parameters ?? {});
+          const admission = await Engine.start(factory, harnesses(), action.start.parameters ?? {}, undefined, dir);
           admitted = admission.result.admitted;
           if (!admission.result.admitted) {
             if (action.expect) assertExpect(action.expect, { admitted: false });

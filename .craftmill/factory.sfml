@@ -40,7 +40,7 @@ steps:
     description: Decides whether the ticket is ready to plan, or needs a human answer first.
     harness: claude-agent-sdk
     harness_config: { cwd: ".", permissionMode: "acceptEdits" }
-    prompt_path: .craftmill/prompts/analyze.md
+    prompt_path: prompts/analyze.md
     prompt_vars:
       ticket_url: parameters.ticket_url
       notes: last(results.human_refine).notes
@@ -81,7 +81,7 @@ steps:
     description: Builds the approved plan (or addresses the latest review feedback) on the branch.
     harness: claude-agent-sdk
     harness_config: { cwd: ".", permissionMode: "acceptEdits" }
-    prompt_path: .craftmill/prompts/implement.md
+    prompt_path: prompts/implement.md
     prompt_vars:
       ticket_url: parameters.ticket_url
       branch: last(results.analyze).branch
@@ -101,7 +101,7 @@ steps:
     description: Reviews the current diff on the branch; loops back to Implement if it has feedback.
     harness: claude-agent-sdk
     harness_config: { cwd: ".", permissionMode: "acceptEdits" }
-    prompt_path: .craftmill/prompts/ai_review.md
+    prompt_path: prompts/ai_review.md
     prompt_vars:
       ticket_url: parameters.ticket_url
       branch: last(results.analyze).branch
@@ -124,7 +124,7 @@ steps:
     description: Opens the pull request, or pushes the latest commits to the one already open.
     harness: claude-agent-sdk
     harness_config: { cwd: ".", permissionMode: "acceptEdits" }
-    prompt_path: .craftmill/prompts/create_update_pr.md
+    prompt_path: prompts/create_update_pr.md
     prompt_vars:
       ticket_url: parameters.ticket_url
       branch: last(results.analyze).branch
@@ -167,7 +167,7 @@ steps:
     description: Merges the human-approved pull request.
     harness: claude-agent-sdk
     harness_config: { cwd: ".", permissionMode: "acceptEdits" }
-    prompt_path: .craftmill/prompts/merge.md
+    prompt_path: prompts/merge.md
     prompt_vars:
       ticket_url: parameters.ticket_url
       pr_url: last(results.create_update_pr).url

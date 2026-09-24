@@ -27,24 +27,18 @@ export function parseFactory(bytes: Buffer, format: "yaml" | "json" = "yaml"): P
     return { ok: false, message: "document is not valid utf-8 (§5.1)" };
   }
 
-  let value: unknown;
-  if (format === "json") {
-    try {
-      value = JSON.parse(text);
-    } catch (e) {
-      return { ok: false, message: `document is not valid JSON: ${(e as Error).message}` };
-    }
-  } else {
-    const doc = YAML.parseDocument(text, { uniqueKeys: true });
-    if (doc.errors.length) {
-      const dup = doc.errors.find((e) => /duplicate key|key must be unique/i.test(e.message));
-      const message = dup
-        ? `mapping keys must be unique (§5.6): ${dup.message}`
-        : `document is not valid yaml: ${doc.errors.map((e) => e.message).join("; ")}`;
-      return { ok: false, message };
-    }
-    value = doc.toJS();
+  // Every JSON document is valid YAML (§5.1), so both surface syntaxes go through the same parser:
+  // that's what makes §5.6 (duplicate keys are a parse error, not "last value wins") apply uniformly
+  // to a JSON document too, since JSON.parse on its own would silently keep the last value.
+  const doc = YAML.parseDocument(text, { uniqueKeys: true });
+  if (doc.errors.length) {
+    const dup = doc.errors.find((e) => /duplicate key|key must be unique/i.test(e.message));
+    const message = dup
+      ? `mapping keys must be unique (§5.6): ${dup.message}`
+      : `document is not valid ${format}: ${doc.errors.map((e) => e.message).join("; ")}`;
+    return { ok: false, message };
   }
+  const value: unknown = doc.toJS();
 
   if (!validateSchema(value)) {
     const message = (validateSchema.errors ?? []).map((e: { instancePath: string; message?: string }) => `${e.instancePath || "/"} ${e.message}`).join("; ");

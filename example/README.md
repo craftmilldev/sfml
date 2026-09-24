@@ -67,37 +67,39 @@ npm --prefix example test   # this package alone: conformance suite + unit tests
 `src/engine/conformance.test.ts` runs every case in `conformance/parser`, `conformance/lint`, and
 `conformance/runner` against this Parser/Linter/Runner. All of it passes.
 
-## Conformance suite coverage — gaps to flag
+## Conformance suite coverage
 
-Issue #13 asked to flag any SPEC.md conformance case that doesn't seem present. Running the full
-suite against a real implementation surfaced two real gaps, both about the suite's own coverage
-rather than anything this example does differently from SPEC.md:
+Issue #13 asked to flag any SPEC.md conformance case that doesn't seem present. The two gaps flagged
+in earlier revisions of this file — `conformance/lint/` having only one fixture, and
+`conformance/runner/` not reaching every row of the §11.4 resume-payload table — were filled by
+[#17](https://github.com/craftmilldev/sfml/pull/17): `conformance/lint/` now has 28 fixtures (one or
+more per §8.7 diagnostic, plus negative cases like `guarded-step-still-reachable` and `bounded-cycle`
+that confirm the Linter does *not* over-reject), and `conformance/runner/` grew from 9 to 32, adding
+`iteration-limit-grant`, `expression-error-*`, `routing-error`, `rejected-resume-addresses`,
+`admission-*`, and more. `conformance/parser/` also grew, to 66 fixtures.
 
-- **`conformance/lint/` has one fixture** (`non-total-routing`, §8.3). §8.7 registers twelve
-  diagnostic identifiers; the other eleven — `unknown-step-reference`, `invalid-parallel-child-type`,
-  `parallel-child-has-next`, `nested-parallel`, `field-not-applicable-to-type`, `unreachable-step`,
-  `no-path-to-result`, `unbounded-cycle`, `unknown-parameter-reference`,
-  `unknown-step-result-reference`, `unreachable-reference`, `binding-environment-violation` — have no
-  `conformance/lint/<case>/` fixture that exercises a Linter in isolation. `conformance/parser/`
-  covers several of the structural ones (e.g. `nested-parallel`, `parallel-child-has-next`) as parse
-  rejections, since `sfml.schema.json` happens to reject them structurally too — but SPEC §8.2 assigns
-  them to the Linter, not the Parser, and a Linter that (correctly, per SPEC) accepts a document its
-  own Parser might reject, or is fed an already-parsed document from elsewhere, has no suite coverage
-  for these rules. `example/src/engine/linter.test.ts` in this package exercises all twelve against
-  this implementation directly, as unit tests rather than conformance fixtures, to confirm the rules
-  are implemented; they should probably become real `conformance/lint/` cases.
-- **`conformance/runner/` (9 cases) doesn't reach every row of the §11.4 payload table.** It covers
-  `budget_exceeded` (grant, both scopes, exact-boundary, run-level-inside-parallel), `harness_error`
-  (retry, resume with no payload), `schema_violation` (resume with an override payload, and a
-  rejected override), and a `human` step's payload validation and any-order parallel join. It never
-  exercises: `iteration_limit`'s own resume (a grant of additional iterations), `expression_error`
-  (from a bad `prompt_vars`/`instructions`/`value` expression) and its override/re-attempt resume,
-  `routing_error` and its override-with-a-StepName resume, a rejected resume address (naming a branch
-  that isn't blocked, or blocked under a different exception class), or `harness_error`/
-  `schema_violation` resumed with *no* payload where retry is exhausted rather than absent. This
-  example's own Runner implements all of clause 11 (see `runner.ts`'s `resume*` methods) and the
-  gaps above are, again, about suite coverage rather than a known defect.
+That PR also revised SPEC.md itself: §8.2's structural checks that used to carry their own Linter
+diagnostics (`invalid-parallel-child-type`, `parallel-child-has-next`, `nested-parallel`,
+`field-not-applicable-to-type`) are now Parser/schema-only concerns, so §8.7's registry dropped to
+fourteen identifiers; this example's Linter was updated to match (`checkStructural` in `linter.ts`
+no longer emits those four). §7.1, §7.8, and §7.9 also moved from being informally Parser-adjacent to
+formal Linter rules with their own diagnostics (`invalid-expression`, `prohibited-expression-construct`,
+`invalid-prompt-template`, `prompt-file-unreadable`, `prompt-file-not-utf8`), which needed real
+implementation work here, not just new fixtures to pass:
 
-Neither gap blocks conformance as SPEC.md defines it (§4.1.2, §4.1.3: a Linter/Runner conforms once
-it passes every case the suite *has*), but both leave real corners of clause 8 and clause 11
-unverified by the shared suite.
+- `expr.ts` parses a **wider** grammar than SPEC §7.2 on purpose — arithmetic, and a `.macro(args)`
+  call — so it can tell "doesn't parse as CEL at all" (`invalid-expression`) apart from "parses, but
+  uses a construct outside the grammar" (`prohibited-expression-construct`); the evaluator still
+  refuses to run either.
+- The Linter now resolves an agent step's `prompt_path` against the factory's own directory and reads
+  it, checking well-formed placeholders, UTF-8, and binding environment the same way it does for an
+  inline `prompt` — which meant the Runner's own `prompt_path` resolution (previously relative to the
+  process's cwd, a known gap) had to be fixed to match, threaded through as `Engine`'s `baseDir`.
+- `Engine.start()` now lints before admitting a run (§4.1.3), where it previously only checked
+  parameters and harness resolution.
+- A field simply absent from an object (as opposed to the object itself being `null`) is now a
+  runtime error, not another null — SPEC §7.3 only makes *null* propagate.
+
+All of this is covered by the suite itself (`conformance.test.ts` runs clean against all three
+folders) plus this package's own unit tests; nothing outstanding to flag from issue #13's original
+ask remains.

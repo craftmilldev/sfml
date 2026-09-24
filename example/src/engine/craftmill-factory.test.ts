@@ -10,7 +10,8 @@ import { parseFactory } from "./parser.js";
 import { lintFactory } from "./linter.js";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
-const factoryPath = join(repoRoot, ".craftmill", "factory.sfml");
+const baseDir = join(repoRoot, ".craftmill");
+const factoryPath = join(baseDir, "factory.sfml");
 
 test(".craftmill/factory.sfml parses as a valid SFML v0.1 document", () => {
   const parsed = parseFactory(readFileSync(factoryPath), "yaml");
@@ -21,7 +22,7 @@ test(".craftmill/factory.sfml lints clean (no §8.7 diagnostics)", () => {
   const parsed = parseFactory(readFileSync(factoryPath), "yaml");
   assert.ok(parsed.ok);
   if (!parsed.ok) return;
-  const diagnostics = lintFactory(parsed.factory);
+  const diagnostics = lintFactory(parsed.factory, baseDir);
   assert.deepEqual(
     diagnostics.map((d) => d.id),
     [],

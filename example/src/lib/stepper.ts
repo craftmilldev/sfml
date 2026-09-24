@@ -23,6 +23,8 @@ export type StepperInput = {
   transcript?: Row[];
   /** The mock's price table (conformance/models.json shape). */
   prices: PriceTable;
+  /** What an agent step's `prompt_path` resolves against (SPEC §7.9). Node-only: a browser caller has no filesystem to resolve against, so its factories should stick to inline `prompt`. */
+  baseDir?: string;
 };
 
 export type StepperError = { ok: false; stage: "parse" | "lint"; message?: string; diagnostics?: Diagnostic[] };
@@ -33,9 +35,9 @@ export function loadStepper(input: StepperInput): StepperError | StepperReady {
   const bytes = input.factory instanceof Uint8Array ? Buffer.from(input.factory) : input.factory;
   const parsed = parseFactory(bytes, input.format ?? "yaml");
   if (!parsed.ok) return { ok: false, stage: "parse", message: parsed.message };
-  const diagnostics = lintFactory(parsed.factory);
+  const diagnostics = lintFactory(parsed.factory, input.baseDir);
   if (diagnostics.length) return { ok: false, stage: "lint", diagnostics };
-  return { ok: true, stepper: new Stepper(parsed.factory, input.transcript ?? [], input.prices) };
+  return { ok: true, stepper: new Stepper(parsed.factory, input.transcript ?? [], input.prices, input.baseDir) };
 }
 
 /** One entry of a Stepper's timeline: an observation plus the RunnerEvents that produced it. */
@@ -57,9 +59,10 @@ export class Stepper {
     readonly factory: import("../engine/factory.js").Factory,
     private readonly transcript: Row[],
     private readonly prices: PriceTable,
+    private readonly baseDir?: string,
   ) {
     this.backend = new MockBackend(transcript);
-    this.engine = new Engine(factory, this.harnesses(), undefined, (e) => this.pendingEvents.push(e));
+    this.engine = new Engine(factory, this.harnesses(), undefined, (e) => this.pendingEvents.push(e), baseDir);
   }
 
   private pendingEvents: RunnerEvent[] = [];
@@ -76,7 +79,7 @@ export class Stepper {
   }
 
   async start(parameters: Record<string, unknown> = {}): Promise<{ admitted: boolean; message?: string; frame?: StepperFrame }> {
-    const admission = await Engine.start(this.factory, this.harnesses(), parameters, (e) => this.pendingEvents.push(e));
+    const admission = await Engine.start(this.factory, this.harnesses(), parameters, (e) => this.pendingEvents.push(e), this.baseDir);
     if (!admission.result.admitted) return { admitted: false, message: admission.result.message };
     this.engine = admission.engine!;
     return { admitted: true, frame: this.record(admission.result.observation) };

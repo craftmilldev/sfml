@@ -5,7 +5,12 @@
 // functions, no arithmetic on step results, no collection macros.
 //
 // This is a small hand-rolled parser rather than a CEL binding, per §7.1: "or MAY implement the
-// subset of CEL this clause defines directly in a language with no usable CEL binding."
+// subset of CEL this clause defines directly in a language with no usable CEL binding." It parses a
+// slightly WIDER grammar than §7.2 on purpose: arithmetic operators and `.macro(args)` calls
+// (§7.8's prohibited constructs) parse into their own AST node kinds instead of failing to parse at
+// all. That is what lets the Linter tell `invalid-expression` (§7.1: doesn't parse as CEL) apart
+// from `prohibited-expression-construct` (§7.8: parses, but uses a construct outside the grammar) —
+// see `findProhibitedConstruct` below. The evaluator still refuses to evaluate any of them.
 
 export type ExprValue = null | boolean | number | string | ExprValue[] | { [key: string]: ExprValue };
 
@@ -22,6 +27,7 @@ type Node =
   | { kind: "member"; target: Node; name: string }
   | { kind: "index"; target: Node; index: Node }
   | { kind: "call"; name: string; args: Node[] }
+  | { kind: "dottedCall"; target: Node; name: string; args: Node[] } // §7.8: a `.macro(args)` call
   | { kind: "unary"; op: "!"; operand: Node }
   | { kind: "binary"; op: string; left: Node; right: Node };
 
@@ -83,7 +89,7 @@ function tokenize(src: string): Token[] {
       i += 2;
       continue;
     }
-    if ("().[],!<>".includes(c)) {
+    if ("().[],!<>+-*/%".includes(c)) {
       tokens.push({ kind: "punct", text: c });
       i++;
       continue;
@@ -148,12 +154,32 @@ class Parser {
   }
 
   private parseComparison(): Node {
-    const left = this.parsePostfix();
+    const left = this.parseAdditive();
     const op = this.peek().text;
     if (["==", "!=", "<", "<=", ">", ">="].includes(op)) {
       this.next();
-      const right = this.parsePostfix();
+      const right = this.parseAdditive();
       return { kind: "binary", op, left, right };
+    }
+    return left;
+  }
+
+  // §7.8 arithmetic on a step result parses (so the Linter can name it a prohibited construct
+  // rather than a parse failure) but is never part of the §7.2 grammar the evaluator accepts.
+  private parseAdditive(): Node {
+    let left = this.parseMultiplicative();
+    while (this.peek().text === "+" || this.peek().text === "-") {
+      const op = this.next().text;
+      left = { kind: "binary", op, left, right: this.parseMultiplicative() };
+    }
+    return left;
+  }
+
+  private parseMultiplicative(): Node {
+    let left = this.parsePostfix();
+    while (this.peek().text === "*" || this.peek().text === "/" || this.peek().text === "%") {
+      const op = this.next().text;
+      left = { kind: "binary", op, left, right: this.parsePostfix() };
     }
     return left;
   }
@@ -166,7 +192,23 @@ class Parser {
         this.next();
         const name = this.next();
         if (name.kind !== "ident") throw new ExpressionError(`expected a field name after '.' in expression: ${this.source}`);
-        node = { kind: "member", target: node, name: name.text };
+        if (this.peek().text === "(") {
+          // §7.8 a `.name(args)` call (CEL's collection macros: map/filter/exists/exists_one/all) —
+          // parses, so the Linter can flag it as prohibited rather than treat it as malformed.
+          this.next();
+          const args: Node[] = [];
+          if (this.peek().text !== ")") {
+            args.push(this.parseOr());
+            while (this.peek().text === ",") {
+              this.next();
+              args.push(this.parseOr());
+            }
+          }
+          this.expect(")");
+          node = { kind: "dottedCall", target: node, name: name.text, args };
+        } else {
+          node = { kind: "member", target: node, name: name.text };
+        }
       } else if (t.text === "[") {
         this.next();
         const index = this.parseOr();
@@ -304,7 +346,10 @@ function evaluate(node: Node, env: Env): ExprValue {
       const target = evaluate(node.target, env);
       if (target === null) return null; // §7.3: field access on null yields null
       if (typeof target !== "object" || Array.isArray(target)) throw new ExpressionError(`cannot select field '${node.name}' from ${JSON.stringify(target)}`);
-      return Object.prototype.hasOwnProperty.call(target, node.name) ? target[node.name]! : null;
+      // §7.3 only makes field access on `null` yield null; a field missing from an actual object is
+      // an error (SPEC conformance/runner/missing-field-is-an-error), not another null.
+      if (!Object.prototype.hasOwnProperty.call(target, node.name)) throw new ExpressionError(`no field '${node.name}' on ${JSON.stringify(target)}`);
+      return target[node.name]!;
     }
     case "index": {
       const target = evaluate(node.target, env);
@@ -317,20 +362,24 @@ function evaluate(node: Node, env: Env): ExprValue {
       }
       if (typeof target === "object") {
         if (typeof index !== "string") throw new ExpressionError(`map index must be a string, got ${JSON.stringify(index)}`);
-        return Object.prototype.hasOwnProperty.call(target, index) ? target[index]! : null;
+        if (!Object.prototype.hasOwnProperty.call(target, index)) throw new ExpressionError(`no key '${index}' in ${JSON.stringify(target)}`);
+        return target[index]!;
       }
       throw new ExpressionError(`cannot index into ${JSON.stringify(target)}`);
     }
     case "call": {
-      if (!FUNCTIONS.has(node.name)) throw new ExpressionError(`unknown function '${node.name}'`);
+      if (!FUNCTIONS.has(node.name)) throw new ExpressionError(`'${node.name}' is not in the closed function library of §7.4 (§7.8)`);
       const args = node.args.map((a) => evaluate(a, env));
       return callFunction(node.name, args);
     }
+    case "dottedCall":
+      throw new ExpressionError(`'.${node.name}(...)' is a collection macro, outside the §7.2 grammar (§7.8)`);
     case "unary":
       return !isTruthy(evaluate(node.operand, env));
     case "binary": {
       if (node.op === "&&") return isTruthy(evaluate(node.left, env)) && isTruthy(evaluate(node.right, env));
       if (node.op === "||") return isTruthy(evaluate(node.left, env)) || isTruthy(evaluate(node.right, env));
+      if (["+", "-", "*", "/", "%"].includes(node.op)) throw new ExpressionError(`arithmetic ('${node.op}') is outside the §7.2 grammar (§7.8)`);
       return compare(node.op, evaluate(node.left, env), evaluate(node.right, env));
     }
   }
@@ -362,6 +411,10 @@ export function walkReferences(source: string, visit: (path: string[]) => void):
       case "call":
         for (const a of n.args) walk(a);
         return;
+      case "dottedCall":
+        walk(n.target);
+        for (const a of n.args) walk(a);
+        return;
       case "unary":
         walk(n.operand);
         return;
@@ -374,6 +427,54 @@ export function walkReferences(source: string, visit: (path: string[]) => void):
     }
   };
   walk(node);
+}
+
+/**
+ * §7.8: reports the first construct in `source` that parses as CEL but is outside SFML's grammar —
+ * a user-defined/unlisted function, arithmetic, or a collection macro — or `undefined` if there is
+ * none. Throws ExpressionError if `source` does not parse as CEL at all (§7.1's `invalid-expression`,
+ * a different diagnostic from this one's `prohibited-expression-construct`).
+ */
+export function findProhibitedConstruct(source: string): string | undefined {
+  const node = parseExpression(source);
+  let found: string | undefined;
+  const walk = (n: Node): void => {
+    if (found) return;
+    switch (n.kind) {
+      case "binary":
+        if (["+", "-", "*", "/", "%"].includes(n.op)) {
+          found = `arithmetic ('${n.op}') on a step result`;
+          return;
+        }
+        walk(n.left);
+        walk(n.right);
+        return;
+      case "dottedCall":
+        found = `collection macro '.${n.name}(...)'`;
+        return;
+      case "call":
+        if (!FUNCTIONS.has(n.name)) {
+          found = `function '${n.name}', outside the closed library of §7.4`;
+          return;
+        }
+        for (const a of n.args) walk(a);
+        return;
+      case "member":
+        walk(n.target);
+        return;
+      case "index":
+        walk(n.target);
+        walk(n.index);
+        return;
+      case "unary":
+        walk(n.operand);
+        return;
+      default:
+        return;
+    }
+  };
+  walk(node);
+  return found;
 }
 
 function memberChain(n: Node): string[] | undefined {
@@ -389,20 +490,29 @@ function memberChain(n: Node): string[] | undefined {
 
 const PLACEHOLDER = /««([\s\S]*?)»»/g;
 
+/** §7.9: a lone «« with no following »» is a parse failure (`invalid-prompt-template`), not literal text. */
+export function checkTemplateWellFormed(template: string): void {
+  let scanFrom = 0;
+  for (;;) {
+    const openIdx = template.indexOf("««", scanFrom);
+    if (openIdx === -1) return;
+    const closeIdx = template.indexOf("»»", openIdx + 2);
+    if (closeIdx === -1) throw new ExpressionError(`unterminated placeholder (no matching »») in template: ${template}`);
+    scanFrom = closeIdx + 2;
+  }
+}
+
+/** Every placeholder's enclosed text, trimmed, in order. Does not check well-formedness or parse validity. */
+export function templatePlaceholders(template: string): string[] {
+  return [...template.matchAll(PLACEHOLDER)].map((m) => m[1]!.trim());
+}
+
 /**
  * Renders a prompt template against `env`, which MUST be `{ prompt_vars: {...} }` (§9.9). Throws
  * ExpressionError on any placeholder's parse/eval failure.
  */
 export function renderTemplate(template: string, env: Env): string {
-  // A lone «« with no following »» is a parse failure (§7.9), not literal text.
-  let scanFrom = 0;
-  for (;;) {
-    const openIdx = template.indexOf("««", scanFrom);
-    if (openIdx === -1) break;
-    const closeIdx = template.indexOf("»»", openIdx + 2);
-    if (closeIdx === -1) throw new ExpressionError(`unterminated placeholder (no matching »») in template: ${template}`);
-    scanFrom = closeIdx + 2;
-  }
+  checkTemplateWellFormed(template);
   return template.replace(PLACEHOLDER, (_match, expr: string) => {
     const value = evaluateExpression(expr.trim(), env);
     return typeof value === "string" ? value : JSON.stringify(value);

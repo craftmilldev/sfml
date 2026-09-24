@@ -6,9 +6,11 @@
 // reload-from-storage would also produce.
 
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import type { AgentStep, Connection, Factory, HumanStep, JsonSchema, ParallelStep, Step } from "./factory.js";
 import { ExpressionError, evaluateExpression, renderTemplate, type Env, type ExprValue } from "./expr.js";
+import { lintFactory } from "./linter.js";
 import { Branch, ExceptionClass, RunState } from "./state.js";
 import { parseUsd } from "../harness/money.js";
 import type { Harness } from "../harness/types.js";
@@ -57,11 +59,13 @@ export class Engine {
     private readonly harnesses: Map<string, Harness>,
     private state: RunState = new RunState(),
     private readonly listener?: (event: RunnerEvent) => void,
+    /** What an agent step's `prompt_path` resolves against (SPEC §7.9's "the factory's directory"). */
+    private readonly baseDir?: string,
   ) {}
 
   /** Discards this Engine and builds a fresh one from a clone of its state (SPEC §12.1). */
   restart(harnesses: Map<string, Harness> = this.harnesses): Engine {
-    return new Engine(this.factory, harnesses, this.state.clone(), this.listener);
+    return new Engine(this.factory, harnesses, this.state.clone(), this.listener, this.baseDir);
   }
 
   private emit(event: RunnerEvent): void {
@@ -86,8 +90,15 @@ export class Engine {
     harnesses: Map<string, Harness>,
     parameters: Record<string, unknown>,
     listener?: (event: RunnerEvent) => void,
+    baseDir?: string,
   ): Promise<{ result: AdmitResult; engine?: Engine }> {
-    const engine = new Engine(factory, harnesses, new RunState(), listener);
+    // §4.1.3: a Runner MUST refuse to start a run of a factory that fails linting (§8).
+    const diagnostics = lintFactory(factory, baseDir);
+    if (diagnostics.length) {
+      return { result: { admitted: false, message: `factory fails lint (§4.1.3, §8): ${diagnostics.map((d) => `${d.id}: ${d.message}`).join("; ")}` } };
+    }
+
+    const engine = new Engine(factory, harnesses, new RunState(), listener, baseDir);
 
     for (const [name, step] of engine.walkAgentSteps()) {
       if (!engine.resolveHarness(step.harness)) return { result: { admitted: false, message: `${name}: harness '${step.harness}' does not resolve (§9.1, §6.12)` } };
@@ -172,7 +183,14 @@ export class Engine {
   }
 
   private env(): Env {
-    return { parameters: this.state.parameters as unknown as ExprValue, results: this.state.results as unknown as ExprValue };
+    // §9.2's own example (§7.3: "last(emptyList).some_field is valid and evaluates to null") only
+    // works if a step that has never run still resolves `results.<name>` to an actual empty list,
+    // not a missing key (which is now an error, not null -- runner/missing-field-is-an-error). This
+    // fills in `[]` for every declared step at evaluation time without writing it into `state.results`
+    // itself, so `observe()`'s snapshot still shows only the steps that have actually produced one.
+    const results: Record<string, ExprValue> = { ...(this.state.results as unknown as Record<string, ExprValue>) };
+    for (const name of Object.keys(this.factory.steps)) if (!(name in results)) results[name] = [];
+    return { parameters: this.state.parameters as unknown as ExprValue, results: results as unknown as ExprValue };
   }
 
   // --- run loop -------------------------------------------------------------------------------------
@@ -306,7 +324,13 @@ export class Engine {
     }
     let promptText: string;
     try {
-      const template = step.prompt ?? readFileSync(step.prompt_path!, "utf8");
+      let template: string;
+      if (step.prompt !== undefined) {
+        template = step.prompt;
+      } else {
+        const promptPath = this.baseDir ? join(this.baseDir, step.prompt_path!) : step.prompt_path!;
+        template = readFileSync(promptPath, "utf8");
+      }
       promptText = renderTemplate(template, { prompt_vars: promptVars });
     } catch {
       return errored("expression_error");

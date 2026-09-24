@@ -1,8 +1,11 @@
-// Linter conformance class (SPEC clause 8, §4.1.2): static properties of the graph. Diagnostic
-// identifiers are those registered in §8.7; this module implements every rule in that registry.
+// Linter conformance class (SPEC clause 8, §4.1.2, §4.3): static properties of the graph, of every
+// expression, and of every prompt template. Diagnostic identifiers are those registered in §8.7;
+// this module implements every rule in that registry.
 
-import type { AgentStep, Connection, Factory, HumanStep, ParallelStep, ResultStep, Step } from "./factory.js";
-import { walkReferences, ExpressionError } from "./expr.js";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import type { AgentStep, Factory, HumanStep, ParallelStep, Step } from "./factory.js";
+import { checkTemplateWellFormed, findProhibitedConstruct, templatePlaceholders, walkReferences, ExpressionError } from "./expr.js";
 
 export interface Diagnostic {
   id: string;
@@ -11,22 +14,27 @@ export interface Diagnostic {
 
 const RESULT_KIND = new Set(["agent", "human", "parallel"]); // step types that append to FactoryState.results
 
-export function lintFactory(factory: Factory): Diagnostic[] {
+/** `baseDir`, where given, is what an agent step's `prompt_path` resolves against (SPEC §7.9's "the factory's directory"). */
+export function lintFactory(factory: Factory, baseDir?: string): Diagnostic[] {
   const diags: Diagnostic[] = [];
   const add = (id: string, message: string) => diags.push({ id, message });
   const stepNames = new Set(Object.keys(factory.steps));
 
   checkStructural(factory, add);
   checkTotality(factory, add);
-  const { reachableFromStart, forwardReachable, edges } = checkReachability(factory, stepNames, add);
+  const { forwardReachable, edges } = checkReachability(factory, stepNames, add);
   checkTermination(factory, edges, forwardReachable, add);
-  checkReferences(factory, add);
+  checkExpressionsAndTemplates(factory, stepNames, forwardReachable, baseDir, add);
 
-  void reachableFromStart;
   return diags;
 }
 
-// --- §8.2 structural rules ----------------------------------------------------------------------
+// --- §8.2 step references -----------------------------------------------------------------------
+//
+// Everything else the old draft checked here (a parallel child's type, that it declares no `next`)
+// is now enforced by sfml.schema.json alone (§8.2's current text: "The data model gives `start` and
+// a `Connection`'s `to` the type `StepName`, which a Parser checks"); §8.7's registry no longer
+// assigns those cases their own Linter diagnostic identifiers.
 
 function checkStructural(factory: Factory, add: (id: string, message: string) => void): void {
   const stepNames = new Set(Object.keys(factory.steps));
@@ -34,19 +42,9 @@ function checkStructural(factory: Factory, add: (id: string, message: string) =>
   if (!stepNames.has(factory.start)) add("unknown-step-reference", `start: '${factory.start}' is not declared in steps`);
 
   for (const [name, step] of Object.entries(factory.steps)) {
-    if (hasNext(step)) {
-      for (const conn of step.next) {
-        if (!stepNames.has(conn.to)) add("unknown-step-reference", `${name}: connection to '${conn.to}' is not declared in steps`);
-      }
-    }
-    if (step.type === "parallel") {
-      for (const [child, childStep] of Object.entries(step.steps)) {
-        const qualified = `${name}.${child}`;
-        const kind = (childStep as Step).type;
-        if (kind !== "agent" && kind !== "human") add("invalid-parallel-child-type", `${qualified}: a parallel child must be an agent or human step`);
-        if (kind === "parallel") add("nested-parallel", `${qualified}: a parallel child must not itself be type: parallel`);
-        if ((childStep as { next?: unknown }).next !== undefined) add("parallel-child-has-next", `${qualified}: a parallel child must not declare next`);
-      }
+    if (!hasNext(step)) continue;
+    for (const conn of step.next) {
+      if (!stepNames.has(conn.to)) add("unknown-step-reference", `${name}: connection to '${conn.to}' is not declared in steps`);
     }
   }
 }
@@ -128,27 +126,57 @@ function checkTermination(factory: Factory, edges: Map<string, string[]>, forwar
 }
 
 function hasMaxIterations(step: Step): boolean {
-  return (step.type === "agent" || step.type === "human" || step.type === "parallel") && step.max_iterations !== undefined;
+  return (step.type === "agent" || step.type === "human" || step.type === "parallel") && step.max_iterations !== undefined && step.max_iterations !== null;
 }
 
-// --- §8.6 reference and binding validity -----------------------------------------------------------
+// --- §7.1, §7.8, §7.9, §8.6: expressions, prompt templates, and prompt files ------------------------
 
 type Site = { owner: string; expr: string; env: "FactoryState" | "PromptVars" };
 
-function checkReferences(factory: Factory, add: (id: string, message: string) => void): void {
-  const stepNames = new Set(Object.keys(factory.steps));
-  const edges = new Map<string, string[]>();
-  for (const [name, step] of Object.entries(factory.steps)) {
-    edges.set(name, hasNext(step) ? step.next.map((c) => c.to).filter((to) => stepNames.has(to)) : []);
-  }
-  const forwardReachable = new Map<string, Set<string>>();
-  for (const name of stepNames) forwardReachable.set(name, bfs(name, edges, stepNames));
-
+function checkExpressionsAndTemplates(
+  factory: Factory,
+  stepNames: Set<string>,
+  forwardReachable: Map<string, Set<string>>,
+  baseDir: string | undefined,
+  add: (id: string, message: string) => void,
+): void {
   const sites: Site[] = [];
+
+  const addTemplateSites = (owner: string, template: string): void => {
+    try {
+      checkTemplateWellFormed(template);
+    } catch (e) {
+      add("invalid-prompt-template", `${owner}: ${e instanceof Error ? e.message : String(e)}`);
+      return;
+    }
+    for (const expr of templatePlaceholders(template)) sites.push({ owner, expr, env: "PromptVars" });
+  };
+
   for (const [name, step] of Object.entries(factory.steps)) {
     if (step.type === "agent") {
       for (const expr of Object.values(step.prompt_vars ?? {})) sites.push({ owner: name, expr, env: "FactoryState" });
-      if (step.prompt !== undefined) collectPlaceholders(step.prompt).forEach((expr) => sites.push({ owner: name, expr, env: "PromptVars" }));
+      if (step.prompt !== undefined) {
+        addTemplateSites(name, step.prompt);
+      } else if (step.prompt_path !== undefined) {
+        const path = baseDir ? join(baseDir, step.prompt_path) : step.prompt_path;
+        let bytes: Buffer;
+        try {
+          bytes = readFileSync(path);
+        } catch (e) {
+          add("prompt-file-unreadable", `${name}: prompt_path '${step.prompt_path}' could not be read (resolved to ${path}): ${e instanceof Error ? e.message : String(e)}`);
+          bytes = undefined as unknown as Buffer;
+        }
+        if (bytes !== undefined) {
+          let text: string;
+          try {
+            text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+          } catch {
+            add("prompt-file-not-utf8", `${name}: the file prompt_path '${step.prompt_path}' names is not valid UTF-8`);
+            text = undefined as unknown as string;
+          }
+          if (text !== undefined) addTemplateSites(name, text);
+        }
+      }
       if (hasNext(step)) for (const c of step.next) if (c.when !== undefined) sites.push({ owner: name, expr: c.when, env: "FactoryState" });
     } else if (step.type === "human") {
       if (step.instructions !== undefined) sites.push({ owner: name, expr: step.instructions, env: "FactoryState" });
@@ -161,13 +189,24 @@ function checkReferences(factory: Factory, add: (id: string, message: string) =>
   }
 
   for (const site of sites) {
-    let roots: string[][] = [];
+    // §7.1: doesn't parse as CEL at all -> invalid-expression. §7.8: parses, but outside the §7.2
+    // grammar (arithmetic, a macro, a function outside §7.4) -> prohibited-expression-construct.
+    // Neither is reached until the expression clears both, so binding/reference checks below never
+    // see a malformed or out-of-grammar expression.
+    let prohibited: string | undefined;
     try {
-      walkReferences(site.expr, (path) => roots.push(path));
+      prohibited = findProhibitedConstruct(site.expr);
     } catch (e) {
-      if (e instanceof ExpressionError) add("binding-environment-violation", `${site.owner}: expression does not parse: ${site.expr} (${e.message})`);
+      add("invalid-expression", `${site.owner}: does not parse as CEL: ${site.expr} (${e instanceof Error ? e.message : String(e)})`);
       continue;
     }
+    if (prohibited !== undefined) {
+      add("prohibited-expression-construct", `${site.owner}: ${prohibited}: ${site.expr}`);
+      continue;
+    }
+
+    const roots: string[][] = [];
+    walkReferences(site.expr, (path) => roots.push(path));
     for (const path of roots) {
       const root = path[0]!;
       if (site.env === "PromptVars") {
@@ -196,10 +235,4 @@ function checkReferences(factory: Factory, add: (id: string, message: string) =>
       // registry names; SPEC leaves function-local identifiers (none exist in this grammar) aside.
     }
   }
-}
-
-const PLACEHOLDER = /««([\s\S]*?)»»/g;
-
-function collectPlaceholders(template: string): string[] {
-  return [...template.matchAll(PLACEHOLDER)].map((m) => m[1]!.trim());
 }
