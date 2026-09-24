@@ -169,41 +169,51 @@ function runCli(args: string[], cwd: string): { status: number; stdout: string; 
   return { status: result.status ?? 1, stdout: result.stdout, stderr: result.stderr };
 }
 
+function writeFactory(dir: string, lines: string[]): string {
+  const factoryPath = join(dir, "factory.sfml");
+  writeFileSync(factoryPath, lines.join("\n"));
+  return factoryPath;
+}
+
+/** A chain of `human` steps (each requiring `{ approved: boolean }`, instructions `parameters.title`)
+ * feeding into each other and finally into `done`. Shared by the tests below so the factory shape
+ * lives in one place instead of being copy-pasted per test. */
+function writeHumanFactory(dir: string, steps: string[]): string {
+  const lines = ['sfml: "v0.1"', `start: ${steps[0]}`, "parameters:", "  title: { type: string }", "steps:"];
+  steps.forEach((name, i) => {
+    lines.push(
+      `  ${name}:`,
+      "    type: human",
+      "    instructions: parameters.title",
+      "    result_schema:",
+      "      type: object",
+      "      required: [approved]",
+      "      properties: { approved: { type: boolean } }",
+      "    next:",
+      `      - to: ${steps[i + 1] ?? "done"}`,
+    );
+  });
+  lines.push("  done:", "    type: result", "    outcome: complete", "");
+  return writeFactory(dir, lines);
+}
+
+/** Runs to the first blocked step of a `writeHumanFactory` factory and asserts it's awaiting input. */
+function runThenBlock(factoryPath: string, dir: string, statePath: string): ReturnType<typeof runCli> {
+  const runResult = runCli(["run", factoryPath, "--param", "title=widget", "--state", statePath], dir);
+  assert.equal(runResult.status, 0);
+  assert.equal(runResult.stdout, "", "a non-terminal observation must not dump JSON to stdout");
+  assert.match(runResult.stderr, /awaiting input/);
+  assert.match(runResult.stderr, /instruction: widget/);
+  assert.match(runResult.stderr, /resume payload: an object matching the step's result_schema/);
+  return runResult;
+}
+
 test("integration: a run that blocks at a human step reports human-readable guidance, then resume reaches the terminal JSON", () => {
   const dir = mkdtempSync(join(tmpdir(), "sfml-cli-test-"));
   try {
-    const factoryPath = join(dir, "factory.sfml");
-    writeFileSync(
-      factoryPath,
-      [
-        'sfml: "v0.1"',
-        "start: review",
-        "parameters:",
-        "  title: { type: string }",
-        "steps:",
-        "  review:",
-        "    type: human",
-        "    instructions: parameters.title",
-        "    result_schema:",
-        "      type: object",
-        "      required: [approved]",
-        "      properties: { approved: { type: boolean } }",
-        "    next:",
-        "      - to: done",
-        "  done:",
-        "    type: result",
-        "    outcome: complete",
-        "",
-      ].join("\n"),
-    );
+    const factoryPath = writeHumanFactory(dir, ["review"]);
     const statePath = join(dir, "run.json");
-
-    const runResult = runCli(["run", factoryPath, "--param", "title=widget", "--state", statePath], dir);
-    assert.equal(runResult.status, 0);
-    assert.equal(runResult.stdout, "", "a non-terminal observation must not dump JSON to stdout");
-    assert.match(runResult.stderr, /awaiting input/);
-    assert.match(runResult.stderr, /instruction: widget/);
-    assert.match(runResult.stderr, /resume payload: an object matching the step's result_schema/);
+    const runResult = runThenBlock(factoryPath, dir, statePath);
     // An explicit --state was given to `run`, so the copy-pasteable command must resume via --state
     // (the default --run <id> path is never written to in that case) -- not --run.
     const escapedFactoryPath = factoryPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -223,35 +233,9 @@ test("integration: a run that blocks at a human step reports human-readable guid
 test("integration: resume with a payload that fails validation is rejected and still prints the human report", () => {
   const dir = mkdtempSync(join(tmpdir(), "sfml-cli-test-"));
   try {
-    const factoryPath = join(dir, "factory.sfml");
-    writeFileSync(
-      factoryPath,
-      [
-        'sfml: "v0.1"',
-        "start: review",
-        "parameters:",
-        "  title: { type: string }",
-        "steps:",
-        "  review:",
-        "    type: human",
-        "    instructions: parameters.title",
-        "    result_schema:",
-        "      type: object",
-        "      required: [approved]",
-        "      properties: { approved: { type: boolean } }",
-        "    next:",
-        "      - to: done",
-        "  done:",
-        "    type: result",
-        "    outcome: complete",
-        "",
-      ].join("\n"),
-    );
+    const factoryPath = writeHumanFactory(dir, ["review"]);
     const statePath = join(dir, "run.json");
-
-    const runResult = runCli(["run", factoryPath, "--param", "title=widget", "--state", statePath], dir);
-    assert.equal(runResult.status, 0);
-    assert.match(runResult.stderr, /awaiting input/);
+    runThenBlock(factoryPath, dir, statePath);
 
     const rejectedResult = runCli(
       ["resume", factoryPath, "--state", statePath, "--step", "review", "--payload", '{"approved":"not-a-boolean"}'],
@@ -279,44 +263,9 @@ test("integration: resume with a payload that fails validation is rejected and s
 test("integration: resume that succeeds but blocks again still prints the human report, not raw JSON", () => {
   const dir = mkdtempSync(join(tmpdir(), "sfml-cli-test-"));
   try {
-    const factoryPath = join(dir, "factory.sfml");
-    writeFileSync(
-      factoryPath,
-      [
-        'sfml: "v0.1"',
-        "start: review",
-        "parameters:",
-        "  title: { type: string }",
-        "steps:",
-        "  review:",
-        "    type: human",
-        "    instructions: parameters.title",
-        "    result_schema:",
-        "      type: object",
-        "      required: [approved]",
-        "      properties: { approved: { type: boolean } }",
-        "    next:",
-        "      - to: approve",
-        "  approve:",
-        "    type: human",
-        "    instructions: parameters.title",
-        "    result_schema:",
-        "      type: object",
-        "      required: [approved]",
-        "      properties: { approved: { type: boolean } }",
-        "    next:",
-        "      - to: done",
-        "  done:",
-        "    type: result",
-        "    outcome: complete",
-        "",
-      ].join("\n"),
-    );
+    const factoryPath = writeHumanFactory(dir, ["review", "approve"]);
     const statePath = join(dir, "run.json");
-
-    const runResult = runCli(["run", factoryPath, "--param", "title=widget", "--state", statePath], dir);
-    assert.equal(runResult.status, 0);
-    assert.match(runResult.stderr, /awaiting input/);
+    runThenBlock(factoryPath, dir, statePath);
 
     const resumeResult = runCli(["resume", factoryPath, "--state", statePath, "--step", "review", "--payload", '{"approved":true}'], dir);
     assert.equal(resumeResult.status, 0);
@@ -327,6 +276,62 @@ test("integration: resume that succeeds but blocks again still prints the human 
     const escapedFactoryPath = factoryPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const escapedStatePath = statePath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     assert.match(resumeResult.stderr, new RegExp(`sfml resume ${escapedFactoryPath} --state ${escapedStatePath} --step approve --payload '\\{\\}'`));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// Issue #28 is about resume being "not accepted" in general, not just the awaiting_input case above --
+// this exercises a rejected resume against one of the exception-class branches (SPEC §11.4/§11.5),
+// reaching `reportBlocked`'s errored (not awaiting_input) rendering via `resume`, end to end.
+test("integration: resume rejected for an exception-class (expression_error) block still prints the human report", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sfml-cli-test-"));
+  try {
+    // `parameters.checklist[0]` on an empty list throws, so `review` blocks with expression_error on
+    // arrival instead of awaiting_input -- no human/agent step needed to reach an exception class.
+    const factoryPath = writeFactory(dir, [
+      'sfml: "v0.1"',
+      "start: review",
+      "parameters:",
+      "  checklist: { type: array, items: { type: string } }",
+      "steps:",
+      "  review:",
+      "    type: human",
+      "    instructions: parameters.checklist[0]",
+      "    result_schema:",
+      "      type: object",
+      "      required: [approved]",
+      "      properties: { approved: { type: boolean } }",
+      "    next:",
+      "      - to: done",
+      "  done:",
+      "    type: result",
+      "    outcome: complete",
+      "",
+    ]);
+    const statePath = join(dir, "run.json");
+
+    const runResult = runCli(["run", factoryPath, "--param", "checklist=[]", "--state", statePath], dir);
+    assert.equal(runResult.status, 0);
+    assert.match(runResult.stderr, /error: expression_error/);
+
+    const rejectedResult = runCli(
+      ["resume", factoryPath, "--state", statePath, "--step", "review", "--payload", '{"approved":"not-a-boolean"}'],
+      dir,
+    );
+    assert.equal(rejectedResult.status, 0, "a rejected resume is not a CLI error/crash");
+    assert.equal(rejectedResult.stdout, "", "a rejected (non-terminal) resume must not dump JSON to stdout");
+    assert.match(rejectedResult.stderr, /resume rejected: the payload did not match/);
+    assert.match(rejectedResult.stderr, /error: expression_error/);
+    assert.match(rejectedResult.stderr, /resume payload: omit to re-attempt the step/);
+    assert.ok(!rejectedResult.stderr.includes('"parameters"'), "must not dump raw state JSON");
+    assert.ok(!rejectedResult.stderr.includes('"results"'), "must not dump raw state JSON");
+
+    // Sanity check: an override payload matching result_schema still resolves the run.
+    const resumeResult = runCli(["resume", factoryPath, "--state", statePath, "--step", "review", "--payload", '{"approved":true}'], dir);
+    assert.equal(resumeResult.status, 0);
+    const printed = JSON.parse(resumeResult.stdout) as Observation;
+    assert.equal(printed.status, "terminal");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
