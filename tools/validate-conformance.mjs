@@ -55,8 +55,8 @@ function checkFiles(dir, required, allowed) {
 }
 
 function checkParser(dir) {
-  const present = checkFiles(dir, ["case.yaml"], ["case.yaml", "factory.sfml", "factory.sfml.json"]);
-  if (present.filter((f) => f.startsWith("factory.")).length !== 1) fail(dir, "needs exactly one of factory.sfml or factory.sfml.json");
+  const present = checkFiles(dir, ["case.yaml"], ["case.yaml", "factory.sfml", "factory.sfml.json", "factory.mmd"]);
+  if (present.filter((f) => f === "factory.sfml" || f === "factory.sfml.json").length !== 1) fail(dir, "needs exactly one of factory.sfml or factory.sfml.json");
   // The document is deliberately not parsed: a parser test may hold one that must be rejected.
 }
 

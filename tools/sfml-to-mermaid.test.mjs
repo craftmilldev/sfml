@@ -1,4 +1,4 @@
-// Exercises sfml-to-mermaid.js against the repository's own conformance suite parser/ fixtures
+// Exercises sfml-to-mermaid.mjs against the repository's own conformance suite parser/ fixtures
 // (conformance/parser/), rather than inventing separate ones, so the two suites can't drift apart.
 // Each fixture's case.yaml states whether it must be accepted or rejected, and a rejected one may
 // also carry expect.message: a regex the rejection's message must match, so a change that made
@@ -13,10 +13,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 
-import { parseFactory, render } from "./sfml-to-mermaid.js";
+import { parseFactory, render } from "./sfml-to-mermaid.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const script = join(here, "sfml-to-mermaid.js");
+const script = join(here, "sfml-to-mermaid.mjs");
 const parserDir = join(here, "..", "conformance", "parser");
 
 const parserTests = readdirSync(parserDir)
@@ -46,18 +46,23 @@ for (const { name, factory, expect } of parserTests.filter((t) => t.expect.parse
 // result steps (`shipped`: complete, `give_up`: terminal_failure).
 const full = join(parserDir, "full", "factory.sfml");
 
-// tests/sfml-to-mermaid/full.mmd is a golden fixture: the exact, byte-for-byte mermaid full.yaml
-// must render to. A change to render()'s output — a new shape, a reordered field, different
-// escaping — is expected to change this file too; regenerate it with:
-//   node examples/sfml-to-mermaid.js conformance/parser/full/factory.sfml > tests/sfml-to-mermaid/full.mmd
-// and review the diff before committing it, the same way you'd review any other fixture update.
-const fullMermaidFixture = join(here, "..", "tests", "sfml-to-mermaid", "full.mmd");
+// Committed renderings, each checked byte-for-byte against a fresh render of its factory.
+// conformance/parser/full/factory.mmd is render()'s golden fixture; .craftmill/factory.mmd is the
+// repo's own factory, kept fresh so it can be read on GitHub. After changing render() or either
+// factory, regenerate both with `npm run render:mermaid` and review the diff.
+const repoRoot = join(here, "..");
+const renderings = [
+  ["conformance/parser/full/factory.sfml", "conformance/parser/full/factory.mmd"],
+  [".craftmill/factory.sfml", ".craftmill/factory.mmd"],
+];
 
-test("render output for the full spec matches its golden mermaid fixture", () => {
-  const out = render(parseFactory(full));
-  const expected = readFileSync(fullMermaidFixture, "utf8");
-  assert.equal(out, expected);
-});
+for (const [sfml, mmd] of renderings) {
+  test(`${mmd} is up to date`, () => {
+    const out = render(parseFactory(join(repoRoot, sfml)));
+    const expected = readFileSync(join(repoRoot, mmd), "utf8");
+    assert.equal(out, expected, `${mmd} is stale; run \`npm run render:mermaid\``);
+  });
+}
 
 test("render draws each step type of the full spec with its own shape", () => {
   const out = render(parseFactory(full));
@@ -149,7 +154,7 @@ test("the full spec's mermaid declares exactly one node per step (plus parallel 
 test("CLI prints usage and exits non-zero with no argument", () => {
   assert.throws(() => execFileSync("node", [script], { encoding: "utf8" }), (err) => {
     assert.equal(err.status, 1);
-    assert.match(err.stderr, /Usage: node sfml-to-mermaid\.js/);
+    assert.match(err.stderr, /Usage: node tools\/sfml-to-mermaid\.mjs/);
     return true;
   });
 });

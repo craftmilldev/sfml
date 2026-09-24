@@ -62,7 +62,7 @@ since it's the same mock (`mock-backend.ts`) every conformance case plays back.
 ## Running the tests
 
 ```
-npm test              # from the repo root: schema + conformance-fixture validation, this package, examples/
+npm test              # from the repo root: schema + conformance-fixture validation, this package, tools/ tests
 npm --prefix example test   # this package alone: conformance suite + unit tests
 ```
 

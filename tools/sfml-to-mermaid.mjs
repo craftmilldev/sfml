@@ -1,5 +1,5 @@
 // Renders an SFML factory document (SPEC.md clause 6) as a Mermaid flowchart.
-// Usage: node sfml-to-mermaid.js <path-to-factory.sfml>
+// Usage: node tools/sfml-to-mermaid.mjs <path-to-factory.sfml>
 //
 // This is a conforming Parser (§4.1.1): it rejects clause 5 violations — non-UTF-8 encoding
 // (§5.1), duplicate keys (§5.6) — and validates the document against the Annex A schema
@@ -170,7 +170,7 @@ export function render(factory) {
 function main() {
   const path = process.argv[2];
   if (!path) {
-    console.error("Usage: node sfml-to-mermaid.js <path-to-file>");
+    console.error("Usage: node tools/sfml-to-mermaid.mjs <path-to-factory.sfml>");
     process.exit(1);
   }
 
