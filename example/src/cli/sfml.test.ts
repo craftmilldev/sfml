@@ -220,6 +220,118 @@ test("integration: a run that blocks at a human step reports human-readable guid
   }
 });
 
+test("integration: resume with a payload that fails validation is rejected and still prints the human report", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sfml-cli-test-"));
+  try {
+    const factoryPath = join(dir, "factory.sfml");
+    writeFileSync(
+      factoryPath,
+      [
+        'sfml: "v0.1"',
+        "start: review",
+        "parameters:",
+        "  title: { type: string }",
+        "steps:",
+        "  review:",
+        "    type: human",
+        "    instructions: parameters.title",
+        "    result_schema:",
+        "      type: object",
+        "      required: [approved]",
+        "      properties: { approved: { type: boolean } }",
+        "    next:",
+        "      - to: done",
+        "  done:",
+        "    type: result",
+        "    outcome: complete",
+        "",
+      ].join("\n"),
+    );
+    const statePath = join(dir, "run.json");
+
+    const runResult = runCli(["run", factoryPath, "--param", "title=widget", "--state", statePath], dir);
+    assert.equal(runResult.status, 0);
+    assert.match(runResult.stderr, /awaiting input/);
+
+    const rejectedResult = runCli(
+      ["resume", factoryPath, "--state", statePath, "--step", "review", "--payload", '{"approved":"not-a-boolean"}'],
+      dir,
+    );
+    assert.equal(rejectedResult.status, 0, "a rejected resume is not a CLI error/crash");
+    assert.equal(rejectedResult.stdout, "", "a rejected (non-terminal) resume must not dump JSON to stdout");
+    assert.match(rejectedResult.stderr, /resume rejected: the payload did not match/);
+    assert.match(rejectedResult.stderr, /awaiting input/);
+    assert.match(rejectedResult.stderr, /instruction: widget/);
+    assert.match(rejectedResult.stderr, /resume payload: an object matching the step's result_schema/);
+    assert.ok(!rejectedResult.stderr.includes('"parameters"'), "must not dump raw state JSON");
+    assert.ok(!rejectedResult.stderr.includes('"results"'), "must not dump raw state JSON");
+
+    // Sanity check: the rejected resume didn't corrupt state -- a valid payload still resolves.
+    const resumeResult = runCli(["resume", factoryPath, "--state", statePath, "--step", "review", "--payload", '{"approved":true}'], dir);
+    assert.equal(resumeResult.status, 0);
+    const printed = JSON.parse(resumeResult.stdout) as Observation;
+    assert.equal(printed.status, "terminal");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("integration: resume that succeeds but blocks again still prints the human report, not raw JSON", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sfml-cli-test-"));
+  try {
+    const factoryPath = join(dir, "factory.sfml");
+    writeFileSync(
+      factoryPath,
+      [
+        'sfml: "v0.1"',
+        "start: review",
+        "parameters:",
+        "  title: { type: string }",
+        "steps:",
+        "  review:",
+        "    type: human",
+        "    instructions: parameters.title",
+        "    result_schema:",
+        "      type: object",
+        "      required: [approved]",
+        "      properties: { approved: { type: boolean } }",
+        "    next:",
+        "      - to: approve",
+        "  approve:",
+        "    type: human",
+        "    instructions: parameters.title",
+        "    result_schema:",
+        "      type: object",
+        "      required: [approved]",
+        "      properties: { approved: { type: boolean } }",
+        "    next:",
+        "      - to: done",
+        "  done:",
+        "    type: result",
+        "    outcome: complete",
+        "",
+      ].join("\n"),
+    );
+    const statePath = join(dir, "run.json");
+
+    const runResult = runCli(["run", factoryPath, "--param", "title=widget", "--state", statePath], dir);
+    assert.equal(runResult.status, 0);
+    assert.match(runResult.stderr, /awaiting input/);
+
+    const resumeResult = runCli(["resume", factoryPath, "--state", statePath, "--step", "review", "--payload", '{"approved":true}'], dir);
+    assert.equal(resumeResult.status, 0);
+    assert.equal(resumeResult.stdout, "", "still-blocked resume must not dump JSON to stdout");
+    assert.match(resumeResult.stderr, /awaiting input/);
+    assert.match(resumeResult.stderr, /instruction: widget/);
+    assert.match(resumeResult.stderr, /resume payload: an object matching the step's result_schema/);
+    const escapedFactoryPath = factoryPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const escapedStatePath = statePath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    assert.match(resumeResult.stderr, new RegExp(`sfml resume ${escapedFactoryPath} --state ${escapedStatePath} --step approve --payload '\\{\\}'`));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("integration: a run with no --state prints --run (the default path `run` actually wrote)", () => {
   const dir = mkdtempSync(join(tmpdir(), "sfml-cli-test-"));
   try {
