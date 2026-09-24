@@ -39,7 +39,7 @@ steps:
     type: agent
     description: Decides whether the ticket is ready to plan, or needs a human answer first.
     harness: claude-agent-sdk
-    harness_config: { cwd: ".", permission_mode: "acceptEdits" }
+    harness_config: { cwd: ".", permission_mode: "bypassPermissions" }
     prompt_path: prompts/analyze.md
     prompt_vars:
       ticket_url: parameters.ticket_url
@@ -82,7 +82,7 @@ steps:
     type: agent
     description: Builds the approved plan (or addresses the latest review feedback) on the branch.
     harness: claude-agent-sdk
-    harness_config: { cwd: ".", permission_mode: "acceptEdits" }
+    harness_config: { cwd: ".", permission_mode: "bypassPermissions" }
     prompt_path: prompts/implement.md
     prompt_vars:
       ticket_url: parameters.ticket_url
@@ -102,7 +102,7 @@ steps:
     type: agent
     description: Reviews the current diff on the branch; loops back to Implement if it has feedback.
     harness: claude-agent-sdk
-    harness_config: { cwd: ".", permission_mode: "acceptEdits" }
+    harness_config: { cwd: ".", permission_mode: "bypassPermissions" }
     prompt_path: prompts/ai_review.md
     prompt_vars:
       ticket_url: parameters.ticket_url
@@ -125,7 +125,7 @@ steps:
     type: agent
     description: Opens the pull request, or pushes the latest commits to the one already open.
     harness: claude-agent-sdk
-    harness_config: { cwd: ".", permission_mode: "acceptEdits" }
+    harness_config: { cwd: ".", permission_mode: "bypassPermissions" }
     prompt_path: prompts/create_update_pr.md
     prompt_vars:
       ticket_url: parameters.ticket_url
@@ -168,7 +168,7 @@ steps:
     type: agent
     description: Merges the human-approved pull request.
     harness: claude-agent-sdk
-    harness_config: { cwd: ".", permission_mode: "acceptEdits" }
+    harness_config: { cwd: ".", permission_mode: "bypassPermissions" }
     prompt_path: prompts/merge.md
     prompt_vars:
       ticket_url: parameters.ticket_url
