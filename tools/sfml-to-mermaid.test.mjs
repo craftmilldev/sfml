@@ -49,13 +49,13 @@ const full = join(parserDir, "full", "factory.sfml");
 
 // Committed renderings, each checked byte-for-byte against a fresh render of its factory.
 // tools/sfml-to-mermaid.test.full.mmd is render()'s golden fixture, kept out of conformance/
-// since that suite holds only normative files; .craftmill/factory.mmd is the repo's own factory,
+// since that suite holds only normative files; .sfml/factory.mmd is the repo's own factory,
 // kept fresh so it can be read on GitHub. After changing render() or either factory, regenerate both with
 // `npm run render:mermaid` and review the diff.
 const repoRoot = join(here, "..");
 const renderings = [
   ["conformance/parser/full/factory.sfml", "tools/sfml-to-mermaid.test.full.mmd"],
-  [".craftmill/factory.sfml", ".craftmill/factory.mmd"],
+  [".sfml/factory.sfml", ".sfml/factory.mmd"],
 ];
 
 for (const [sfml, mmd] of renderings) {

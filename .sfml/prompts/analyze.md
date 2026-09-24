@@ -53,9 +53,10 @@ Each outer array is a new set of comments.
   kebab-case name derived from the feature request. The target is `main` unless
   ««prompt_vars.ticket_url»» is a comment on a PR, in which case it's that PR's own
   branch.
-- Choose a path for the plan file — `.craftmill/plan.md` unless that's already taken by
-  another in-flight run, in which case pick a sibling name — and write a detailed
-  implementation plan there (create parent directories if needed). The plan must be
+- Choose a path for the plan file — `.sfml/plan.md` unless that's already taken by
+  another in-flight run, in which case pick a sibling name (e.g.
+  `.sfml/plan-<branch>.md`) — and write a detailed implementation plan there (create
+  parent directories if needed). The plan must be
   detailed enough for another engineer or agent to implement it without further
   clarification: list the concrete changes, files, and testing approach.
 - Do not commit the plan file on the new branch.

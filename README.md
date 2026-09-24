@@ -33,10 +33,13 @@ npm test
 ```
 
 `npm test` validates the schema fixtures and the conformance suite, then runs the example's
-harness tests. It also runs the `tools/` tests, which check that `.craftmill/factory.mmd` (a
-Mermaid rendering of `.craftmill/factory.sfml`, made by `tools/sfml-to-mermaid.mjs`) is up to
+harness tests. It also runs the `tools/` tests, which check that `.sfml/factory.mmd` (a
+Mermaid rendering of `.sfml/factory.sfml`, made by `tools/sfml-to-mermaid.mjs`) is up to
 date. After editing the factory, run `npm run render:mermaid`. CI runs `npm test` on every push to
 `main` and on every pull request.
+
+The repo's own factory lives in `.sfml/` (`factory.sfml`, `factory.mmd`, `prompts/`); run state
+in `.sfml/runs/` and plan files (`.sfml/plan*.md`) are git-ignored.
 
 ## Status
 
