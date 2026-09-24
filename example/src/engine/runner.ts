@@ -51,7 +51,8 @@ export type RunnerEvent =
   | { type: "terminal"; step: string; outcome: "complete" | "terminal_failure"; value: unknown };
 
 export class Engine {
-  private readonly ajv = new Ajv2020({ allErrors: true, strict: false });
+  // validateFormats: false silences ajv's "unknown format ... ignored" warning; see parser.ts.
+  private readonly ajv = new Ajv2020({ allErrors: true, strict: false, validateFormats: false });
   private readonly validators = new Map<string, ReturnType<Ajv2020["compile"]>>();
 
   constructor(

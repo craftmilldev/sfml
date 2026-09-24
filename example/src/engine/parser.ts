@@ -15,7 +15,11 @@ export type ParseResult = { ok: true; factory: Factory } | { ok: false; message:
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const schema = JSON.parse(readFileSync(join(repoRoot, "sfml.schema.json"), "utf8")) as Record<string, unknown>;
 
-const ajv = new Ajv2020({ allErrors: true, strict: false });
+// validateFormats: false silences ajv's "unknown format ... ignored" warning for the 2020-12
+// metaschema's own uri-reference format, which result_schema and parameters both $ref transitively
+// (sfml.schema.json's JSONSchema type). In 2020-12, format is an annotation unless a vocabulary
+// asserts it, so this is not a validation gap, just quieting a log line every compile would print.
+const ajv = new Ajv2020({ allErrors: true, strict: false, validateFormats: false });
 const validateSchema = ajv.compile(schema);
 
 /** Parses a factory document from raw bytes. `format` selects YAML or JSON surface syntax (§5.1). */
