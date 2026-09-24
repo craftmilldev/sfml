@@ -1,0 +1,6 @@
+description: >
+  A human step's `instructions` calls `size()`, a CEL standard function that is not in the closed
+  SFML library of §7.4.
+clauses: ["§7.4", "§7.8"]
+expect:
+  diagnostics: [prohibited-expression-construct]

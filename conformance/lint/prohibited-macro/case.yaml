@@ -1,0 +1,6 @@
+description: >
+  A connection's `when` uses the CEL `exists` macro. Collection macros are outside the §7.2 grammar,
+  even though CEL would accept them.
+clauses: ["§7.2", "§7.8"]
+expect:
+  diagnostics: [prohibited-expression-construct]

@@ -1,0 +1,14 @@
+sfml: "v0.1"
+start: review
+steps:
+  review:
+    type: human
+    max_iterations: 3
+    result_schema: { type: object, required: [approved], properties: { approved: { type: boolean } } }
+    next:
+      - when: results.review.exists(r, r.approved)
+        to: done
+      - to: review
+  done:
+    type: result
+    outcome: complete

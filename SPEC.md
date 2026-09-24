@@ -162,8 +162,8 @@ expressions and does not perform the checks of clause 8.
 
 #### 4.1.2 Linter
 
-A **Linter** accepts a parsed factory and performs every check in clause 8, reporting the stable
-identifier (§8.7) of each violated rule. A Linter does not execute a run.
+A **Linter** accepts a parsed factory and performs every check in clause 8 and the expression
+check of §7.8, reporting the stable identifier (§8.7) of each violated rule. A Linter does not execute a run.
 
 #### 4.1.3 Runner
 
@@ -179,7 +179,7 @@ constrains.
 | -------------------------------------------------------------------- | :----: | :----: | :----: |
 | Reject documents violating clause 5 (encoding, unknown keys)          |  MUST  |  MUST  |  MUST  |
 | Produce the clause 6 data model from a valid document                |  MUST  |  MUST  |  MUST  |
-| Report every clause 8 diagnostic with its §8.7 identifier             |   —    |  MUST  |  MUST  |
+| Report every clause 8 and §7.8 diagnostic with its §8.7 identifier    |   —    |  MUST  |  MUST  |
 | Refuse to start a run of a factory with any clause 8 violation        |   —    |   —    |  MUST  |
 | Implement admission (§9.1)                                            |   —    |   —    |  MUST  |
 | Implement the execution model of clause 9                             |   —    |   —    |  MUST  |
@@ -496,6 +496,12 @@ There is no optional-chaining operator. Field access on `null` yields `null` rat
 combined with `last()` (§7.4) yielding `null` over an empty list, an expression such as
 `last(emptyList).some_field` is valid and evaluates to `null`.
 
+Selecting a field that a non-`null` object does not have is not `null`: it is a runtime evaluation
+error (§7.7). An expression should only read fields that the `result_schema` or parameter schema
+it resolves against guarantees are present, so a missing field means a defect in the factory or in
+the data it was given, not a value to route on. Where an Author needs to branch on an optional
+field, the schema should make it required and nullable instead.
+
 ### 7.4 Standard function library
 
 The standard function library is closed. The following CEL extensions are REQUIRED of every
@@ -544,7 +550,9 @@ These are separate classes, not one, because the two failures are resumed past d
 
 An expression MUST NOT contain a user-defined function, arithmetic on a step result, a collection
 macro, or any construct outside the grammar of §7.2, even where the underlying CEL implementation
-would otherwise accept it. A Linter MUST reject such an expression.
+would otherwise accept it. A Linter MUST reject such an expression, reporting
+`prohibited-expression-construct` (§8.7). Like the checks of §8.6, this needs only the expression's
+parse tree, never its evaluation.
 
 ### 7.9 Prompt template placeholders
 
@@ -653,8 +661,8 @@ example, that `budget` (§9.7) has at most two decimal places, or that `assignee
 
 ### 8.7 Diagnostics and error identifiers
 
-Every rule in this clause has a stable, unique identifier that a conforming Linter MUST report on
-failure. Message text accompanying an identifier is implementation-defined. This subclause holds the
+Every rule in this clause, and the expression rule of §7.8, has a stable, unique identifier that a
+conforming Linter MUST report on failure. Message text accompanying an identifier is implementation-defined. This subclause holds the
 registry of identifiers for this specification; an identifier, once assigned, MUST NOT be reused or
 renumbered by a later version of this document.
 
@@ -673,6 +681,7 @@ renumbered by a later version of this document.
 | `unknown-step-result-reference`    | §8.6   | An expression references `results.<name>` for an undeclared `<name>`.  |
 | `unreachable-reference`            | §8.6   | An expression references `results.X` from step `Y` with no path `X → … → Y`. |
 | `binding-environment-violation`    | §8.6   | An expression references a value outside the binding environment bound to its site (§7.5). |
+| `prohibited-expression-construct`  | §7.8   | An expression uses a user-defined function, arithmetic, a collection macro, a function outside §7.4, or any other construct outside the grammar of §7.2. |
 
 ### 8.8 What lint cannot check
 
@@ -896,8 +905,8 @@ below. `harness_error` (§10.3) remains the class for a harness that fails to pr
 ### 10.5 Iteration limit
 
 `iteration_limit` is checked on arrival (§9.6), so nothing has run when it is raised and the state
-at that point is unchanged. A resume from `iteration_limit` carries a payload: an integer number of
-additional iterations to grant the step. The step's effective bound becomes
+at that point is unchanged. A resume from `iteration_limit` carries a payload: a non-negative integer
+number of additional iterations to grant the step. The step's effective bound becomes
 `effective_limit(X) = X.max_iterations + granted(X)`.
 
 ### 10.6 Budget exceeded
@@ -1043,7 +1052,7 @@ The payload a resume carries depends on what blocked the branch:
 | Branch state     | Raised by          | Payload                                       | Effect                                                                          |
 | ----------------- | ------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------- |
 | `awaiting_input`  | a `human` step       | object matching `result_schema`                   | appended as the step's `StepResult`                                                |
-| `errored`         | `iteration_limit`   | integer, additional iterations                    | grant recorded (§11.6); the step is entered                                       |
+| `errored`         | `iteration_limit`   | non-negative integer, additional iterations       | grant recorded (§11.6); the step is entered                                       |
 | `errored`         | `budget_exceeded`   | Decimal USD, at most two decimal places           | grant recorded (§11.6); the step is entered                                       |
 | `errored`         | `harness_error`     | none, or an object matching `result_schema`       | the step re-runs on the same harness session; if a payload is given, that result is appended instead (§11.7) |
 | `errored`         | `schema_violation`  | none, or an object matching `result_schema`       | the step re-runs as a new agent turn on the same harness session; if a payload is given, that result is appended instead (§11.7) |
@@ -1061,7 +1070,8 @@ rejected resume is not an attempt and not a failure; the run has not moved.
 
 A grant payload of zero is legal and is a no-op grant: the step is entered and immediately raises
 the same exception again, since its effective bound or budget is unchanged. There is deliberately no
-way to lower a ceiling once raised, only to raise it further.
+way to lower a ceiling once raised, only to raise it further: a negative grant, of iterations or of
+budget, MUST be rejected at the call like any other payload that does not match its row.
 
 ### 11.6 Grants
 

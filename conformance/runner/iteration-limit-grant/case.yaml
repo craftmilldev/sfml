@@ -1,6 +1,6 @@
 description: >
   A polling step with `max_iterations: 2` is entered a third time and raises iteration_limit on
-  arrival, with nothing appended. A fractional grant is rejected. A grant of 0 is a no-op: the step
+  arrival, with nothing appended. A fractional grant is rejected, and so is a negative one. A grant of 0 is a no-op: the step
   raises iteration_limit again without invoking the harness. A grant of 1 lets it run once more, on
   a new session.
 clauses: ["§9.6", "§10.5", "§11.4", "§11.5", "§11.6", "§11.7"]
@@ -14,6 +14,11 @@ actions:
         results:
           poll: [{ done: false }, { done: false }]
   - resume: { step: poll, payload: 1.5 }
+    expect:
+      accepted: false
+      status: errored
+      blocked: [{ step: poll, state: errored, exception: iteration_limit }]
+  - resume: { step: poll, payload: -1 }
     expect:
       accepted: false
       status: errored

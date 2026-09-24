@@ -184,13 +184,6 @@ These are settled for the suite only; SPEC.md is unchanged.
    fixed it". `runner/schema-violation-override` reads `retry: 2` as two attempts in total.
 5. **Process death mid-turn.** `restart` happens only once the run has settled, so no test covers a
    harness turn in flight at process death.
-6. **Prohibited expression constructs have no identifier.** SPEC §7.8 says a Linter MUST reject an
-   expression using a collection macro, arithmetic on a step result, or anything else outside the
-   §7.2 grammar. But §8.7 registers no identifier for that rule, so a `lint/` test can't state what
-   to report, and the suite has none. The same goes for an expression that isn't valid CEL at all
-   (SPEC §7.1): SPEC.md doesn't say whether the Parser or the Linter rejects it.
-7. **Negative grants.** SPEC §11.5 says there is "no way to lower a ceiling", but not whether a
-   negative grant is rejected or treated some other way. No test sends one.
-8. **Missing keys.** SPEC §7.3 makes field access on `null` yield `null`, but doesn't say what
-   selecting a key an object lacks yields. No test depends on it; the `expression_error` tests fail
-   by indexing past the end of a list instead (SPEC §7.7's own example).
+6. **Expressions that aren't CEL.** SPEC §7.1 says every expression MUST parse as CEL, but not
+   whether the Parser or the Linter rejects one that doesn't, or with what identifier. The
+   `prohibited-expression-construct` tests (SPEC §7.8) use only valid CEL, so no test depends on it.

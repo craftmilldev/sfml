@@ -1,0 +1,6 @@
+description: >
+  A connection's `when` adds 1 to a field of a step result. Arithmetic on a step result is outside
+  the §7.2 grammar, even though CEL would accept it.
+clauses: ["§7.2", "§7.8"]
+expect:
+  diagnostics: [prohibited-expression-construct]
