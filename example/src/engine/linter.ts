@@ -233,6 +233,8 @@ function checkExpressionsAndTemplates(
       }
       // any other root identifier is neither a known FactoryState field nor a binding violation this
       // registry names; SPEC leaves function-local identifiers (none exist in this grammar) aside.
+      // `last_result` (§9.2) falls through here intentionally: it names neither a step nor a
+      // parameter, so §8.6's reachability/existence checks don't apply to it (no diagnostic).
     }
   }
 }

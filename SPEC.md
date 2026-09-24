@@ -438,6 +438,10 @@ concurrently, and joins once every child has produced a result.
 - `max_iterations`, where present on the `parallel` step, bounds iterations of the `parallel` step as
   a whole (§9.6). `budget` is declared per child (§9.7), not on the `parallel` step itself, which
   MUST NOT declare `budget`.
+- A child's `last_result` (§9.2) is inherited from the `parallel` step itself: the result of
+  whichever step routed into the `parallel`, not the (not yet produced) result of the `parallel`
+  step. The step the `parallel` routes to via its own `next` sees the `parallel` step's combined
+  result as its `last_result`, following the general rule.
 
 ### 6.8 Result step
 
@@ -577,6 +581,9 @@ appears in the data model. Reaching outside the environment bound to a given sit
 A `FactoryState Expression` targets `FactoryState` (§9.2). It is the kind of expression used in a
 `Connection`'s `when` (§6.9), a human step's `instructions` (§6.6), a `result` step's `value`
 (§6.8), and an agent step's `prompt_vars` (§6.5).
+
+`last_result` (§9.2) is reachable at all four of these sites: it is an ordinary part of
+`FactoryState`, and nothing about it changes which sites are `FactoryState Expression` sites.
 
 #### 7.5.2 PromptVars expressions
 
@@ -718,6 +725,9 @@ This subclause governs references and binding environments only. A field's own v
 example, that `budget` (§9.7) has at most two decimal places, or that `assignee` (§6.11) is a String
 — is validated as part of the data model of clause 6 rather than checked here.
 
+`last_result` (§9.2) is a `FactoryState` identifier like `parameters` and `results`, but since it
+does not name a step or a parameter, none of this subclause's checks apply to a reference to it.
+
 ### 8.7 Diagnostics and error identifiers
 
 Every Linter rule (§4.3) — the rules of this clause and of §7.1, §7.8, and §7.9 — has a stable,
@@ -772,10 +782,11 @@ clause 10; rejection at admission is distinct from, and precedes, everything cla
 
 `FactoryState` is the value a `FactoryState Expression` (§7.5.1) resolves against.
 
-| Field        | Type                                 | Notes                                                                                       |
-| ------------ | ------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `parameters` | Record<Name, Any>                     | The run's parameter values, validated and defaulted at admission. Constant for the run's lifetime. |
-| `results`    | Record<StepName, List\<StepResult\>>  | Oldest to newest per step. `last()` (§7.4) retrieves the most recent.                            |
+| Field         | Type                                 | Notes                                                                                       |
+| ------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `parameters`  | Record<Name, Any>                     | The run's parameter values, validated and defaulted at admission. Constant for the run's lifetime. |
+| `results`     | Record<StepName, List\<StepResult\>>  | Oldest to newest per step. `last()` (§7.4) retrieves the most recent.                            |
+| `last_result` | Any                                   | The result of whichever step's fired `Connection` (§6.9) most recently routed into the step whose expression is being evaluated. `null` at `start` (§9.1), which has no incoming `Connection`. Each child of a `parallel` step (§6.7) sees the same `last_result` the `parallel` step itself saw, not the parallel's own (not yet produced) result; the step a `parallel` routes to afterward sees the `parallel` step's combined `StepResult` as `last_result`, per the general rule above. Contextual to the expression site's own step (§7.5.1), not a single run-global value. Not subject to §7.6 static type-checking: its static type is `Any`. |
 
 ### 9.3 StepResult
 
@@ -1176,7 +1187,8 @@ A run MUST be resumable after process death to a state equivalent to the one it 
 equivalence is defined over `FactoryState` (§9.2): the same `results`, the same routing decisions,
 and the same attempt counts as an uninterrupted run would have produced from the same sequence of
 `StepResult`s. A run MUST also be resumable after a human-shaped pause of arbitrary duration, with
-the same equivalence guarantee.
+the same equivalence guarantee. `last_result` (§9.2) at each step follows from the same `results`
+and the same routing decisions, so it is covered by this equivalence without a separate guarantee.
 
 This is the whole of what this specification requires of a run's recorded history. What else an
 implementation records — observability of individual attempts, provenance of a caller-supplied

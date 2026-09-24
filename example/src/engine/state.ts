@@ -59,6 +59,10 @@ export class RunState {
   results: Record<string, unknown[]> = {};
   /** Per-`parallel`-step, the child results collected so far in its current entry (§6.7, §9.8). */
   parallelProgress = new Map<string, Map<string, unknown>>();
+  /** FactoryState.last_result (§9.2), per step: the value that step's expressions see. Keyed by
+   * qualified step name (§5.3). Set once, when a step is advanced into; stable across that step's
+   * retries/resumes since a resume re-enters the same logical arrival. */
+  lastResult = new Map<string, unknown>();
   branches = new Map<string, Branch>();
   ledger = new Ledger();
   terminal?: { outcome: "complete" | "terminal_failure"; value: unknown };
@@ -68,6 +72,7 @@ export class RunState {
     s.parameters = structuredClone(this.parameters);
     s.results = structuredClone(this.results);
     for (const [k, v] of this.parallelProgress) s.parallelProgress.set(k, new Map(v));
+    s.lastResult = new Map([...this.lastResult].map(([k, v]) => [k, structuredClone(v)]));
     for (const [k, v] of this.branches) s.branches.set(k, { ...v, collapsedChildren: v.collapsedChildren ? [...v.collapsedChildren] : undefined });
     s.ledger = this.ledger.clone();
     s.terminal = this.terminal ? structuredClone(this.terminal) : undefined;
@@ -82,6 +87,7 @@ export function serializeRunState(state: RunState): unknown {
     parameters: state.parameters,
     results: state.results,
     parallelProgress: [...state.parallelProgress].map(([k, v]) => [k, [...v]]),
+    lastResult: [...state.lastResult],
     branches: [...state.branches.entries()],
     terminal: state.terminal,
     ledger: {
@@ -101,6 +107,7 @@ export function deserializeRunState(data: ReturnType<typeof serializeRunState>):
     parameters: Record<string, unknown>;
     results: Record<string, unknown[]>;
     parallelProgress: [string, [string, unknown][]][];
+    lastResult: [string, unknown][];
     branches: [string, Branch][];
     terminal?: RunState["terminal"];
     ledger: {
@@ -117,6 +124,7 @@ export function deserializeRunState(data: ReturnType<typeof serializeRunState>):
   s.parameters = d.parameters;
   s.results = d.results;
   s.parallelProgress = new Map(d.parallelProgress.map(([k, v]) => [k, new Map(v)]));
+  s.lastResult = new Map(d.lastResult);
   s.branches = new Map(d.branches);
   s.terminal = d.terminal;
   s.ledger.stepConsumed = new Map(d.ledger.stepConsumed.map(([k, v]) => [k, BigInt(v)]));
