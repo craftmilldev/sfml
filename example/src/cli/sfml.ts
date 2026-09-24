@@ -4,8 +4,8 @@
 // a factory at this repository's own issues.
 //
 // Usage:
-//   sfml run <factory.sfml.yaml> [--param key=value ...] [--state <path>]
-//   sfml resume <factory.sfml.yaml> --state <path> --step <name> [--payload <json>]
+//   sfml run <factory.sfml> [--param key=value ...] [--state <path>]
+//   sfml resume <factory.sfml> --state <path> --step <name> [--payload <json>]
 //
 // A run that ends blocked (awaiting_input or errored, clause 11) is not a CLI failure: it prints the
 // observation and, with --state, persists it so `resume` can continue the same run later. `--state`
@@ -27,8 +27,8 @@ function usage(): never {
   process.stderr.write(
     [
       "Usage:",
-      "  sfml run <factory.sfml.yaml> [--param key=value ...] [--state <path>]",
-      "  sfml resume <factory.sfml.yaml> --state <path> --step <name> [--payload <json>]",
+      "  sfml run <factory.sfml> [--param key=value ...] [--state <path>]",
+      "  sfml resume <factory.sfml> --state <path> --step <name> [--payload <json>]",
       "",
     ].join("\n"),
   );

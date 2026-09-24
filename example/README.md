@@ -24,8 +24,8 @@ src/
 ## CLI
 
 ```
-sfml run <factory.sfml.yaml> [--param key=value ...] [--state <path>]
-sfml resume <factory.sfml.yaml> --state <path> --step <name> [--payload <json>]
+sfml run <factory.sfml> [--param key=value ...] [--state <path>]
+sfml resume <factory.sfml> --state <path> --step <name> [--payload <json>]
 ```
 
 `run` admits and drives the factory to its first quiescent point (clause 9) and prints the
@@ -54,7 +54,7 @@ await stepper.resume("review", true, { approved: true });
 stepper.restart(); // simulates a process restart; the mock's transcript cursor survives it
 ```
 
-Any `runner/` conformance fixture's `factory.sfml.yaml` + `transcript.yaml` works here unmodified,
+Any `runner/` conformance fixture's `factory.sfml` + `transcript.yaml` works here unmodified,
 since it's the same mock (`mock-backend.ts`) every conformance case plays back.
 
 ## Running the tests

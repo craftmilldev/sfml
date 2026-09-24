@@ -51,7 +51,7 @@ for (const name of listDirs(join(conformanceRoot, "lint"))) {
   test(`lint/${name}`, () => {
     const dir = join(conformanceRoot, "lint", name);
     const testCase = readYaml(join(dir, "case.yaml")) as { expect: { diagnostics: string[] } };
-    const bytes = readFileSync(join(dir, "factory.sfml.yaml"));
+    const bytes = readFileSync(join(dir, "factory.sfml"));
     const parsed = parseFactory(bytes, "yaml");
     assert.ok(parsed.ok, "lint fixtures parse cleanly");
     if (!parsed.ok) return;
@@ -72,7 +72,7 @@ for (const name of listDirs(join(conformanceRoot, "runner"))) {
   test(`runner/${name}`, async () => {
     const dir = join(conformanceRoot, "runner", name);
     const testCase = readYaml(join(dir, "case.yaml")) as RunnerCase;
-    const factoryBytes = readFileSync(join(dir, "factory.sfml.yaml"));
+    const factoryBytes = readFileSync(join(dir, "factory.sfml"));
     const parsed = parseFactory(factoryBytes, "yaml");
     assert.ok(parsed.ok, "runner fixtures parse cleanly");
     if (!parsed.ok) return;

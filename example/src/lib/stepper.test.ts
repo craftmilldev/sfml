@@ -14,7 +14,7 @@ const prices = loadPriceTable(join(conformanceRoot, "models.json"));
 const caseDir = join(conformanceRoot, "runner", "linear-prompt-rendering");
 
 test("Stepper: start() records a timeline frame per Engine step and the run completes", async () => {
-  const factory = readFileSync(join(caseDir, "factory.sfml.yaml"));
+  const factory = readFileSync(join(caseDir, "factory.sfml"));
   const transcript = YAML.parse(readFileSync(join(caseDir, "transcript.yaml"), "utf8")) as Row[];
 
   const loaded = loadStepper({ factory, transcript, prices });
@@ -33,7 +33,7 @@ test("Stepper: start() records a timeline frame per Engine step and the run comp
 });
 
 test("Stepper: reports a lint failure instead of throwing", () => {
-  const factory = readFileSync(join(conformanceRoot, "lint", "non-total-routing", "factory.sfml.yaml"));
+  const factory = readFileSync(join(conformanceRoot, "lint", "non-total-routing", "factory.sfml"));
   const loaded = loadStepper({ factory, prices });
   assert.equal(loaded.ok, false);
   if (loaded.ok) return;
@@ -42,7 +42,7 @@ test("Stepper: reports a lint failure instead of throwing", () => {
 });
 
 test("Stepper: reports a parse failure instead of throwing", () => {
-  const factory = readFileSync(join(conformanceRoot, "parser", "duplicate-step-key", "factory.sfml.yaml"));
+  const factory = readFileSync(join(conformanceRoot, "parser", "duplicate-step-key", "factory.sfml"));
   const loaded = loadStepper({ factory, prices });
   assert.equal(loaded.ok, false);
   if (loaded.ok) return;
@@ -51,7 +51,7 @@ test("Stepper: reports a parse failure instead of throwing", () => {
 
 test("Stepper: restart() keeps the mock's place, matching the conformance case's own restart action", async () => {
   const dir = join(conformanceRoot, "runner", "non-retryable-resumed-after-restart");
-  const factory = readFileSync(join(dir, "factory.sfml.yaml"));
+  const factory = readFileSync(join(dir, "factory.sfml"));
   const transcript = YAML.parse(readFileSync(join(dir, "transcript.yaml"), "utf8")) as Row[];
   const loaded = loadStepper({ factory, transcript, prices });
   assert.equal(loaded.ok, true);
