@@ -5,19 +5,23 @@
 # blodget's own dogfooding pipeline, restated as SFML v0.1. Differences from that source
 # worth noting for anyone comparing the two:
 #   - blodget's separate `code_review` and `pr_review` steps collapse into one `ai_review`
-#     step here: this flow's `human_review` step (see below) is what looks at the actual
-#     GitHub PR review, so the agent-side review here always means "review the diff on
-#     this branch," whichever iteration it is.
-#   - blodget's `human_refine` and `human_review` are two steps; here they are one
-#     `human_review` step entered from two different points in the graph (SPEC §3.2.5: a
-#     step can have more than one edge routing into it). The `decision` a human records
-#     tells the run which of those two situations it's resolving.
+#     step here: `human_review` (see below) is what looks at the actual GitHub PR review,
+#     so the agent-side review here always means "review the diff on this branch,"
+#     whichever iteration it is.
+#   - `human_refine` and `human_review` mirror blodget's own two human steps: the first
+#     is reached only when Analyze has open questions and only ever loops back to
+#     Analyze; the second is reached only once a pull request is open and decides
+#     between more implementation work or merging.
 #   - blodget has no notion of iteration/budget ceilings (it bounds a review loop with its
 #     own `maxCrossings`); this file uses `max_iterations` (SPEC §9.6) for the same job,
 #     since every cycle in an SFML factory must be bounded (SPEC §8.5).
-#   - blodget's `{{PLAN_PATH}}` and `{{ARG[0]}}` become the `plan_path` and `ticket_url`
-#     parameters, threaded into each step's own `prompt_vars` (SPEC §6.3 — a prompt
-#     template can never reach `parameters` directly).
+#   - blodget's `{{ARG[0]}}` becomes the `ticket_url` parameter. There is no `plan_path`
+#     parameter: Analyze decides where it writes the plan and reports that path as part
+#     of its own result (`results.analyze.plan`), which is what every later step reads
+#     via its own `prompt_vars` — a parameter would have wrongly implied the caller
+#     supplies it (SPEC §6.3 — a prompt template can never reach `parameters` directly
+#     either, which is why every value a template needs is threaded through as a
+#     `prompt_vars` entry, not read inline).
 
 sfml: "v0.1"
 description: >
@@ -29,10 +33,6 @@ parameters:
   ticket_url:
     type: string
     description: The GitHub issue, PR, or comment URL this run is working from.
-  plan_path:
-    type: string
-    default: ".craftmill/plan.md"
-    description: Where Analyze writes its implementation plan.
 
 steps:
   analyze:
@@ -43,7 +43,7 @@ steps:
     prompt_path: .craftmill/prompts/analyze.md
     prompt_vars:
       ticket_url: parameters.ticket_url
-      plan_path: parameters.plan_path
+      notes: last(results.human_refine).notes
     max_iterations: 8
     result_schema:
       type: object
@@ -54,33 +54,27 @@ steps:
         branch: { type: string }
     next:
       - when: "!last(results.analyze).ready"
-        to: human_review
+        to: human_refine
       - to: implement
 
-  human_review:
+  human_refine:
     type: human
-    description: >
-      Reached either after Analyze posts open questions, or after a pull request is open
-      for review; `decision` says which situation is being resolved and what to do next.
+    description: Answers Analyze's open questions (posted on the ticket), then sends it back to try again.
     assignee: "on-call-reviewer"
-    instructions: "'Review whatever is waiting on you: open questions on the ticket, or an open pull request. Record your decision.'"
-    max_iterations: 30
+    instructions: "'Analyze has open questions on the ticket. Answer them there, then record your decision.'"
+    max_iterations: 10
     result_schema:
       type: object
       required: [decision]
       properties:
         decision:
           type: string
-          enum: [revise_analysis, request_changes, approve, abandon]
+          enum: [retry, abandon]
         notes: { type: string }
     next:
-      - when: "last(results.human_review).decision == 'abandon'"
+      - when: "last(results.human_refine).decision == 'abandon'"
         to: abandoned
-      - when: "last(results.human_review).decision == 'revise_analysis'"
-        to: analyze
-      - when: "last(results.human_review).decision == 'request_changes'"
-        to: implement
-      - to: merge
+      - to: analyze
 
   implement:
     type: agent
@@ -90,7 +84,8 @@ steps:
     prompt_path: .craftmill/prompts/implement.md
     prompt_vars:
       ticket_url: parameters.ticket_url
-      plan_path: parameters.plan_path
+      branch: last(results.analyze).branch
+      plan_path: last(results.analyze).plan
       review_comments: last(results.ai_review).comments
     max_iterations: 20
     result_schema:
@@ -109,6 +104,7 @@ steps:
     prompt_path: .craftmill/prompts/ai_review.md
     prompt_vars:
       ticket_url: parameters.ticket_url
+      branch: last(results.analyze).branch
       pr_url: last(results.create_update_pr).url
     max_iterations: 20
     result_schema:
@@ -131,7 +127,8 @@ steps:
     prompt_path: .craftmill/prompts/create_update_pr.md
     prompt_vars:
       ticket_url: parameters.ticket_url
-      plan_path: parameters.plan_path
+      branch: last(results.analyze).branch
+      plan_path: last(results.analyze).plan
       pr_url: last(results.create_update_pr).url
     max_iterations: 10
     result_schema:
@@ -143,6 +140,27 @@ steps:
         head_sha: { type: string }
     next:
       - to: human_review
+
+  human_review:
+    type: human
+    description: Reviews the open pull request, then decides whether it needs more work or is ready to merge.
+    assignee: "on-call-reviewer"
+    instructions: "'A pull request is open for review. Review it on GitHub, then record your decision.'"
+    max_iterations: 30
+    result_schema:
+      type: object
+      required: [decision]
+      properties:
+        decision:
+          type: string
+          enum: [request_changes, approve, abandon]
+        notes: { type: string }
+    next:
+      - when: "last(results.human_review).decision == 'abandon'"
+        to: abandoned
+      - when: "last(results.human_review).decision == 'request_changes'"
+        to: implement
+      - to: merge
 
   merge:
     type: agent
@@ -171,4 +189,3 @@ steps:
   abandoned:
     type: result
     outcome: terminal_failure
-    value: last(results.human_review)

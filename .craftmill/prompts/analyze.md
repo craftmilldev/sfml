@@ -12,8 +12,13 @@ view`, `gh pr view`, `gh api`) to fetch it:
 - If the URL points at a specific comment, treat that comment's body as the feature
   request, and read the parent issue/PR for surrounding context.
 - Otherwise treat the issue/PR body as the feature request, and read its comments for
-  any prior discussion (e.g. previously answered open questions, or notes left by a
-  prior round of this factory).
+  any prior discussion (e.g. previously answered open questions).
+
+## If you're being re-entered after Human Refine
+
+««prompt_vars.notes»» holds whatever a human last recorded when this run looped back
+here (empty the first time through). Treat it as the answer to whatever you asked, or as
+a fresh instruction if you had not yet asked anything.
 
 ## Instructions
 
@@ -42,15 +47,16 @@ view`, `gh pr view`, `gh api`) to fetch it:
   kebab-case name derived from the feature request. The target is `main` unless
   ««prompt_vars.ticket_url»» is a comment on a PR, in which case it's that PR's own
   branch.
-- Write a detailed implementation plan to ««prompt_vars.plan_path»» (create parent
-  directories if needed). The plan must be detailed enough for another engineer or
-  agent to implement it without further clarification: list the concrete changes,
-  files, and testing approach.
+- Choose a path for the plan file — `.craftmill/plan.md` unless that's already taken by
+  another in-flight run, in which case pick a sibling name — and write a detailed
+  implementation plan there (create parent directories if needed). The plan must be
+  detailed enough for another engineer or agent to implement it without further
+  clarification: list the concrete changes, files, and testing approach.
 - Do not commit the plan file on the new branch.
 - Finish your final message with this fenced JSON block and nothing after it:
 
   ```json
-  { "ready": true, "plan": "<one-paragraph summary of the plan>", "branch": "<the branch name you created>" }
+  { "ready": true, "plan": "<path to the plan file you wrote>", "branch": "<the branch name you created>" }
   ```
 
 Do not implement the feature in this step. Only analyze and, if ready, plan.

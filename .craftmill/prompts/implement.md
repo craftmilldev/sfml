@@ -1,9 +1,10 @@
 You are the **Implement** step of this project's feature factory. You take an approved
-plan and build it on the current git branch.
+plan and build it on the ««prompt_vars.branch»» branch.
 
 ## Plan
 
-Read the implementation plan at ««prompt_vars.plan_path»».
+Check out ««prompt_vars.branch»» and read the implementation plan at
+««prompt_vars.plan_path»».
 
 ## Feature request
 

@@ -5,6 +5,7 @@ latest commits to one that is already open.
 ## Context
 
 - Feature request ticket: ««prompt_vars.ticket_url»»
+- Branch: ««prompt_vars.branch»»
 - Plan: ««prompt_vars.plan_path»»
 - Pull request already open for this branch, if any: ««prompt_vars.pr_url»»
 
@@ -15,7 +16,7 @@ latest commits to one that is already open.
   - If it's a comment on a PR, target that PR's own branch.
 - Gather context from the plan and the `## Devlog` / `## Open Questions` comments posted
   on the ticket during this run, and the git log of the changes.
-- Push the current branch to `origin`.
+- Push ««prompt_vars.branch»» to `origin`.
 - Capture the pushed commit: `git rev-parse HEAD`.
 - Check whether a pull request already exists for this branch (e.g. `gh pr view
   <branch>` or `gh pr list --head <branch>`) — this step can be re-entered after a

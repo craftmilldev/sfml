@@ -9,7 +9,8 @@ plan committed by Analyze for the distilled requirements — read the ticket its
 
 ## Diff
 
-Run `git diff main...HEAD` to see every change made on this branch relative to `main`.
+Check out ««prompt_vars.branch»» and run `git diff main...HEAD` to see every change made
+on this branch relative to `main`.
 
 ## Instructions
 
