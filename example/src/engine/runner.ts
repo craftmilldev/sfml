@@ -16,7 +16,16 @@ import { parseUsd } from "../harness/money.js";
 import type { Harness, SessionHandle } from "../harness/types.js";
 
 export type ObservedState = { parameters: Record<string, unknown>; results: Record<string, unknown[]> };
-export type BlockedEntry = { step: string; state: "errored" | "awaiting_input"; exception?: ExceptionClass };
+export type BlockedEntry = {
+  step: string;
+  state: "errored" | "awaiting_input";
+  exception?: ExceptionClass;
+  exceededScope?: "step" | "run";
+  message?: string;
+  // The step's own last_result (§9.2), which env(forStep) would inject were it re-evaluating this
+  // step's expressions -- not part of ObservedState since it's per-step, not global run state.
+  lastResult?: unknown;
+};
 export type Observation =
   | { status: "terminal"; outcome: "complete" | "terminal_failure"; value: unknown; state: ObservedState }
   | { status: "errored" | "awaiting_input"; blocked: BlockedEntry[]; state: ObservedState };
@@ -174,6 +183,11 @@ export class Engine {
       step: b.step,
       state: b.status as "errored" | "awaiting_input",
       ...(b.exception && { exception: b.exception }),
+      ...(b.exceededScope && { exceededScope: b.exceededScope }),
+      ...(b.message !== undefined && { message: b.message }),
+      // Same has()-guarded lookup env(forStep) uses, so a re-evaluation of this step's expressions
+      // (e.g. rendering `instructions`) sees the same last_result the step itself saw.
+      lastResult: this.state.lastResult.has(b.step) ? this.state.lastResult.get(b.step) : null,
     }));
     const status = blocked.some((b) => b.state === "errored") ? "errored" : "awaiting_input";
     return { status, blocked, state: this.snapshotState() };
@@ -653,11 +667,11 @@ export class Engine {
   }
 }
 
-function isChild(address: string): boolean {
+export function isChild(address: string): boolean {
   return address.includes(".");
 }
 
-function splitQualified(address: string): [string, string] {
+export function splitQualified(address: string): [string, string] {
   const idx = address.indexOf(".");
   return [address.slice(0, idx), address.slice(idx + 1)];
 }

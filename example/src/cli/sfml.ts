@@ -22,8 +22,10 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseFactory } from "../engine/parser.js";
 import { lintFactory } from "../engine/linter.js";
-import { Engine, type Observation, type RunnerEvent } from "../engine/runner.js";
+import { Engine, splitQualified, type BlockedEntry, type Observation, type RunnerEvent } from "../engine/runner.js";
 import { deserializeRunState, serializeRunState } from "../engine/state.js";
+import { evaluateExpression, type Env } from "../engine/expr.js";
+import type { Factory } from "../engine/factory.js";
 import { ClaudeAgentSdkHarness } from "../harness/claude-agent-sdk.js";
 import { loadPriceTable } from "../harness/pricing.js";
 import type { Harness } from "../harness/types.js";
@@ -103,6 +105,71 @@ function logEvent(event: RunnerEvent): void {
   }
 }
 
+/** Looks up a (possibly parallel-child) step's `HumanStep.instructions` and renders it against the
+ * observed state, or returns undefined if there's no instruction or it fails to evaluate (defensive:
+ * it already evaluated once for the branch to reach `awaiting_input`). `lastResult` is the blocked
+ * step's own `BlockedEntry.lastResult` -- ObservedState doesn't carry it (it's per-step, not global),
+ * but `instructions` may reference the bare `last_result` identifier (SPEC §9.2). */
+export function renderInstruction(step: string, factory: Factory, state: Observation["state"], lastResult: unknown = null): string | undefined {
+  const [parentName, childName] = step.includes(".") ? splitQualified(step) : [step, undefined];
+  const parent = factory.steps[parentName];
+  if (!parent) return undefined;
+  const target = childName !== undefined ? (parent.type === "parallel" ? parent.steps[childName] : undefined) : parent;
+  if (!target || target.type !== "human" || target.instructions === undefined) return undefined;
+  try {
+    const value = evaluateExpression(target.instructions, { parameters: state.parameters, results: state.results, last_result: lastResult } as unknown as Env);
+    return typeof value === "string" ? value : JSON.stringify(value);
+  } catch {
+    return undefined;
+  }
+}
+
+/** SPEC §11.4's table of what payload each blocked state accepts, as guidance text for a human. */
+export function payloadHint(entry: BlockedEntry): string {
+  if (entry.state === "awaiting_input") return "an object matching the step's result_schema";
+  switch (entry.exception) {
+    case "iteration_limit":
+      return "a non-negative integer: additional iterations to grant";
+    case "budget_exceeded":
+      return `a non-negative USD amount (≤2 decimals): additional ${entry.exceededScope ?? "step"} budget to grant`;
+    case "harness_error":
+      return "omit to retry on the same session, or an object matching result_schema to supply the result directly";
+    case "schema_violation":
+      return "omit to retry as a new agent turn on the same session, or an object matching result_schema to supply the result directly";
+    case "expression_error":
+      return "omit to re-attempt the step, or an object matching result_schema (any JSON value for a result step) to supply the result directly";
+    case "routing_error":
+      return "omit to re-evaluate routing, or a StepName from this step's own `next` list to route there directly";
+    default:
+      return "(unknown)";
+  }
+}
+
+/** Human-first report of a non-terminal (blocked) observation, per issue #27: what's wrong, what a
+ * human step wants, what payload shape a resume accepts, and the exact command to run next. Written
+ * to stderr -- stdout stays reserved for the machine-readable JSON of a terminal observation. */
+export function reportBlocked(
+  observation: Extract<Observation, { status: "errored" | "awaiting_input" }>,
+  factory: Factory,
+  factoryPath: string,
+  resumeIdArgs: string[],
+): void {
+  const w = (s: string) => process.stderr.write(s);
+  w(`\n${observation.status === "errored" ? "✗ errored" : "⏸ awaiting input"} (${observation.blocked.length} step${observation.blocked.length === 1 ? "" : "s"} blocked)\n\n`);
+  for (const entry of observation.blocked) {
+    w(`  ${entry.step}\n`);
+    if (entry.state === "awaiting_input") {
+      const instruction = renderInstruction(entry.step, factory, observation.state, entry.lastResult);
+      w(`    instruction: ${instruction ?? "(none declared)"}\n`);
+    } else {
+      w(`    error: ${entry.exception}${entry.exceededScope ? ` (${entry.exceededScope} budget)` : ""}\n`);
+      if (entry.message) w(`    context: ${entry.message}\n`);
+    }
+    w(`    resume payload: ${payloadHint(entry)}\n`);
+    w(`    sfml resume ${factoryPath} ${resumeIdArgs.join(" ")} --step ${entry.step} --payload '{}'\n\n`);
+  }
+}
+
 async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2);
   if (!command || (command !== "lint" && command !== "run" && command !== "resume")) usage();
@@ -145,7 +212,8 @@ async function main(): Promise<void> {
     // unconstrained. This CLI mints one and always persists to it (or to --state, if given), so a run
     // that blocks is never unrecoverable just because the caller forgot --state up front.
     const runId = randomUUID();
-    const statePath = flags.get("state")?.[0] ?? defaultStatePath(runId);
+    const explicitStatePath = flags.get("state")?.[0];
+    const statePath = explicitStatePath ?? defaultStatePath(runId);
     mkdirSync(dirname(statePath), { recursive: true });
     process.stderr.write(`run: ${runId}\nstate: ${statePath}\n`);
 
@@ -155,7 +223,11 @@ async function main(): Promise<void> {
       process.exit(1);
     }
     writeFileSync(statePath, JSON.stringify(serializeRunState(admission.engine!.getState())));
-    printObservation(admission.result.observation);
+    const observation = admission.result.observation;
+    if (observation.status === "terminal") printObservation(observation);
+    // Mirror resume's choice below: if the caller gave --state explicitly, the copy-pasteable
+    // command must use it too -- --run reconstructs the default path, which was never written to.
+    else reportBlocked(observation, parsed.factory, factoryPath, explicitStatePath ? ["--state", statePath] : ["--run", runId]);
     return;
   }
 
@@ -178,10 +250,15 @@ async function main(): Promise<void> {
   if (!result.accepted) {
     process.stderr.write("resume rejected: the payload did not match what this step's blocked state expects (SPEC §11.5)\n");
   }
-  printObservation(result.observation);
+  if (result.observation.status === "terminal") printObservation(result.observation);
+  else reportBlocked(result.observation, parsed.factory, factoryPath, runId ? ["--run", runId] : ["--state", statePath]);
 }
 
-main().catch((error: unknown) => {
-  process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
-  process.exit(1);
-});
+// Guard so a test can `import` this module (e.g. to exercise reportBlocked/payloadHint directly)
+// without also running the CLI against the test runner's own argv.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((error: unknown) => {
+    process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
+    process.exit(1);
+  });
+}
