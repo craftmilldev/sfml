@@ -77,6 +77,13 @@ function logEvent(event: RunnerEvent): void {
     case "step-entered":
       process.stderr.write(`[${at}] → ${event.step}\n`);
       return;
+    case "session": {
+      // Opaque to the Runner (SPEC §11.7): print whatever the harness put in it. The
+      // claude-agent-sdk wrapper's handle has a sessionId, e.g. for `claude --resume <id>`.
+      const id = typeof event.handle.sessionId === "string" ? event.handle.sessionId : JSON.stringify(event.handle);
+      process.stderr.write(`[${at}]   ${event.step}: session ${id}\n`);
+      return;
+    }
     case "step-succeeded":
       process.stderr.write(`[${at}] ✓ ${event.step}\n`);
       return;

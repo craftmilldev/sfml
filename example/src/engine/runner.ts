@@ -13,7 +13,7 @@ import { ExpressionError, evaluateExpression, renderTemplate, type Env, type Exp
 import { lintFactory } from "./linter.js";
 import { Branch, ExceptionClass, RunState } from "./state.js";
 import { parseUsd } from "../harness/money.js";
-import type { Harness } from "../harness/types.js";
+import type { Harness, SessionHandle } from "../harness/types.js";
 
 export type ObservedState = { parameters: Record<string, unknown>; results: Record<string, unknown[]> };
 export type BlockedEntry = { step: string; state: "errored" | "awaiting_input"; exception?: ExceptionClass };
@@ -45,6 +45,9 @@ type StepResolution = { kind: "advance"; to: string } | { kind: "blocked" };
  */
 export type RunnerEvent =
   | { type: "step-entered"; step: string }
+  /** The harness (re)reported its session handle for this attempt (SPEC §11.7) -- e.g. a Claude
+   * Agent SDK session id, for a caller that wants to inspect or resume that conversation directly. */
+  | { type: "session"; step: string; handle: SessionHandle }
   | { type: "step-succeeded"; step: string; value: unknown }
   | { type: "step-blocked"; step: string; state: "errored" | "awaiting_input"; exception?: ExceptionClass; message?: string }
   | { type: "routed"; from: string; to: string }
@@ -379,6 +382,7 @@ export class Engine {
         if (ev.type === "session") {
           session = ev.handle;
           ledger.sessions.set(qualifiedName, ev.handle);
+          this.emit({ type: "session", step: qualifiedName, handle: ev.handle });
         } else if (ev.type === "usage") {
           ledger.stepConsumed.set(qualifiedName, (ledger.stepConsumed.get(qualifiedName) ?? 0n) + ev.cost);
           ledger.runConsumed += ev.cost;
