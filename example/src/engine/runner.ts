@@ -125,6 +125,7 @@ export class Engine {
     }
     engine.state.parameters = bound;
 
+    engine.state.lastResult.set(factory.start, null); // `start` has no incoming Connection (§9.1, §9.2)
     await engine.runFrom(factory.start, false);
     return { result: { admitted: true, observation: engine.observe() }, engine };
   }
@@ -198,7 +199,7 @@ export class Engine {
     return step;
   }
 
-  private env(): Env {
+  private env(forStep: string): Env {
     // §9.2's own example (§7.3: "last(emptyList).some_field is valid and evaluates to null") only
     // works if a step that has never run still resolves `results.<name>` to an actual empty list,
     // not a missing key (which is now an error, not null -- runner/missing-field-is-an-error). This
@@ -206,7 +207,8 @@ export class Engine {
     // itself, so `observe()`'s snapshot still shows only the steps that have actually produced one.
     const results: Record<string, ExprValue> = { ...(this.state.results as unknown as Record<string, ExprValue>) };
     for (const name of Object.keys(this.factory.steps)) if (!(name in results)) results[name] = [];
-    return { parameters: this.state.parameters as unknown as ExprValue, results: results as unknown as ExprValue };
+    const lastResult = (this.state.lastResult.has(forStep) ? this.state.lastResult.get(forStep) : null) as ExprValue;
+    return { parameters: this.state.parameters as unknown as ExprValue, results: results as unknown as ExprValue, last_result: lastResult };
   }
 
   // --- run loop -------------------------------------------------------------------------------------
@@ -241,7 +243,7 @@ export class Engine {
       case "human": {
         if (step.instructions !== undefined) {
           try {
-            evaluateExpression(step.instructions, this.env());
+            evaluateExpression(step.instructions, this.env(name));
           } catch {
             this.block({ step: name, status: "errored", exception: "expression_error" });
             return { kind: "blocked" };
@@ -275,7 +277,7 @@ export class Engine {
     let value: unknown;
     if (step.value !== undefined) {
       try {
-        value = evaluateExpression(step.value, this.env());
+        value = evaluateExpression(step.value, this.env(name));
       } catch {
         this.block({ step: name, status: "errored", exception: "expression_error" });
         return { kind: "blocked" };
@@ -305,22 +307,29 @@ export class Engine {
     const step = this.getStep(name) as { next: Connection[] };
     try {
       for (const conn of step.next) {
-        if (conn.when === undefined) {
-          this.emit({ type: "routed", from: name, to: conn.to });
-          return { kind: "advance", to: conn.to };
-        }
-        const v = evaluateExpression(conn.when, this.env());
+        if (conn.when === undefined) return this.advance(name, conn.to);
+        const v = evaluateExpression(conn.when, this.env(name));
         if (typeof v !== "boolean") throw new ExpressionError(`'when' must evaluate to a boolean, got ${JSON.stringify(v)}`);
-        if (v) {
-          this.emit({ type: "routed", from: name, to: conn.to });
-          return { kind: "advance", to: conn.to };
-        }
+        if (v) return this.advance(name, conn.to);
       }
       throw new ExpressionError(`no connection matched (the last connection must be unconditional, §8.3)`);
     } catch {
       this.block({ step: name, status: "errored", exception: "routing_error" });
       return { kind: "blocked" };
     }
+  }
+
+  /** The value `from`'s expressions/routing contribute as `last_result` to whatever it routes to. */
+  private lastValueOf(step: string): unknown {
+    const list = this.state.results[step];
+    return list && list.length ? list[list.length - 1] : null;
+  }
+
+  /** Advances control from `from` to `to`, recording `to`'s inherited `last_result` (§9.2) and emitting. */
+  private advance(from: string, to: string): StepResolution {
+    this.state.lastResult.set(to, this.lastValueOf(from));
+    this.emit({ type: "routed", from, to });
+    return { kind: "advance", to };
   }
 
   // --- agent step execution (§9.4, §9.7, §10.3-§10.4, §11.7) -----------------------------------------
@@ -334,7 +343,7 @@ export class Engine {
 
     let promptVars: Record<string, ExprValue> = {};
     try {
-      for (const [k, expr] of Object.entries(step.prompt_vars ?? {})) promptVars[k] = evaluateExpression(expr, this.env());
+      for (const [k, expr] of Object.entries(step.prompt_vars ?? {})) promptVars[k] = evaluateExpression(expr, this.env(qualifiedName));
     } catch {
       return errored("expression_error");
     }
@@ -442,6 +451,12 @@ export class Engine {
     const region = new Region(true);
     const progress = this.state.parallelProgress.get(parallelName)!;
 
+    // Each child inherits the parallel step's own last_result (§6.7, §9.2), not the parallel's
+    // not-yet-produced joined result. Re-seeding here also covers re-entry of a subset of children
+    // (budget/iteration-limit resume) since parallelName's own last_result only changes via advance().
+    const parentLast = this.state.lastResult.get(parallelName) ?? null;
+    for (const child of childNames) this.state.lastResult.set(`${parallelName}.${child}`, parentLast);
+
     type Outcome = { qualified: string; child: string; done?: unknown; blocked?: Branch };
     const outcomes: Outcome[] = await Promise.all(
       childNames.map(async (child): Promise<Outcome> => {
@@ -453,7 +468,7 @@ export class Engine {
         if (childStep.type === "human") {
           if (childStep.instructions !== undefined) {
             try {
-              evaluateExpression(childStep.instructions, this.env());
+              evaluateExpression(childStep.instructions, this.env(qualified));
             } catch {
               return { qualified, child, blocked: { step: qualified, status: "errored", exception: "expression_error" } };
             }
@@ -621,7 +636,7 @@ export class Engine {
         this.block({ step: address, status: "errored", exception: "routing_error" });
         return { accepted: false, observation: this.observe() };
       }
-      return this.settleFrom({ kind: "advance", to: payload });
+      return this.settleFrom(this.advance(address, payload));
     }
     return this.settleFrom(this.evaluateRouting(address));
   }

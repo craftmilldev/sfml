@@ -1,0 +1,39 @@
+description: >
+  `b` has two incoming Connections: one from `a`, one a loop-back from itself. `b`'s own `next`
+  reads `last_result` to decide whether to loop, so `last_result` must reflect whichever edge fired
+  into `b` for that iteration -- `a`'s result the first time, `b`'s own prior result the second --
+  and this drives a different routing decision each time (loop, then advance to `d`).
+clauses: ["§9.2", "§6.9"]
+actions:
+  - start: {}
+    expect:
+      status: awaiting_input
+      blocked: [{ step: a, state: awaiting_input }]
+  - resume: { step: a, payload: { tag: "from-a" } }
+    expect:
+      status: awaiting_input
+      blocked: [{ step: b, state: awaiting_input }]
+      state:
+        parameters: {}
+        results:
+          a: [{ tag: "from-a" }]
+  - resume: { step: b, payload: { tag: "loop" } }
+    expect:
+      status: awaiting_input
+      blocked: [{ step: b, state: awaiting_input }]
+      state:
+        parameters: {}
+        results:
+          a: [{ tag: "from-a" }]
+          b: [{ tag: "loop" }]
+  - resume: { step: b, payload: { tag: "progress" } }
+expect:
+  status: terminal
+  outcome: complete
+  value: { tag: "progress" }
+  state:
+    parameters: {}
+    results:
+      a: [{ tag: "from-a" }]
+      b: [{ tag: "loop" }, { tag: "progress" }]
+      d: [{ tag: "progress" }]

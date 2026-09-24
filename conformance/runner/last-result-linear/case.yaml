@@ -1,0 +1,20 @@
+description: >
+  A step with a single incoming Connection sees `last_result` equal to the StepResult the step that
+  routed into it produced. `b`'s `value` is the bare identifier `last_result`, which must equal
+  `a`'s produced result exactly.
+clauses: ["§9.2", "§7.5.1"]
+actions:
+  - start: {}
+    expect:
+      status: awaiting_input
+      blocked: [{ step: a, state: awaiting_input }]
+  - resume: { step: a, payload: { name: "Ada" } }
+expect:
+  status: terminal
+  outcome: complete
+  value: { name: "Ada" }
+  state:
+    parameters: {}
+    results:
+      a: [{ name: "Ada" }]
+      b: [{ name: "Ada" }]

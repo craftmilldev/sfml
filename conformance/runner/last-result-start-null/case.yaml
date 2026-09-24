@@ -1,0 +1,13 @@
+description: >
+  `start` has no incoming Connection, so its `last_result` is `null` on the very first entry.
+clauses: ["§9.1", "§9.2"]
+actions:
+  - start: {}
+expect:
+  status: terminal
+  outcome: complete
+  value: null
+  state:
+    parameters: {}
+    results:
+      a: [null]

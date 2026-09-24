@@ -1,0 +1,15 @@
+sfml: "v0.1"
+start: a
+steps:
+  a:
+    type: human
+    result_schema:
+      type: object
+      required: [name]
+      properties: { name: { type: string } }
+    next:
+      - to: b
+  b:
+    type: result
+    outcome: complete
+    value: last_result

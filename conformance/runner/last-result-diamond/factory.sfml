@@ -1,0 +1,36 @@
+sfml: "v0.1"
+start: route
+parameters:
+  path:
+    type: string
+    enum: ["a1", "a2"]
+steps:
+  route:
+    type: human
+    result_schema:
+      type: object
+      properties: {}
+    next:
+      - when: parameters.path == "a1"
+        to: a1
+      - to: a2
+  a1:
+    type: human
+    result_schema:
+      type: object
+      required: [tag]
+      properties: { tag: { type: string } }
+    next:
+      - to: c
+  a2:
+    type: human
+    result_schema:
+      type: object
+      required: [tag]
+      properties: { tag: { type: string } }
+    next:
+      - to: c
+  c:
+    type: result
+    outcome: complete
+    value: last_result
