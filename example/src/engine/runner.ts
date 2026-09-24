@@ -46,7 +46,7 @@ type StepResolution = { kind: "advance"; to: string } | { kind: "blocked" };
 export type RunnerEvent =
   | { type: "step-entered"; step: string }
   | { type: "step-succeeded"; step: string; value: unknown }
-  | { type: "step-blocked"; step: string; state: "errored" | "awaiting_input"; exception?: ExceptionClass }
+  | { type: "step-blocked"; step: string; state: "errored" | "awaiting_input"; exception?: ExceptionClass; message?: string }
   | { type: "routed"; from: string; to: string }
   | { type: "terminal"; step: string; outcome: "complete" | "terminal_failure"; value: unknown };
 
@@ -75,7 +75,13 @@ export class Engine {
   /** Sets a branch's blocked state and emits the matching event. */
   private block(branch: Branch): void {
     this.state.branches.set(branch.step, branch);
-    this.emit({ type: "step-blocked", step: branch.step, state: branch.status, ...(branch.exception && { exception: branch.exception }) });
+    this.emit({
+      type: "step-blocked",
+      step: branch.step,
+      state: branch.status,
+      ...(branch.exception && { exception: branch.exception }),
+      ...(branch.message !== undefined && { message: branch.message }),
+    });
   }
 
   /** The run's current state, for a caller that persists it itself (e.g. the CLI's --state file). */
@@ -145,6 +151,12 @@ export class Engine {
 
   private validateResult(key: string, schema: JsonSchema, value: unknown): boolean {
     return Boolean(this.compile(key, schema)(value));
+  }
+
+  /** Formats ajv's errors for the last failed `validateResult(key, schema, ...)` call, for diagnostics. */
+  private validationErrorText(key: string, schema: JsonSchema, value: unknown): string {
+    const validate = this.compile(key, schema);
+    return (validate.errors ?? []).map((e) => `${e.instancePath || "/"} ${e.message}`).join("; ") || `does not match result_schema: ${JSON.stringify(value)}`;
   }
 
   // --- observation (§11.2) -------------------------------------------------------------------------
@@ -311,9 +323,9 @@ export class Engine {
 
   private async runAgentEntry(qualifiedName: string, step: AgentStep, continueSession: boolean, region: Region): Promise<AgentOutcome> {
     const ledger = this.state.ledger;
-    const errored = (exception: ExceptionClass, exceededScope?: "step" | "run"): AgentOutcome => ({
+    const errored = (exception: ExceptionClass, exceededScope?: "step" | "run", message?: string): AgentOutcome => ({
       kind: "blocked",
-      branch: { step: qualifiedName, status: "errored", exception, ...(exceededScope && { exceededScope }) },
+      branch: { step: qualifiedName, status: "errored", exception, ...(exceededScope && { exceededScope }), ...(message !== undefined && { message }) },
     });
 
     let promptVars: Record<string, ExprValue> = {};
@@ -360,6 +372,7 @@ export class Engine {
       let outputValue: unknown;
       let retryable = false;
       let budgetStop: "step" | "run" | undefined;
+      let failureMessage: string | undefined;
 
       for await (const ev of harness.invoke({ step: qualifiedName, prompt: promptText, resultSchema: step.result_schema, harnessConfig: step.harness_config ?? {}, session, signal })) {
         if (ev.type === "session") {
@@ -387,9 +400,11 @@ export class Engine {
           outputValue = ev.value;
         } else if (ev.type === "no_value") {
           outcome = "no_value";
+          failureMessage = ev.reason;
         } else if (ev.type === "failure") {
           outcome = "failure";
           retryable = ev.retryable;
+          failureMessage = ev.message;
         }
       }
 
@@ -398,18 +413,19 @@ export class Engine {
 
       if (outcome === "output") {
         if (this.validateResult(`result:${qualifiedName}`, step.result_schema, outputValue)) return { kind: "success", value: outputValue };
+        const message = this.validationErrorText(`result:${qualifiedName}`, step.result_schema, outputValue);
         if (attempt < retryMax) continue;
-        return errored("schema_violation");
+        return errored("schema_violation", undefined, message);
       }
       if (outcome === "no_value") {
         if (attempt < retryMax) continue;
-        return errored("schema_violation");
+        return errored("schema_violation", undefined, failureMessage);
       }
       if (outcome === "failure") {
         if (retryable && attempt < retryMax) continue;
-        return errored("harness_error");
+        return errored("harness_error", undefined, failureMessage);
       }
-      return errored("harness_error"); // stream ended with no terminal event: nothing else to report
+      return errored("harness_error", undefined, "the harness stream ended with no terminal event"); // nothing else to report
     }
     return errored("harness_error");
   }

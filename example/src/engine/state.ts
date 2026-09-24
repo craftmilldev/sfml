@@ -22,6 +22,13 @@ export interface Branch {
   exceededScope?: "step" | "run";
   /** For a factory-level budget_exceeded collapsed onto a `parallel` step (SPEC §10.6, §11.1). */
   collapsedChildren?: string[];
+  /**
+   * Why, in whatever terms the harness or validator gave: a harness_error's failure message, a
+   * schema_violation's validation errors or no_value reason. Purely diagnostic -- SPEC assigns no
+   * meaning to it and a resume never reads it back; without it, a caller sees only the exception
+   * class and has to go digging for the actual cause.
+   */
+  message?: string;
 }
 
 export class Ledger {

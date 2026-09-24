@@ -18,7 +18,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseFactory } from "../engine/parser.js";
 import { lintFactory } from "../engine/linter.js";
-import { Engine, type Observation } from "../engine/runner.js";
+import { Engine, type Observation, type RunnerEvent } from "../engine/runner.js";
 import { deserializeRunState, serializeRunState } from "../engine/state.js";
 import { ClaudeAgentSdkHarness } from "../harness/claude-agent-sdk.js";
 import { loadPriceTable } from "../harness/pricing.js";
@@ -65,6 +65,14 @@ function printObservation(observation: Observation): void {
   process.stdout.write(JSON.stringify(observation, (_k, v) => (typeof v === "bigint" ? v.toString() : v), 2) + "\n");
 }
 
+/** Prints why a step blocked as it happens, since `Observation.blocked` (SPEC's own shape) carries
+ * only the exception class, not the harness's or validator's actual message. */
+function logEvent(event: RunnerEvent): void {
+  if (event.type === "step-blocked" && event.state === "errored" && event.message) {
+    process.stderr.write(`${event.step}: ${event.exception}: ${event.message}\n`);
+  }
+}
+
 async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2);
   if (!command || (command !== "lint" && command !== "run" && command !== "resume")) usage();
@@ -103,7 +111,7 @@ async function main(): Promise<void> {
         params[key] = raw;
       }
     }
-    const admission = await Engine.start(parsed.factory, harnesses, params, undefined, baseDir);
+    const admission = await Engine.start(parsed.factory, harnesses, params, logEvent, baseDir);
     if (!admission.result.admitted) {
       process.stderr.write(`rejected at admission: ${admission.result.message}\n`);
       process.exit(1);
@@ -124,7 +132,7 @@ async function main(): Promise<void> {
   const payload = hasPayload ? JSON.parse(flags.get("payload")![0]!) : undefined;
 
   const state = deserializeRunState(JSON.parse(readFileSync(statePath, "utf8")));
-  const engine = new Engine(parsed.factory, harnesses, state, undefined, baseDir);
+  const engine = new Engine(parsed.factory, harnesses, state, logEvent, baseDir);
   const result = await engine.resume(step, hasPayload, payload);
   writeFileSync(statePath, JSON.stringify(serializeRunState(engine.getState())));
   if (!result.accepted) {
