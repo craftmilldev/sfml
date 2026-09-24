@@ -161,7 +161,12 @@ function assertExpect(expected: unknown, actual: unknown): void {
   for (const [key, value] of Object.entries(expected as Record<string, unknown>)) {
     const actualValue = (actual as Record<string, unknown>)[key];
     if (key === "blocked") {
-      assert.deepEqual(sortBlocked(actualValue), sortBlocked(value));
+      // Partial-match per entry (README §3.2's `{ step, state, exception? }`): the Runner's actual
+      // BlockedEntry also carries exceededScope/message (issue #27), which fixtures don't state.
+      const expectedArr = sortBlocked(value) as Record<string, unknown>[];
+      const actualArr = sortBlocked(actualValue) as Record<string, unknown>[];
+      assert.equal(actualArr?.length, expectedArr.length, `blocked: expected ${expectedArr.length} entries, got ${actualArr?.length}`);
+      expectedArr.forEach((entry, i) => assertExpect(entry, actualArr[i]));
     } else if (value !== null && typeof value === "object") {
       assert.deepEqual(actualValue, value);
     } else {
@@ -170,6 +175,10 @@ function assertExpect(expected: unknown, actual: unknown): void {
   }
 }
 
+// Sorted by `step` alone (not full JSON), so it still pairs entries correctly now that the actual
+// side can carry fields (exceededScope/message) the expected fixture doesn't mention.
 function sortBlocked(value: unknown): unknown {
-  return Array.isArray(value) ? [...value].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))) : value;
+  return Array.isArray(value)
+    ? [...value].sort((a, b) => String((a as { step: unknown }).step).localeCompare(String((b as { step: unknown }).step)))
+    : value;
 }

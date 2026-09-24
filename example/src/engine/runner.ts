@@ -16,7 +16,13 @@ import { parseUsd } from "../harness/money.js";
 import type { Harness, SessionHandle } from "../harness/types.js";
 
 export type ObservedState = { parameters: Record<string, unknown>; results: Record<string, unknown[]> };
-export type BlockedEntry = { step: string; state: "errored" | "awaiting_input"; exception?: ExceptionClass };
+export type BlockedEntry = {
+  step: string;
+  state: "errored" | "awaiting_input";
+  exception?: ExceptionClass;
+  exceededScope?: "step" | "run";
+  message?: string;
+};
 export type Observation =
   | { status: "terminal"; outcome: "complete" | "terminal_failure"; value: unknown; state: ObservedState }
   | { status: "errored" | "awaiting_input"; blocked: BlockedEntry[]; state: ObservedState };
@@ -174,6 +180,8 @@ export class Engine {
       step: b.step,
       state: b.status as "errored" | "awaiting_input",
       ...(b.exception && { exception: b.exception }),
+      ...(b.exceededScope && { exceededScope: b.exceededScope }),
+      ...(b.message !== undefined && { message: b.message }),
     }));
     const status = blocked.some((b) => b.state === "errored") ? "errored" : "awaiting_input";
     return { status, blocked, state: this.snapshotState() };
@@ -653,11 +661,11 @@ export class Engine {
   }
 }
 
-function isChild(address: string): boolean {
+export function isChild(address: string): boolean {
   return address.includes(".");
 }
 
-function splitQualified(address: string): [string, string] {
+export function splitQualified(address: string): [string, string] {
   const idx = address.indexOf(".");
   return [address.slice(0, idx), address.slice(idx + 1)];
 }
