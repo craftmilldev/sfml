@@ -19,8 +19,9 @@ npm run start --prefix site   # local dev server with live reload
 `renderFile` shortcode), so the page always reflects the current spec — it is not duplicated
 into `site/`.
 
-This site's build is independent of the root `npm test` (same pattern as `example/`'s own
-`npm test`, invoked separately via `npm run test:example`).
+The root `npm test` builds this site (`npm run build:site`) and checks the built output for
+the ticket's required content (`npm run check:site`), the same way it runs `example/`'s own
+suite via `npm run test:example`.
 
 ## Deployment
 
