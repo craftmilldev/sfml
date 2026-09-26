@@ -1,0 +1,49 @@
+---
+permalink: llms.txt
+eleventyExcludeFromCollections: true
+---
+# SFML — Software Factory Markup Language
+
+> SFML describes a software factory: a durable, resumable pipeline graph that turns an
+> intent into a reviewed artifact. This file tells an LLM how to read the spec, use the
+> example tool, and write and validate a factory.
+
+## Read this first
+
+- Full spec: https://sfml.craftmill.dev/spec/ (source: SPEC.md in the repo)
+- Repo: https://github.com/craftmilldev/sfml
+
+## Writing a factory
+
+- A factory is a YAML/JSON document. SPEC.md clause 5 defines the document format
+  (encoding, naming, unknown/reserved keys); clauses 6-7 define the data model (top-level
+  fields, step types, connections, the expression language, and the values a running
+  factory exposes to expressions and prompt templates).
+- SPEC.md clause 8 defines the static validity rules a linter must enforce — read it before
+  assuming a graph is well-formed.
+- `sfml.schema.json` at the repo root is the JSON Schema (2020-12) for a factory document's
+  surface syntax (SPEC Annex A). It catches structural mistakes; it does not check the
+  graph-level rules of clause 8.
+- `example/` is a worked example implementation (SPEC Annex C), not the spec. Don't infer
+  normative behavior from it — SPEC.md is normative.
+
+## Testing a factory
+
+Clone the repo and install both the root and example dependencies:
+
+    git clone https://github.com/craftmilldev/sfml
+    cd sfml
+    npm install && npm install --prefix example
+
+Then:
+
+- Validate against the schema: `node tools/validate-schema.mjs path/to/factory.sfml`
+- Lint with the example tool (checks clause 8 graph validity, not just schema shape):
+  `npm run lint:factory`
+- Run the example's own conformance/unit tests for reference: `npm run test:example`
+- Run everything the repo's CI runs: `npm test`
+
+## Remember
+
+The example tool in `example/` is one implementation, not the spec. If its behavior and
+SPEC.md ever disagree, SPEC.md wins.

@@ -1,0 +1,13 @@
+{
+  "name": "sfml-site",
+  "private": true,
+  "type": "module",
+  "description": "The SFML promo/docs site (sfml.craftmill.dev).",
+  "scripts": {
+    "build": "eleventy",
+    "start": "eleventy --serve"
+  },
+  "devDependencies": {
+    "@11ty/eleventy": "^3.0.0"
+  }
+}

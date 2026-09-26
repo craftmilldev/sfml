@@ -1,0 +1,69 @@
+---
+layout: base.njk
+pageTitle: SFML — Software Factory Markup Language
+description: SFML is a file format for describing a software factory — a durable, resumable pipeline that turns an intent into a reviewed artifact.
+permalink: index.html
+---
+<header class="masthead">
+  <div class="masthead-row">
+    <span class="masthead-rule"></span>
+    <div class="masthead-word">SFML</div>
+    <span class="masthead-rule"></span>
+  </div>
+</header>
+
+<nav class="nav">
+  <a href="/" class="current">Home</a>
+  <a href="/spec/">Spec</a>
+  <a href="/llms.txt">llms.txt</a>
+  <span class="nav-spacer"></span>
+  <a href="https://github.com/craftmilldev/sfml">GitHub</a>
+</nav>
+
+<section class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">What is SFML</div>
+    <h1>A kind of script for codifying how you build software</h1>
+    <p>
+      SFML isn't really a file format so much as a script — the same way Terraform isn't
+      really a file format so much as a way of writing down infrastructure so it can be
+      diffed, checked, and run. You use SFML to write down a <em>process</em>, not to store
+      data. Codifying the process is the whole point: it's what lets you stop re-deciding
+      how a piece of work gets done and start improving on a version of it you can see.
+    </p>
+    <p>
+      Concretely, a factory written in SFML describes a durable, resumable, mostly-autonomous
+      pipeline: a graph of steps and routing that takes an intent — a ticket, say — and
+      carries it through to a reviewed artifact. The graph is defined separately from
+      whatever agent runtime actually executes it, so it can be diffed in a pull request,
+      linted before it runs, and moved between tools.
+    </p>
+  </div>
+</section>
+
+<section class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">How to use it</div>
+    <p>
+      This repository ships one example implementation, in
+      <a href="https://github.com/craftmilldev/sfml/tree/main/example"><code>example/</code></a>
+      — a CLI and library that parse, lint, and run a factory. It is merely an example. It
+      is not the point of the project, and its behavior isn't normative; the
+      <a href="/spec/">spec</a> is.
+    </p>
+    <p>
+      The goal is to give people who build these tools a clear, shared data format so they
+      can spend their effort building good tools instead of each reinventing a factory
+      format from scratch.
+    </p>
+    <p>
+      To try it, fork the repo and install and run the example tool — see
+      <a href="https://github.com/craftmilldev/sfml/tree/main/example">example/README.md</a>
+      for instructions. To read the format itself, see the <a href="/spec/">full spec</a>.
+    </p>
+    <p>
+      If you're an LLM, or you're pointing one at this project, start at
+      <a href="/llms.txt"><code>/llms.txt</code></a> instead of this page.
+    </p>
+  </div>
+</section>
