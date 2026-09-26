@@ -29,17 +29,19 @@ eleventyExcludeFromCollections: true
 
 ## Testing a factory
 
-Clone the repo and install both the root and example dependencies:
+Clone the repo, install both the root and example dependencies, and build the example
+tool:
 
     git clone https://github.com/craftmilldev/sfml
     cd sfml
     npm install && npm install --prefix example
+    npm run build --prefix example
 
 Then:
 
 - Validate against the schema: `node tools/validate-schema.mjs path/to/factory.sfml`
 - Lint with the example tool (checks clause 8 graph validity, not just schema shape):
-  `npm run lint:factory`
+  `node example/dist/cli/sfml.js lint path/to/factory.sfml`
 - Run the example's own conformance/unit tests for reference: `npm run test:example`
 - Run everything the repo's CI runs: `npm test`
 
