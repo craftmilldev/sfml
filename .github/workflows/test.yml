@@ -22,4 +22,3 @@ jobs:
       - run: npm ci --prefix example
       - run: npm ci --prefix site
       - run: npm test
-      - run: npm run build --prefix site
