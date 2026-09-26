@@ -9,8 +9,10 @@
     "test:example": "npm --prefix example test",
     "lint:factory": "node example/dist/cli/sfml.js lint .sfml/factory.sfml",
     "test:tools": "node --test tools/*.test.mjs",
+    "build:site": "npm run build --prefix site",
+    "check:site": "node tools/check-site.mjs",
     "render:mermaid": "node tools/sfml-to-mermaid.mjs .sfml/factory.sfml --out .sfml/factory.mmd && node tools/sfml-to-mermaid.mjs conformance/parser/full/factory.sfml --out tools/sfml-to-mermaid.test.full.mmd",
-    "test": "npm run validate:schema && npm run validate:conformance && npm run test:example && npm run lint:factory && npm run test:tools"
+    "test": "npm run validate:schema && npm run validate:conformance && npm run test:example && npm run lint:factory && npm run test:tools && npm run build:site && npm run check:site"
   },
   "dependencies": {
     "ajv": "^8.17.1",

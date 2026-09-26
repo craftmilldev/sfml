@@ -1,0 +1,17 @@
+{% macro render(current) %}
+<header class="masthead">
+  <div class="masthead-row">
+    <span class="masthead-rule"></span>
+    <div class="masthead-word">SFML</div>
+    <span class="masthead-rule"></span>
+  </div>
+</header>
+
+<nav class="nav">
+  <a href="/"{% if current == "home" %} class="current"{% endif %}>Home</a>
+  <a href="/spec/"{% if current == "spec" %} class="current"{% endif %}>Spec</a>
+  <a href="/llms.txt">llms.txt</a>
+  <span class="nav-spacer"></span>
+  <a href="https://github.com/craftmilldev/sfml">GitHub</a>
+</nav>
+{% endmacro %}

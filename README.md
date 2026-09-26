@@ -11,6 +11,7 @@ The bet is that the factory graph will be defined in code and having a shared fo
 | [sfml.schema.json](sfml.schema.json) | JSON Schema (2020-12) for a factory document's surface syntax (SPEC Annex A). |
 | [conformance/](conformance/README.md) | The conformance suite (Annex B) and its file formats. |
 | [conformance/mock-harness.md](conformance/mock-harness.md) | The `mock` harness: the transcript format runner tests play back, sessions, and pricing. |
+| [site/](site/README.md) | The promo/docs site (`sfml.craftmill.dev`): home page, rendered spec, and `/llms.txt`. |
 
 ## Validating a factory
 
@@ -28,15 +29,15 @@ fixtures.
 ## Tests
 
 ```sh
-npm install && npm install --prefix example
+npm install && npm install --prefix example && npm install --prefix site
 npm test
 ```
 
 `npm test` validates the schema fixtures and the conformance suite, then runs the example's
-harness tests. It also runs the `tools/` tests, which check that `.sfml/factory.mmd` (a
-Mermaid rendering of `.sfml/factory.sfml`, made by `tools/sfml-to-mermaid.mjs`) is up to
-date. After editing the factory, run `npm run render:mermaid`. CI runs `npm test` on every push to
-`main` and on every pull request.
+harness tests, then builds `site/` and checks its output. It also runs the `tools/` tests,
+which check that `.sfml/factory.mmd` (a Mermaid rendering of `.sfml/factory.sfml`, made by
+`tools/sfml-to-mermaid.mjs`) is up to date. After editing the factory, run
+`npm run render:mermaid`. CI runs `npm test` on every push to `main` and on every pull request.
 
 The repo's own factory lives in `.sfml/` (`factory.sfml`, `factory.mmd`, `prompts/`); run state
 in `.sfml/runs/` and plan files (`.sfml/plan*.md`) are git-ignored.

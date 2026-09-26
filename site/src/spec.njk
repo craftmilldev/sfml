@@ -1,0 +1,14 @@
+---
+layout: base.njk
+pageTitle: SFML — Specification
+description: The SFML specification.
+permalink: spec/index.html
+---
+{% from "header.njk" import render as header %}
+{{ header("spec") }}
+
+<article class="post spec-page">
+  <div class="post-measure post-body spec-body">
+{% renderFile "../SPEC.md", "md" %}
+  </div>
+</article>
