@@ -4,21 +4,8 @@ pageTitle: SFML — Software Factory Markup Language
 description: SFML is a file format for describing a software factory — a durable, resumable pipeline that turns an intent into a reviewed artifact.
 permalink: index.html
 ---
-<header class="masthead">
-  <div class="masthead-row">
-    <span class="masthead-rule"></span>
-    <div class="masthead-word">SFML</div>
-    <span class="masthead-rule"></span>
-  </div>
-</header>
-
-<nav class="nav">
-  <a href="/" class="current">Home</a>
-  <a href="/spec/">Spec</a>
-  <a href="/llms.txt">llms.txt</a>
-  <span class="nav-spacer"></span>
-  <a href="https://github.com/craftmilldev/sfml">GitHub</a>
-</nav>
+{% from "header.njk" import render as header %}
+{{ header("home") }}
 
 <section class="hero">
   <div class="hero-inner">
