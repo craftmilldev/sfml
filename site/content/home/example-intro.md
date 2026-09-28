@@ -4,4 +4,6 @@ eyebrow: A small example
 
 ## What a factory actually looks like
 
-Here's a minimal one: an agent writes a draft, a human decides whether it's ready, and once it is, another agent publishes it. Anything short of approval loops back to the draft step — and because SFML requires `max_iterations` on every step, that loop can't run forever.
+SFML is a graph of steps. Each step represents a human or agent action and the result of each step routes the next step. Graphs can loop to allow for feedback processes and budgets can be set to ensure a loop doesn't get out of hand.
+
+Below you can see SFML on the left and a mermaid diagram of the graph on the right.

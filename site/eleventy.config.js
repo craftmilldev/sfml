@@ -23,6 +23,9 @@ function escapeHtml(text) {
 export default function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy("src/styles.css");
   eleventyConfig.addPassthroughCopy("src/assets");
+  eleventyConfig.addWatchTarget("content/home");
+  eleventyConfig.addWatchTarget("../.sfml/factory.sfml");
+  eleventyConfig.addWatchTarget("../.sfml/factory.mmd");
 
   // Renders a copy file from src/content/ (Markdown with optional
   // `eyebrow` front matter) so page prose can be edited without touching
@@ -36,11 +39,10 @@ export default function (eleventyConfig) {
     return eyebrow + md.render(content);
   });
 
-  // Includes a source file (code sample, Mermaid diagram, ...) from
-  // src/content/ verbatim and HTML-escaped, for display in a <pre>/<code>
-  // block.
+  // Includes a repository file verbatim and HTML-escaped for display in a
+  // <pre>/<code> block.
   eleventyConfig.addShortcode("sourceFile", (relativePath) => {
-    const raw = readFileSync(path.join(contentDir, relativePath), "utf8");
+    const raw = readFileSync(path.join(repoRoot, relativePath), "utf8");
     return escapeHtml(raw).trimEnd();
   });
 

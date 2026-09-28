@@ -25,8 +25,8 @@ const index = read("index.html");
 check('index.html links to "/spec/"', /href="\/spec\/?"/.test(index));
 check('index.html links to "/llms.txt"', /href="\/llms\.txt"/.test(index));
 check(
-  "index.html states the example tool is merely an example",
-  /merely an example|one implementation/i.test(index),
+  "index.html identifies the example implementation",
+  /example implementation/i.test(index),
 );
 
 const spec = read("spec/index.html");

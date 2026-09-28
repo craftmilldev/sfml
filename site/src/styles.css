@@ -82,8 +82,6 @@ img{max-width:100%}
 .example-code code{font-family:var(--font-type);white-space:pre}
 .example-diagram{margin:0;padding:16px;border:1px solid var(--rule-hair);background:var(--paper-100);border-radius:3px;display:flex;align-items:center;justify-content:center;overflow-x:auto}
 .example-diagram svg{max-width:100%;height:auto}
-.example-caption{margin-top:16px}
-.example-caption p{margin:0;font-size:.8125rem;line-height:1.6;color:var(--ink-400)}
 
 /* highlight.js — paper/ink tokens, overriding the imported base theme */
 .hljs{background:transparent!important;color:var(--paper-100)!important}

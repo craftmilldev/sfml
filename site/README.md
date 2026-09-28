@@ -22,8 +22,8 @@ live from the repo root and never duplicated into `site/`.
 The home page's copy lives in `site/content/home/*.md` (one file per section, with an
 `eyebrow` front-matter field for the small label above each heading), not in `index.njk` —
 edit those files to change the wording. `index.njk` pulls each one in with the `copy`
-shortcode (`eleventy.config.js`). The example factory's YAML and Mermaid diagram source live
-alongside them as plain `.sfml`/`.mmd` files and are pulled in verbatim with the `sourceFile`
+shortcode (`eleventy.config.js`). The factory and Mermaid diagram are read directly from
+`.sfml/factory.sfml` and `.sfml/factory.mmd` at the repo root through the `sourceFile`
 shortcode. `site/content/` sits outside Eleventy's `src/` input root so none of it gets built
 as its own page.
 

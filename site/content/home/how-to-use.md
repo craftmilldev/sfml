@@ -2,10 +2,8 @@
 eyebrow: How to use it
 ---
 
-This repository ships one example implementation, in [`example/`](https://github.com/craftmilldev/sfml/tree/main/example) — a CLI and library that parse, lint, and run a factory. It is merely an example. It is not the point of the project, and its behavior isn't normative; the [spec](/spec/) is.
+SFML ships with an [example implementation](https://github.com/craftmilldev/sfml/tree/main/example). Its a CLI that lets you parse, lint and run a factory. Take it for a spin.
 
-The goal is to give people who build these tools a clear, shared data format so they can spend their effort building good tools instead of each reinventing a factory format from scratch.
+Also note, its not optimized for a great developer expereince. Thats not its goal. We encourage you to make your own SFML Runner and share it with the community. Feel free to create a PR with a link to your runner when you have one. We provide conformance tests to make it simple to create conformant SFML Runners if you are interested in doing so. The example project is a great place to see how to use them.
 
-To try it, fork the repo and install and run the example tool — see [example/README.md](https://github.com/craftmilldev/sfml/tree/main/example) for instructions. To read the format itself, see the [full spec](/spec/).
-
-If you're an LLM, or you're pointing one at this project, start at [`/llms.txt`](/llms.txt) instead of this page.
+In the mean time, use [our example runner](https://github.com/craftmilldev/sfml/tree/main/example) and get a feel for what working with a factory is like.
