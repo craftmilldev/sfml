@@ -26,8 +26,7 @@ import { Engine, splitQualified, type BlockedEntry, type Observation, type Runne
 import { deserializeRunState, serializeRunState } from "../engine/state.js";
 import { evaluateExpression, type Env } from "../engine/expr.js";
 import { isAgentOrHuman, type Factory, type ParallelChild, type JsonSchema, type Step } from "../engine/factory.js";
-import { ClaudeAgentSdkHarness, shutdownPostHog } from "../harness/claude-agent-sdk.js";
-import { emitPostHogLog, shutdownPostHogLogs } from "../harness/posthog-logs.js";
+import { ClaudeAgentSdkHarness } from "../harness/claude-agent-sdk.js";
 import { loadPriceTable } from "../harness/pricing.js";
 import type { Harness } from "../harness/types.js";
 
@@ -202,7 +201,6 @@ async function main(): Promise<void> {
     process.stderr.write(`lint failed:\n${diagnostics.map((d) => `  ${d.id}: ${d.message}`).join("\n")}\n`);
     process.exit(1);
   }
-  emitPostHogLog("sfml factory validated", { command });
   if (command === "lint") return;
 
   const harnesses = buildHarnesses();
@@ -235,7 +233,6 @@ async function main(): Promise<void> {
       process.stderr.write(`rejected at admission: ${admission.result.message}\n`);
       process.exit(1);
     }
-    emitPostHogLog("sfml run admitted", { command });
     writeFileSync(statePath, JSON.stringify(serializeRunState(admission.engine!.getState())));
     const observation = admission.result.observation;
     if (observation.status === "terminal") printObservation(observation);
@@ -260,7 +257,6 @@ async function main(): Promise<void> {
   const state = deserializeRunState(JSON.parse(readFileSync(statePath, "utf8")));
   const engine = new Engine(parsed.factory, harnesses, state, logEvent, baseDir);
   const result = await engine.resume(step, hasPayload, payload);
-  emitPostHogLog("sfml resume processed", { accepted: result.accepted, observation_status: result.observation.status });
   writeFileSync(statePath, JSON.stringify(serializeRunState(engine.getState())));
   if (!result.accepted) {
     process.stderr.write("resume rejected: the payload did not match what this step's blocked state expects (SPEC §11.5)\n");
@@ -272,13 +268,8 @@ async function main(): Promise<void> {
 // Guard so a test can `import` this module (e.g. to exercise reportBlocked/payloadHint directly)
 // without also running the CLI against the test runner's own argv.
 if (import.meta.url === `file://${process.argv[1]}`) {
-  main()
-    .catch((error: unknown) => {
-      process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
-      process.exitCode = 1;
-    })
-    .finally(async () => {
-      await shutdownPostHog();
-      await shutdownPostHogLogs();
-    });
+  main().catch((error: unknown) => {
+    process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
+    process.exit(1);
+  });
 }

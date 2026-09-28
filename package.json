@@ -15,12 +15,7 @@
     "test": "npm run validate:schema && npm run validate:conformance && npm run test:example && npm run lint:factory && npm run test:tools && npm run build:site && npm run check:site"
   },
   "dependencies": {
-    "@opentelemetry/exporter-logs-otlp-http": "^0.222.0",
-    "@opentelemetry/resources": "^2.11.0",
-    "@opentelemetry/sdk-logs": "^0.222.0",
     "ajv": "^8.17.1",
-    "posthog-js": "^1.434.17",
-    "posthog-node": "^5.54.1",
     "yaml": "^2.6.0"
   }
 }
