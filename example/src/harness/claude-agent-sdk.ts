@@ -20,10 +20,34 @@
 //   max-turns, unpriceable models, and everything else are not.
 // - Sessions: a new session's id comes from the `system`/`init` message; `resume` continues it.
 
+import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { query, AbortError, type Options, type PermissionMode, type SDKResultMessage, type ModelUsage } from "@anthropic-ai/claude-agent-sdk";
+import { PostHog } from "posthog-node";
 import type { Harness, HarnessEvent, Invocation, SessionHandle } from "./types.js";
 import { extractFencedJson } from "./extract.js";
 import { addTokens, isZero, NO_TOKENS, priceTokens, tokensBeyond, type PriceTable, type Tokens } from "./pricing.js";
+
+const posthogEnvPath = fileURLToPath(new URL("../../../.env", import.meta.url));
+if (existsSync(posthogEnvPath)) process.loadEnvFile(posthogEnvPath);
+
+const posthogProjectToken = process.env.POSTHOG_PROJECT_TOKEN;
+const posthogHost = process.env.POSTHOG_HOST;
+
+if ((!posthogProjectToken || !posthogHost) && process.env.NODE_ENV !== "production") {
+  const missingVariable = posthogProjectToken ? "POSTHOG_HOST" : "POSTHOG_PROJECT_TOKEN";
+  throw new Error(
+    `${missingVariable} variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once ${missingVariable} is configured`,
+  );
+}
+
+const posthog = posthogProjectToken && posthogHost ? new PostHog(posthogProjectToken, { host: posthogHost }) : undefined;
+
+/** Flushes the CLI's manually captured AI events before its Node process exits. */
+export async function shutdownPostHog(): Promise<void> {
+  await posthog?.shutdown();
+}
 
 /** What this wrapper persists per session, through the Runner (SessionHandle). */
 type ClaudeSession = { sessionId: string; priced: Record<string, Tokens> };
@@ -55,6 +79,7 @@ export class ClaudeAgentSdkHarness implements Harness {
     }
     const prior = inv.session ? toClaudeSession(inv.session) : undefined;
     let sessionId = prior?.sessionId;
+    const traceId = randomUUID();
     const priced: Record<string, Tokens> = { ...prior?.priced };
     /** Largest usage seen so far for each API message in this invocation; streamed frames repeat an id. */
     const seen = new Map<string, Tokens>();
@@ -94,13 +119,23 @@ export class ClaudeAgentSdkHarness implements Harness {
         }
 
         if (message.type === "assistant") {
-          const { id, model, usage } = message.message;
+          sessionId ??= message.session_id;
+          const { id, model, usage, content } = message.message;
           const now = fromApiUsage(usage);
           const before = seen.get(id) ?? NO_TOKENS;
           const fresh = tokensBeyond(now, before);
           seen.set(id, addTokens(before, fresh));
           if (isZero(fresh)) continue;
-          const cost = charge(normalizeModel(model), fresh);
+          const normalizedModel = normalizeModel(model);
+          const cost = charge(normalizedModel, fresh);
+          captureGeneration({
+            sessionId,
+            traceId,
+            model: normalizedModel,
+            prompt: inv.prompt,
+            output: content,
+            tokens: fresh,
+          });
           yield { type: "session", handle: handle(message.session_id, priced) };
           yield { type: "usage", cost };
           continue;
@@ -136,6 +171,52 @@ export class ClaudeAgentSdkHarness implements Harness {
       inv.signal.removeEventListener("abort", onAbort);
       q.close();
     }
+  }
+}
+
+function captureGeneration({
+  sessionId,
+  traceId,
+  model,
+  prompt,
+  output,
+  tokens,
+}: {
+  sessionId: string | undefined;
+  traceId: string;
+  model: string;
+  prompt: string;
+  output: unknown;
+  tokens: Tokens;
+}): void {
+  if (!posthog || !sessionId) return;
+
+  // Claude's session id is the conversation boundary. Normalize it to the character set accepted
+  // by $ai_session_id while keeping it stable across resumed agent turns.
+  const aiSessionId = `claude-${sessionId.replace(/[^A-Za-z0-9\-_~.@()!'|:]/g, "_")}`;
+  posthog.capture({
+    event: "$ai_generation",
+    distinctId: aiSessionId,
+    properties: {
+      $process_person_profile: false,
+      $ai_provider: "anthropic",
+      $ai_model: model,
+      $ai_input: [{ role: "user", content: prompt }],
+      $ai_output_choices: [{ role: "assistant", content: serializeAiContent(output) }],
+      $ai_input_tokens: tokens.input,
+      $ai_output_tokens: tokens.output,
+      $ai_trace_id: traceId,
+      $ai_session_id: aiSessionId,
+    },
+  });
+}
+
+function serializeAiContent(value: unknown): string {
+  if (typeof value === "string") return value;
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
   }
 }
 
