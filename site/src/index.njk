@@ -28,6 +28,113 @@ permalink: index.html
   </div>
 </section>
 
+<section class="hero example">
+  <div class="hero-inner">
+    <div class="eyebrow">A small example</div>
+    <h2>What a factory actually looks like</h2>
+    <p>
+      Here's a minimal one: an agent writes a draft, a human decides whether it's ready, and
+      once it is, another agent publishes it. Anything short of approval loops back to the
+      draft step — and because SFML requires <code>max_iterations</code> on every step, that
+      loop can't run forever.
+    </p>
+    <div class="example-grid">
+      <pre class="example-code"><code class="language-yaml">sfml: "v0.1"
+description: >
+  Turns a rough idea into a published post.
+start: draft
+budget: 20.00
+parameters:
+  topic:
+    type: string
+    description: What to write about.
+
+steps:
+  draft:
+    type: agent
+    harness: claude-agent-sdk
+    prompt_path: prompts/draft.md
+    prompt_vars:
+      topic: parameters.topic
+      notes: last(results.review).notes
+    max_iterations: 5
+    result_schema:
+      type: object
+      required: [draft_path]
+      properties:
+        draft_path: { type: string }
+    next:
+      - to: review
+
+  review:
+    type: human
+    assignee: "editor"
+    instructions: "'Read the draft and decide whether it is ready to publish.'"
+    max_iterations: 5
+    result_schema:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [approve, revise] }
+        notes: { type: string }
+    next:
+      - when: "last(results.review).decision == 'revise'"
+        to: draft
+      - to: publish
+
+  publish:
+    type: agent
+    harness: claude-agent-sdk
+    prompt_path: prompts/publish.md
+    prompt_vars:
+      draft_path: last(results.draft).draft_path
+    max_iterations: 3
+    result_schema:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+    next:
+      - to: success
+
+  success:
+    type: result
+    outcome: complete
+    value: last(results.publish)</code></pre>
+      <div class="example-diagram">
+        <pre class="mermaid">
+flowchart TD
+  __start__(("start"))
+  __start__ --> draft
+  draft["draft&lt;br/&gt;agent: claude-agent-sdk"]
+  review[/"review&lt;br/&gt;human: editor"/]
+  publish["publish&lt;br/&gt;agent: claude-agent-sdk"]
+  success(["success&lt;br/&gt;result: complete"])
+  draft --> review
+  review -->|"decision == 'revise'"| draft
+  review --> publish
+  publish --> success
+  classDef agentStep fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a;
+  classDef humanStep fill:#fef3c7,stroke:#b45309,color:#78350f;
+  classDef resultStep fill:#dcfce7,stroke:#15803d,color:#14532d;
+  class draft agentStep;
+  class review humanStep;
+  class publish agentStep;
+  class success resultStep;
+        </pre>
+      </div>
+    </div>
+    <p class="example-caption">
+      That diagram isn't hand-drawn — it's what
+      <a href="https://github.com/craftmilldev/sfml/blob/main/tools/sfml-to-mermaid.mjs"><code>tools/sfml-to-mermaid.mjs</code></a>
+      renders straight from a factory file, the same way it keeps this repo's own
+      <a href="https://github.com/craftmilldev/sfml/blob/main/.sfml/factory.mmd"><code>.sfml/factory.mmd</code></a>
+      in sync with <a href="https://github.com/craftmilldev/sfml/blob/main/.sfml/factory.sfml"><code>.sfml/factory.sfml</code></a>
+      — the factory this project uses to build itself.
+    </p>
+  </div>
+</section>
+
 <section class="hero">
   <div class="hero-inner">
     <div class="eyebrow">How to use it</div>
@@ -54,3 +161,23 @@ permalink: index.html
     </p>
   </div>
 </section>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/default-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: "base",
+    themeVariables: {
+      fontFamily: "'Courier Prime', Courier, ui-monospace, monospace",
+      primaryColor: "#e4ddc9",
+      primaryBorderColor: "#16130e",
+      primaryTextColor: "#16130e",
+      lineColor: "#3a352b",
+      background: "#f2eede",
+    },
+  });
+  hljs.highlightAll();
+</script>
