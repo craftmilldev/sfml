@@ -1,7 +1,6 @@
-// Guards the built site/_site/ output against silently dropping the ticket's required
-// elements (craftmilldev/sfml#22): the home page's links/framing, the spec page's rendered
-// tables, and llms.txt being reachable as plain Markdown with no .html extension. A build
-// that still succeeds but loses one of these should fail CI instead of shipping quietly.
+// Guards the built site/_site/ output against silently dropping the home page's
+// links/framing or the spec page's rendered tables. A build that still succeeds
+// but loses one of these should fail CI instead of shipping quietly.
 
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -23,19 +22,31 @@ const check = (label, ok) => {
 
 const index = read("index.html");
 check('index.html links to "/spec/"', /href="\/spec\/?"/.test(index));
-check('index.html links to "/llms.txt"', /href="\/llms\.txt"/.test(index));
+check('index.html has no link to "/llms.txt"', !/href="\/llms\.txt"/.test(index));
 check(
   "index.html identifies the example implementation",
   /example implementation/i.test(index),
 );
+for (const [label, location, urlSuffix] of [
+  ["example implementation", "example_implementation", ""],
+  ["example runner CLI guide", "example_runner", "#cli"],
+]) {
+  const link = new RegExp(
+    `<a\\b(?=[^>]*href="https://github\\.com/craftmilldev/sfml/tree/main/example${urlSuffix}")` +
+      `(?=[^>]*data-posthog-event="github_repository_visited")` +
+      `(?=[^>]*data-posthog-link-location="${location}")[^>]*>${label}<\\/a>`,
+  );
+  check(`index.html renders tracked ${label} link`, link.test(index));
+}
+check("how-to-use section appears before example", index.indexOf('class="hero how-to-use"') < index.indexOf('class="hero example"'));
+check("how-to-use section shows CLI install command", /npm install --prefix example/.test(index));
+check("how-to-use section shows CLI lint command", /node example\/dist\/cli\/sfml\.js lint \.sfml\/factory\.sfml/.test(index));
+check("how-to-use section shows CLI run command", /node example\/dist\/cli\/sfml\.js run \.sfml\/factory\.sfml/.test(index));
 
 const spec = read("spec/index.html");
 check("spec/index.html contains rendered <table> markup", /<table/i.test(spec));
 
-// existsSync above already confirms no .html suffix is needed to reach it (the path literally
-// asks for "llms.txt"); this just confirms the served bytes are Markdown, not an HTML wrapper.
-const llmsTxt = read("llms.txt");
-check("llms.txt is plain Markdown, not HTML", !/<html/i.test(llmsTxt) && llmsTxt.trimStart().startsWith("#"));
+check("llms.txt is not generated", !existsSync(join(site, "llms.txt")));
 
 if (failures.length) {
   console.error("site content check failed:");
