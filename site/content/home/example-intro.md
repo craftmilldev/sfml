@@ -6,4 +6,4 @@ eyebrow: A small example
 
 SFML is a graph of steps. Each step represents a human or agent action and the result of each step routes the next step. Graphs can loop to allow for feedback processes and budgets can be set to ensure a loop doesn't get out of hand.
 
-Below you can see SFML on the left and a mermaid diagram of the graph on the right.
+Use the tabs below to view the SFML code or a Mermaid diagram of the graph.

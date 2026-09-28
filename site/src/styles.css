@@ -74,13 +74,18 @@ img{max-width:100%}
 .hero h2{margin:28px 0 0;font-size:1.375rem;color:var(--ink-900)}
 
 /* Example factory section */
-.example-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;margin-top:24px;align-items:start}
-@media (max-width:760px){
-  .example-grid{grid-template-columns:minmax(0,1fr)}
-}
-.example-code{margin:0;padding:20px;border-radius:3px;background:var(--ink-900);overflow-x:auto;font-size:.75rem;line-height:1.6}
+.example-preview{margin-top:24px;border:1px solid var(--rule-hair);border-radius:3px;overflow:hidden}
+.example-tabs{display:flex;gap:4px;padding:8px 8px 0;background:var(--paper-100);border-bottom:1px solid var(--rule-hair)}
+.example-tab{padding:9px 16px;border:1px solid transparent;border-radius:3px 3px 0 0;background:transparent;color:var(--ink-500);font:inherit;font-family:var(--font-type);font-size:.8125rem;cursor:pointer}
+.example-tab:hover{color:var(--ink-900)}
+.example-tab[aria-selected="true"]{border-color:var(--rule-hair);border-bottom-color:var(--ink-900);background:var(--ink-900);color:var(--paper-100)}
+.example-panel{max-height:min(70vh,32rem);overflow:auto}
+.example-panel[hidden]{display:none}
+.example-code{padding:20px;background:var(--ink-900);font-size:.75rem;line-height:1.6}
+.example-code pre{margin:0}
 .example-code code{font-family:var(--font-type);white-space:pre}
-.example-diagram{margin:0;padding:16px;border:1px solid var(--rule-hair);background:var(--paper-100);border-radius:3px;display:flex;align-items:center;justify-content:center;overflow-x:auto}
+.example-diagram{padding:16px;background:var(--paper-100)}
+.example-diagram pre{margin:0;text-align:center}
 .example-diagram svg{max-width:100%;height:auto}
 
 /* highlight.js — paper/ink tokens, overriding the imported base theme */

@@ -16,9 +16,15 @@ permalink: index.html
 <section class="hero example">
   <div class="hero-inner">
     {% copy "home/example-intro.md" %}
-    <div class="example-grid">
-      <pre class="example-code"><code class="language-yaml">{% sourceFile ".sfml/factory.sfml" %}</code></pre>
-      <div class="example-diagram">
+    <div class="example-preview">
+      <div class="example-tabs" role="tablist" aria-label="Factory preview">
+        <button class="example-tab" type="button" role="tab" id="example-code-tab" aria-controls="example-code-panel" aria-selected="true" tabindex="0">Code</button>
+        <button class="example-tab" type="button" role="tab" id="example-diagram-tab" aria-controls="example-diagram-panel" aria-selected="false" tabindex="-1">Mermaid diagram</button>
+      </div>
+      <div class="example-panel example-code" role="tabpanel" id="example-code-panel" aria-labelledby="example-code-tab" tabindex="0">
+        <pre><code class="language-yaml">{% sourceFile ".sfml/factory.sfml" %}</code></pre>
+      </div>
+      <div class="example-panel example-diagram" role="tabpanel" id="example-diagram-panel" aria-labelledby="example-diagram-tab" tabindex="0" hidden>
         <pre class="mermaid">
 {% sourceFile ".sfml/factory.mmd" %}
         </pre>
@@ -36,10 +42,36 @@ permalink: index.html
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/base16/default-dark.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/yaml.min.js"></script>
+<script>
+  const exampleTabs = [...document.querySelectorAll(".example-tab")];
+  for (const tab of exampleTabs) {
+    tab.addEventListener("click", () => {
+      for (const otherTab of exampleTabs) {
+        const active = otherTab === tab;
+        otherTab.setAttribute("aria-selected", String(active));
+        otherTab.tabIndex = active ? 0 : -1;
+        document.getElementById(otherTab.getAttribute("aria-controls")).hidden = !active;
+      }
+      tab.dispatchEvent(new Event("example-tab-shown"));
+    });
+    tab.addEventListener("keydown", (event) => {
+      const index = exampleTabs.indexOf(tab);
+      const next = event.key === "ArrowRight" ? index + 1
+        : event.key === "ArrowLeft" ? index - 1
+        : event.key === "Home" ? 0
+        : event.key === "End" ? exampleTabs.length - 1 : null;
+      if (next === null) return;
+      event.preventDefault();
+      const target = exampleTabs[(next + exampleTabs.length) % exampleTabs.length];
+      target.focus();
+      target.click();
+    });
+  }
+</script>
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
   mermaid.initialize({
-    startOnLoad: true,
+    startOnLoad: false,
     theme: "base",
     themeVariables: {
       fontFamily: "'Courier Prime', Courier, ui-monospace, monospace",
@@ -50,5 +82,15 @@ permalink: index.html
       background: "#f2eede",
     },
   });
+  const diagramTab = document.getElementById("example-diagram-tab");
+  const diagram = document.querySelector(".example-diagram .mermaid");
+  let diagramRendered = false;
+  async function renderDiagram() {
+    if (diagramRendered || diagramTab.getAttribute("aria-selected") !== "true") return;
+    diagramRendered = true;
+    await mermaid.run({ nodes: [diagram] });
+  }
+  diagramTab.addEventListener("example-tab-shown", renderDiagram);
+  renderDiagram();
   hljs.highlightAll();
 </script>
