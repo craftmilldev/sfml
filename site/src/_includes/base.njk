@@ -13,6 +13,40 @@
 <link rel="icon" href="/assets/favicon/favicon-32.png" type="image/png" sizes="32x32">
 <link rel="icon" href="/assets/favicon/favicon-512.png" type="image/png" sizes="512x512">
 <link rel="apple-touch-icon" href="/assets/favicon/apple-touch-icon.png">
+{% if posthog %}
+<script src="{{ posthog.scriptSrc }}"></script>
+<script>
+  const posthogConfig = {{ posthog.config | safe }};
+  posthog.init(posthogConfig.projectToken, {
+    api_host: posthogConfig.apiHost,
+    defaults: "2026-05-30",
+    capture_exceptions: {
+      capture_unhandled_errors: true,
+      capture_unhandled_rejections: true,
+      capture_console_errors: false,
+    },
+    logs: {
+      serviceName: "sfml-documentation-site",
+    },
+  });
+
+  const posthogLogs = posthog.logger;
+  posthogLogs.info("documentation page loaded", { page_type: "documentation" });
+
+  document.addEventListener("click", (event) => {
+    const link = event.target.closest("[data-posthog-event]");
+
+    if (link) {
+      posthog.capture(link.dataset.posthogEvent, {
+        link_location: link.dataset.posthogLinkLocation,
+      });
+      posthogLogs.info("github repository navigation requested", {
+        link_location: link.dataset.posthogLinkLocation,
+      });
+    }
+  });
+</script>
+{% endif %}
 </head>
 <body>
 

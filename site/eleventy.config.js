@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import matter from "gray-matter";
@@ -6,6 +6,8 @@ import MarkdownIt from "markdown-it";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, "..");
+const envPath = path.join(repoRoot, ".env");
+if (existsSync(envPath)) process.loadEnvFile(envPath);
 const contentDir = path.join(__dirname, "content");
 const md = new MarkdownIt({ html: false });
 // SPEC.md is the repo's own document, not site copy — rendered with the
@@ -21,6 +23,23 @@ function escapeHtml(text) {
 }
 
 export default function (eleventyConfig) {
+  const posthogProjectToken = process.env.POSTHOG_PROJECT_TOKEN;
+  const posthogHost = process.env.POSTHOG_HOST;
+
+  eleventyConfig.addGlobalData("posthog", () => {
+    if (!posthogProjectToken || !posthogHost) {
+      return null;
+    }
+
+    return {
+      scriptSrc: `${posthogHost.replace(".i.posthog.com", "-assets.i.posthog.com")}/static/array.js`,
+      config: JSON.stringify({
+        projectToken: posthogProjectToken,
+        apiHost: posthogHost,
+      }),
+    };
+  });
+
   eleventyConfig.addPassthroughCopy("src/styles.css");
   eleventyConfig.addPassthroughCopy("src/assets");
   eleventyConfig.addWatchTarget("content/home");

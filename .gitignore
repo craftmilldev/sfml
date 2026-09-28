@@ -2,3 +2,4 @@ node_modules/
 dist/
 .sfml/runs/
 .sfml/plan*.md
+.env
