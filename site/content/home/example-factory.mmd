@@ -1,0 +1,18 @@
+flowchart TD
+  __start__(("start"))
+  __start__ --> draft
+  draft["draft<br/>agent: claude-agent-sdk"]
+  review[/"review<br/>human: editor"/]
+  publish["publish<br/>agent: claude-agent-sdk"]
+  success(["success<br/>result: complete"])
+  draft --> review
+  review -->|"decision == 'revise'"| draft
+  review --> publish
+  publish --> success
+  classDef agentStep fill:#dbeafe,stroke:#1d4ed8,color:#1e3a8a;
+  classDef humanStep fill:#fef3c7,stroke:#b45309,color:#78350f;
+  classDef resultStep fill:#dcfce7,stroke:#15803d,color:#14532d;
+  class draft agentStep;
+  class review humanStep;
+  class publish agentStep;
+  class success resultStep;

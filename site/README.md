@@ -19,6 +19,14 @@ npm run start --prefix site   # local dev server with live reload
 `renderFile` shortcode), so the page always reflects the current spec — it is not duplicated
 into `site/`.
 
+The home page's copy lives in `site/content/home/*.md` (one file per section, with an
+`eyebrow` front-matter field for the small label above each heading), not in `index.njk` —
+edit those files to change the wording. `index.njk` pulls each one in with the `copy`
+shortcode (`eleventy.config.js`). The example factory's YAML and Mermaid diagram source live
+alongside them as plain `.sfml`/`.mmd` files and are pulled in verbatim with the `sourceFile`
+shortcode. `site/content/` sits outside Eleventy's `src/` input root so none of it gets built
+as its own page.
+
 The root `npm test` builds this site (`npm run build:site`) and checks the built output for
 the ticket's required content (`npm run check:site`), the same way it runs `example/`'s own
 suite via `npm run test:example`.
