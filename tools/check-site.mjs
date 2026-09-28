@@ -1,7 +1,6 @@
-// Guards the built site/_site/ output against silently dropping the ticket's required
-// elements (craftmilldev/sfml#22): the home page's links/framing, the spec page's rendered
-// tables, and llms.txt being reachable as plain Markdown with no .html extension. A build
-// that still succeeds but loses one of these should fail CI instead of shipping quietly.
+// Guards the built site/_site/ output against silently dropping the home page's
+// links/framing or the spec page's rendered tables. A build that still succeeds
+// but loses one of these should fail CI instead of shipping quietly.
 
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -23,7 +22,7 @@ const check = (label, ok) => {
 
 const index = read("index.html");
 check('index.html links to "/spec/"', /href="\/spec\/?"/.test(index));
-check('index.html links to "/llms.txt"', /href="\/llms\.txt"/.test(index));
+check('index.html has no link to "/llms.txt"', !/href="\/llms\.txt"/.test(index));
 check(
   "index.html identifies the example implementation",
   /example implementation/i.test(index),
@@ -43,10 +42,7 @@ for (const [label, location] of [
 const spec = read("spec/index.html");
 check("spec/index.html contains rendered <table> markup", /<table/i.test(spec));
 
-// existsSync above already confirms no .html suffix is needed to reach it (the path literally
-// asks for "llms.txt"); this just confirms the served bytes are Markdown, not an HTML wrapper.
-const llmsTxt = read("llms.txt");
-check("llms.txt is plain Markdown, not HTML", !/<html/i.test(llmsTxt) && llmsTxt.trimStart().startsWith("#"));
+check("llms.txt is not generated", !existsSync(join(site, "llms.txt")));
 
 if (failures.length) {
   console.error("site content check failed:");

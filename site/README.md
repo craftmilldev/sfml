@@ -1,7 +1,7 @@
 # SFML site (sfml.craftmill.dev)
 
-The promo/docs site for SFML: a home page explaining what SFML is and how to use it, `SPEC.md`
-rendered as HTML at `/spec/`, and `/llms.txt` for LLMs reading this project.
+The promo/docs site for SFML: a home page explaining what SFML is and how to use it, and
+`SPEC.md` rendered as HTML at `/spec/`.
 
 Built with [Eleventy](https://www.11ty.dev/) 3, matching the look of
 [craftmill.dev](https://github.com/craftmilldev/craftmill.dev) (paper/ink colors, Sorts Mill

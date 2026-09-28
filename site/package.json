@@ -4,7 +4,7 @@
   "type": "module",
   "description": "The SFML promo/docs site (sfml.craftmill.dev).",
   "scripts": {
-    "build": "eleventy",
+    "build": "node -e \"require('node:fs').rmSync('_site', { recursive: true, force: true })\" && eleventy",
     "start": "eleventy --serve"
   },
   "devDependencies": {

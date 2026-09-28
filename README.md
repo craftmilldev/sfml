@@ -11,7 +11,7 @@ The bet is that the factory graph will be defined in code and having a shared fo
 | [sfml.schema.json](sfml.schema.json) | JSON Schema (2020-12) for a factory document's surface syntax (SPEC Annex A). |
 | [conformance/](conformance/README.md) | The conformance suite (Annex B) and its file formats. |
 | [conformance/mock-harness.md](conformance/mock-harness.md) | The `mock` harness: the transcript format runner tests play back, sessions, and pricing. |
-| [site/](site/README.md) | The promo/docs site (`sfml.craftmill.dev`): home page, rendered spec, and `/llms.txt`. |
+| [site/](site/README.md) | The promo/docs site (`sfml.craftmill.dev`): home page and rendered spec. |
 
 ## Validating a factory
 
