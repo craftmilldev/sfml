@@ -16,8 +16,7 @@ From the repository root, lint the included factory, then run it with a GitHub t
 ```sh
 node example/dist/cli/sfml.js lint .sfml/factory.sfml
 node example/dist/cli/sfml.js run .sfml/factory.sfml \
-  --param ticket_url=https://github.com/craftmilldev/sfml/issues/13 \
-  --state .sfml/runs/first-run.json
+  --param ticket_url=<your_github_ticket>
 ```
 
 `lint` checks the factory without running it. `run` uses the Claude Agent SDK and saves progress to the state file, so you can resume if the factory pauses. See the <a href="https://github.com/craftmilldev/sfml/tree/main/example#cli" data-posthog-event="github_repository_visited" data-posthog-link-location="example_runner">example runner CLI guide</a> for the `resume` command and other options.
