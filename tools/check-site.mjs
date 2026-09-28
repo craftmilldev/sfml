@@ -27,17 +27,21 @@ check(
   "index.html identifies the example implementation",
   /example implementation/i.test(index),
 );
-for (const [label, location] of [
-  ["example implementation", "example_implementation"],
-  ["our example runner", "example_runner"],
+for (const [label, location, urlSuffix] of [
+  ["example implementation", "example_implementation", ""],
+  ["example runner CLI guide", "example_runner", "#cli"],
 ]) {
   const link = new RegExp(
-    `<a\\b(?=[^>]*href="https://github\\.com/craftmilldev/sfml/tree/main/example")` +
+    `<a\\b(?=[^>]*href="https://github\\.com/craftmilldev/sfml/tree/main/example${urlSuffix}")` +
       `(?=[^>]*data-posthog-event="github_repository_visited")` +
       `(?=[^>]*data-posthog-link-location="${location}")[^>]*>${label}<\\/a>`,
   );
   check(`index.html renders tracked ${label} link`, link.test(index));
 }
+check("how-to-use section appears before example", index.indexOf('class="hero how-to-use"') < index.indexOf('class="hero example"'));
+check("how-to-use section shows CLI install command", /npm install --prefix example/.test(index));
+check("how-to-use section shows CLI lint command", /node example\/dist\/cli\/sfml\.js lint \.sfml\/factory\.sfml/.test(index));
+check("how-to-use section shows CLI run command", /node example\/dist\/cli\/sfml\.js run \.sfml\/factory\.sfml/.test(index));
 
 const spec = read("spec/index.html");
 check("spec/index.html contains rendered <table> markup", /<table/i.test(spec));

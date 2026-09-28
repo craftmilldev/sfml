@@ -73,6 +73,10 @@ img{max-width:100%}
 .hero p+p{margin-top:12px}
 .hero h2{margin:28px 0 0;font-size:1.375rem;color:var(--ink-900)}
 
+/* CLI example */
+.how-to-use pre{margin:16px 0 0;padding:16px 20px;overflow-x:auto;border-radius:3px;background:var(--ink-900);color:var(--paper-100);font-size:.8125rem;line-height:1.6}
+.how-to-use pre code{font-family:var(--font-type)}
+
 /* Example factory section */
 .example-preview{margin-top:24px;border:1px solid var(--rule-hair);border-radius:3px;overflow:hidden}
 .example-tabs{display:flex;gap:4px;padding:8px 8px 0;background:var(--paper-100);border-bottom:1px solid var(--rule-hair)}
