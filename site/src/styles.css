@@ -106,8 +106,7 @@ img{max-width:100%}
 .post-body code{font-size:.9375rem}
 .post-body hr{margin:36px 0 0;border:0;border-top:1px solid var(--rule-hair)}
 
-/* SPEC.md's tables (Annex sections) are wide — let them break out of the 66ch measure */
-.spec-body{grid-template-columns:minmax(0,92ch)}
+/* SPEC.md's tables (Annex sections) */
 .spec-body table{margin:24px 0 0;width:100%;max-width:100%;border-collapse:collapse;font-size:.9375rem;display:block;overflow-x:auto;white-space:nowrap}
 .spec-body th,.spec-body td{padding:8px 14px 8px 0;text-align:left;border-bottom:1px solid var(--rule-hair);white-space:normal}
 .spec-body th{font-family:var(--font-type);font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-500)}

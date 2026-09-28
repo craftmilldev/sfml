@@ -15,9 +15,9 @@ npm run build --prefix site   # -> site/_site/
 npm run start --prefix site   # local dev server with live reload
 ```
 
-`site/src/spec.njk` renders the repo root's `SPEC.md` directly at build time (via Eleventy's
-`renderFile` shortcode), so the page always reflects the current spec — it is not duplicated
-into `site/`.
+`site/src/spec.njk` renders the repo root's `SPEC.md` directly at build time (via the `specDoc`
+shortcode, `eleventy.config.js`), so the page always reflects the current spec — it is read
+live from the repo root and never duplicated into `site/`.
 
 The home page's copy lives in `site/content/home/*.md` (one file per section, with an
 `eyebrow` front-matter field for the small label above each heading), not in `index.njk` —
