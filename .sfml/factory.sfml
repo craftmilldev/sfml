@@ -1,28 +1,3 @@
-# This project's own feature factory: turns a GitHub issue (or a comment on one, or on a
-# PR) into a reviewed, merged pull request.
-#
-# Adapted from https://github.com/mcwhittemore/blodget/blob/main/.blodget/factory.yaml,
-# blodget's own dogfooding pipeline, restated as SFML v0.1. Differences from that source
-# worth noting for anyone comparing the two:
-#   - blodget's separate `code_review` and `pr_review` steps collapse into one `ai_review`
-#     step here: `human_review` (see below) is what looks at the actual GitHub PR review,
-#     so the agent-side review here always means "review the diff on this branch,"
-#     whichever iteration it is.
-#   - `human_refine` and `human_review` mirror blodget's own two human steps: the first
-#     is reached only when Analyze has open questions and only ever loops back to
-#     Analyze; the second is reached only once a pull request is open and decides
-#     between more implementation work or merging.
-#   - blodget has no notion of iteration/budget ceilings (it bounds a review loop with its
-#     own `maxCrossings`); this file uses `max_iterations` (SPEC §9.6) for the same job,
-#     since every cycle in an SFML factory must be bounded (SPEC §8.5).
-#   - blodget's `{{ARG[0]}}` becomes the `ticket_url` parameter. There is no `plan_path`
-#     parameter: Analyze decides where it writes the plan and reports that path as part
-#     of its own result (`results.analyze.plan`), which is what every later step reads
-#     via its own `prompt_vars` — a parameter would have wrongly implied the caller
-#     supplies it (SPEC §6.3 — a prompt template can never reach `parameters` directly
-#     either, which is why every value a template needs is threaded through as a
-#     `prompt_vars` entry, not read inline).
-
 sfml: "v0.1"
 description: >
   Takes a GitHub ticket (issue, PR, or a comment on either) from analysis through
