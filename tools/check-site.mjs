@@ -28,6 +28,17 @@ check(
   "index.html identifies the example implementation",
   /example implementation/i.test(index),
 );
+for (const [label, location] of [
+  ["example implementation", "example_implementation"],
+  ["our example runner", "example_runner"],
+]) {
+  const link = new RegExp(
+    `<a\\b(?=[^>]*href="https://github\\.com/craftmilldev/sfml/tree/main/example")` +
+      `(?=[^>]*data-posthog-event="github_repository_visited")` +
+      `(?=[^>]*data-posthog-link-location="${location}")[^>]*>${label}<\\/a>`,
+  );
+  check(`index.html renders tracked ${label} link`, link.test(index));
+}
 
 const spec = read("spec/index.html");
 check("spec/index.html contains rendered <table> markup", /<table/i.test(spec));

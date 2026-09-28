@@ -9,10 +9,10 @@ const repoRoot = path.join(__dirname, "..");
 const envPath = path.join(repoRoot, ".env");
 if (existsSync(envPath)) process.loadEnvFile(envPath);
 const contentDir = path.join(__dirname, "content");
-const md = new MarkdownIt({ html: false });
-// SPEC.md is the repo's own document, not site copy — rendered with the
-// same `html: true` markdown-it default Eleventy's own `renderFile`
-// shortcode used, since it relies on being able to embed raw HTML.
+// Home page copy is maintained in this repository and includes tracked links
+// with data attributes, so its inline HTML must be rendered as markup.
+const md = new MarkdownIt({ html: true });
+// SPEC.md also embeds raw HTML.
 const specMd = new MarkdownIt({ html: true });
 
 function escapeHtml(text) {
