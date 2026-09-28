@@ -10,13 +10,6 @@ if (existsSync(posthogEnvPath)) process.loadEnvFile(posthogEnvPath);
 const posthogProjectToken = process.env.POSTHOG_PROJECT_TOKEN;
 const posthogHost = process.env.POSTHOG_HOST;
 
-if ((!posthogProjectToken || !posthogHost) && process.env.NODE_ENV !== "production") {
-  const missingVariable = posthogProjectToken ? "POSTHOG_HOST" : "POSTHOG_PROJECT_TOKEN";
-  throw new Error(
-    `${missingVariable} variable required by PostHog is missing or un-configured, this causes events to be silently missed. This error stops appearing once ${missingVariable} is configured`,
-  );
-}
-
 // This provider is deliberately local rather than registered globally: only the dedicated logger
 // below uses it, so existing CLI and dependency logging remains in its current outputs.
 const loggerProvider =
