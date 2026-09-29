@@ -59,7 +59,7 @@ SFML does not define:
 - A scheduler. SFML describes a run once it exists; what starts a run — a webhook, a cron job, a
   person — is out of scope.
 - A general-purpose computation model. The expression language (clause 7) has no user-defined
-  functions and no arithmetic on step results; a factory that needs logic expresses it as a step.
+  functions or arithmetic on step results; a factory that needs logic expresses it as a step.
 - Sub-factory composition. `type: factory` is not a value this version of the data model (§6.4)
   accepts; a future version may assign it a meaning.
 - A workspace format. Repository, branch, worktree, and what an agent may read or write are bound
@@ -162,8 +162,8 @@ reader of a binary format rejects a byte sequence that maps to no known structur
 a document whose bytes are not valid UTF-8, whose syntax is not valid YAML, that has a duplicate
 key, that has a field this specification does not define at that position, that lacks a required
 field, or that has a value not of its field's declared type (§4.3). A Parser treats an expression
-and a prompt template as opaque strings, does not resolve one name in the document against
-another, and reads no file but the document itself.
+and a prompt template as opaque strings: it does not resolve one name in the document against
+another, and it reads only the document itself.
 
 #### 4.1.2 Linter
 
@@ -412,7 +412,7 @@ A `human` step blocks its branch (§11.1) until a caller supplies a payload vali
   treats an unassigned human step as falling back to the factory-level `assignee` (§6.2, §6.11).
 - `instructions`, where present, is a `FactoryState Expression` evaluated to produce the content
   shown to whoever performs the step.
-- A human step has no timeout, no escalation, and no failure mode of its own (§11.1). It either
+- A human step has no timeout or escalation, and no failure mode of its own (§11.1). It either
   resumes with input that validates against `result_schema`, or it continues to wait; an input that
   does not validate is rejected at the call (§11.5) and the branch remains `awaiting_input`.
 - `max_iterations`, where present, bounds the number of iterations of the step (§9.6); a human
@@ -427,8 +427,8 @@ concurrently, and joins once every child has produced a result.
 | ------- | -------------------- | -------- |
 | `steps` | Record<Name, Step>    | yes      |
 
-- A child MUST be a single `agent` or `human` step. A child MUST NOT declare `next`: a child cannot
-  route, so a region contains no internal edges. A child MUST NOT itself be `type: parallel`.
+- A child MUST be a single `agent` or `human` step. A child MUST NOT declare `next` — a child cannot
+  route, so a region contains no internal edges — and MUST NOT itself be `type: parallel`.
 - The join is `all`, implicitly, and the join is the `parallel` step itself.
 - Control enters at the `parallel` step and leaves only through its own `next` (§6.9); this is the
   region's single entry and single exit.
@@ -476,7 +476,7 @@ A `Connection` is one entry of a step's `next` list.
   absent or evaluates true is taken.
 - Routing MUST be total: the last connection of every non-`result` step MUST omit `when`, so that
   step always has somewhere to go. A conforming Linter MUST enforce this (§8.3).
-- Every connection is a success edge. There is no `on_error` and no `on_timeout` field; a step
+- Every connection is a success edge. There is no `on_error` or `on_timeout` field; a step
   failure is an exception (clause 10), never a route.
 
 ### 6.10 Retry
@@ -516,7 +516,7 @@ mechanism SFML uses to resolve, notify, or route to anyone.
 `harness`, REQUIRED on an `agent` step, is a String of the form `<name>[@<version>]` naming the
 harness that executes the step. Resolution of `<name>` and `<version>` to an executable harness is
 implementation-defined, except that resolution MUST be deterministic for a given implementation and
-configuration. Where a step's `harness` does not resolve to an executable harness, a run using that
+configuration. Where a step's `harness` fails to resolve this way, a run using that
 step MUST NOT be started; an implementation MUST reject it at admission (§9.1).
 
 `harness_config` is an OPTIONAL record of harness-defined keys and values, passed through to the
@@ -710,9 +710,8 @@ exposes without evaluating the expression. None of them require evaluating the e
 and none require more of a CEL implementation than parsing to an AST already does.
 
 - An unknown parameter name — `parameters.<name>` where `<name>` is not declared in the factory's
-  `parameters` — is a hard error, for the same reason as an unknown step name below.
-- An unknown step name — `results.<name>` where `<name>` is not declared in `steps` — is a hard
-  error.
+  `parameters` — and an unknown step name — `results.<name>` where `<name>` is not declared in
+  `steps` — are both hard errors, for the same reason.
 - A reference is checked by reachability, not by ancestry. A reference from step `Y` to
   `results.X` is legal if and only if some path `X → … → Y` exists in the graph, following loop-back
   edges.
@@ -775,8 +774,8 @@ An implementation MAY perform additional checks of its own at admission — for 
 `assignee` (§6.11) or against its own identity system — but this specification imposes none beyond
 the two above.
 
-A run rejected at admission has no run id, no recorded results, and raises no exception class of
-clause 10; rejection at admission is distinct from, and precedes, everything clause 10 describes.
+A run rejected at admission has neither a run id nor recorded results, and raises no exception class
+of clause 10; rejection at admission is distinct from, and precedes, everything clause 10 describes.
 
 ### 9.2 FactoryState
 
@@ -1190,7 +1189,7 @@ and the same attempt counts as an uninterrupted run would have produced from the
 the same equivalence guarantee. `last_result` (§9.2) at each step follows from the same `results`
 and the same routing decisions, so it is covered by this equivalence without a separate guarantee.
 
-This is the whole of what this specification requires of a run's recorded history. What else an
+This specification requires nothing more of a run's recorded history than this equivalence. What else an
 implementation records — observability of individual attempts, provenance of a caller-supplied
 result (§10.4), who owns a run and whether that can change — is a property of the implementation's
 own operational tooling, not of the SFML file format this specification defines, and this
@@ -1229,8 +1228,8 @@ The conformance test suite is the `conformance/` directory of this repository, o
 top-level category per conformance class (§4.1): `parser/` for the Parser rules of
 §4.3, `lint/` for the Linter rules of §4.3, and `runner/` for the execution-model behavior
 of clauses 9–11. Each holds one subdirectory per case, and an implementation conforms with respect
-to a given class once its test suite passes every case in that class's directory — a Linter need
-not pass `runner/`, but a Runner MUST pass `parser/` and `lint/` as well as `runner/`, per §4.1.3.
+to a given class once its test suite passes every case in that class's directory. A Linter need
+not pass `runner/`; a Runner, however, MUST pass `parser/` and `lint/` as well as `runner/`, per §4.1.3.
 
 A case's directory supplies: the SFML file (or, for `parser/`, the raw document) under test, valid
 or invalid as the case requires, and any prompt files its agent steps name; for a `lint/` case, the diagnostic identifier (§8.7) it MUST raise,
@@ -1246,4 +1245,4 @@ exact file formats are documented in `conformance/README.md`, not in this docume
 The worked example lives in `example/`, not in this document and not in `conformance/`: it is
 maintained separately so it can prioritize being a clear, readable factory over being an exhaustive
 conformance case. It runs on the mock harness of Annex B. This annex is informative; nothing in
-`example/` is itself normative, though the clauses it illustrates are.
+`example/` is itself normative, though the clauses it illustrates remain normative.
