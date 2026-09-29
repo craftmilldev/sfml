@@ -30,20 +30,20 @@ calls a model, or what tools it gives that model.
 
 ### 1.1 What SFML defines
 
-SFML defines:
+This version defines the following.
 
 - The document format of a factory file, including its encoding, name and identifier rules, and the
   handling of unknown and reserved keys (clause 5).
-- The data model of a factory: its top-level fields, its step types, connections, the expression
-  language used inside them, and the values a running factory exposes to expressions and prompt
-  templates (clauses 6–7).
+- The data model of a factory, comprising its top-level fields, step types, and connections, plus
+  the expression language used inside them and the values a running factory exposes to expressions
+  and prompt templates (clauses 6–7).
 - The static validity of a factory graph and the diagnostics a linter must produce (clause 8).
-- The execution model: how a run is admitted, how state accumulates, how routing is evaluated, and
-  where the boundary between deterministic control flow and nondeterministic agent output falls
-  (clause 9).
+- The execution model, spanning how a run is admitted, how state accumulates, and how routing is
+  evaluated, together with where the boundary between deterministic control flow and
+  nondeterministic agent output falls (clause 9).
 - A closed set of exception classes a run can raise, and which of them are retryable (clause 10).
-- The pause-and-resume contract: branch states, resume addressing, and the payload each blocked
-  state accepts (clause 11).
+- The pause-and-resume contract, covering branch states and resume addressing, along with the
+  payload each blocked state accepts (clause 11).
 - That a run and its branches are resumable, after process death or a human-shaped pause, to a
   state provably equivalent to an uninterrupted run's (clause 12).
 - The version identifier, compatibility policy, and extension points a factory file may rely on
@@ -51,7 +51,7 @@ SFML defines:
 
 ### 1.2 What SFML does not define
 
-SFML does not define:
+This version leaves the following out of scope.
 
 - An agent framework. Tool definitions, memory, and context management belong to the harness a step
   names, not to this document. A factory file MAY track that a step used one of these, as free text
@@ -133,8 +133,8 @@ The person or persons, or the system, that writes a factory file.
 #### 3.3.2 Caller
 
 The person or system that starts a run, supplying the values bound to `parameters` (§6.3), or that
-resumes a blocked run: supplying a human step's result, granting additional iterations or budget, or
-supplying a caller-authored result in place of a wedged agent step (§11.4). This specification does
+resumes a blocked run by supplying a human step's result, granting additional iterations or budget,
+or supplying a caller-authored result in place of a wedged agent step (§11.4). This specification does
 not distinguish whoever starts a run from whoever later resumes one; both act through the same
 addressed calls (§9.1, §11.3), and a conforming implementation MAY apply its own access control to
 either without SFML's involvement.
@@ -282,8 +282,8 @@ unique within its own `parallel` step; two different `parallel` steps may each d
 ### 5.4 Unknown fields
 
 An implementation MUST reject a document containing a field not defined by this specification, at
-every level of the data model: the factory's top level, every step, every connection, and every
-nested object this specification defines. This is a hard error, not a warning, and it applies
+every level of the data model, including the factory's top level, every step, every connection, and
+every nested object this specification defines. This is a hard error, not a warning, and it applies
 regardless of whether the unrecognized field's name resembles a future or vendor-specific extension.
 
 ### 5.6 Duplicate keys
@@ -412,7 +412,7 @@ A `human` step blocks its branch (§11.1) until a caller supplies a payload vali
   treats an unassigned human step as falling back to the factory-level `assignee` (§6.2, §6.11).
 - `instructions`, where present, is a `FactoryState Expression` evaluated to produce the content
   shown to whoever performs the step.
-- A human step has no timeout or escalation, and no failure mode of its own (§11.1). It either
+- A human step is not subject to a timeout, an escalation, or a failure mode of its own (§11.1). It either
   resumes with input that validates against `result_schema`, or it continues to wait; an input that
   does not validate is rejected at the call (§11.5) and the branch remains `awaiting_input`.
 - `max_iterations`, where present, bounds the number of iterations of the step (§9.6); a human
@@ -621,8 +621,8 @@ UTF-8, independent of the factory document's own encoding (§5.1), so that the d
 unambiguous.
 
 A placeholder in a prompt template (§3.2.7) is delimited by two consecutive `«` characters
-(U+00AB LEFT-POINTING DOUBLE ANGLE QUOTATION MARK, doubled) and closed by two consecutive `»`
-characters (U+00BB RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK, doubled) — `««` and `»»`, never a
+(U+00AB LEFT-POINTING DOUBLE ANGLE QUOTATION MARK) and closed by two consecutive `»` characters
+(U+00BB RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK) — `««` and `»»`, each doubled, never a
 single guillemet. A single `«` or `»`, anywhere it appears, is ordinary literal text and MUST NOT be
 treated as part of a placeholder; only the doubled pair opens or closes one.
 
@@ -936,7 +936,7 @@ would be wrong for the next harness bound to it.
 
 - The harness classifies. A conforming harness MUST report, with each failure, whether it is
   retryable, and MAY additionally state a backoff. A rate limit is an example of a retryable
-  failure; invalid credentials or a malformed `harness_config` is an example of one that is not.
+  failure; invalid credentials or a malformed `harness_config` exemplifies one that is not.
 - `retry` (§6.10) supplies the maximum number of attempts; the harness supplies the retryability
   judgment and, where it states one, the backoff. Retry applies only to a failure the harness has
   marked retryable.
@@ -952,9 +952,9 @@ would be wrong for the next harness bound to it.
 
 `schema_violation` applies only to `agent` steps, even though `result_schema` is also declared on
 `human` steps. A human step's payload is instead validated when a resume arrives, and an invalid
-payload is rejected at the call (§11.5): the resume fails, the step remains `awaiting_input`, and
-nothing is appended. There is no failed attempt to record and no exception to resume from in this
-case, because the run never left the state it was already in.
+payload is rejected at the call (§11.5), so the resume fails, the step remains `awaiting_input`, and
+nothing is appended. There is neither a failed attempt to record nor an exception to resume from in
+this case, because the run never left the state it was already in.
 
 How a harness turns an agent's output into the value validated against `result_schema` (a native
 structured-output feature, parsing a fenced block out of the agent's final text, or any other
@@ -1053,8 +1053,8 @@ except while control is inside a `parallel` step, where it has one per child (§
 branch is `running`, `awaiting_input`, `errored`, or `done`.
 
 - A branch is `awaiting_input` at a `human` step that has not yet been resumed.
-- A branch is `errored` where an exception of any class in clause 10 has been raised and not yet
-  resolved by a resume.
+- An exception of any class in clause 10, raised and not yet resolved by a resume, leaves a branch
+  `errored`.
 - `awaiting_input` and `errored` are both **blocked**: the branch is stopped, and it advances only
   on a resume (§11.3). For every exception class but one, nothing has been appended to `results` for
   that entry. The one exception is `routing_error` (§10.8): there, the step's own `StepResult` was
@@ -1077,8 +1077,8 @@ that already produced a result before the region stopped keeps its own `done` br
 A run's status is derived, never stored independently of its branches:
 
 1. `running`, if any branch is `running`.
-2. Otherwise `errored`, if any branch is `errored`.
-3. Otherwise `awaiting_input`, if any branch is `awaiting_input`.
+2. Otherwise `errored`, if any branch has that status.
+3. Otherwise `awaiting_input`, if any branch does.
 4. Otherwise terminal, once a `result` step has been reached (§9.10).
 
 ### 11.3 Resume address
@@ -1112,7 +1112,7 @@ value the automatic path would otherwise have produced: `schema_violation` (§10
 of re-attempting. `routing_error` (§10.8) is the one exception: since the step's own result already
 exists by the time it is raised, its override is a routing decision, not a result. `iteration_limit`
 and `budget_exceeded` are different again — they take a grant, not a substitute value, since what is
-missing is not a result but permission to keep spending (§10.5, §10.6). A caller can tell which
+missing is permission to keep spending, not a result (§10.5, §10.6). A caller can tell which
 shape a given `errored` branch expects from its exception class alone, without inspecting the run's
 history for context.
 
@@ -1231,7 +1231,7 @@ of clauses 9–11. Each holds one subdirectory per case, and an implementation c
 to a given class once its test suite passes every case in that class's directory. A Linter need
 not pass `runner/`; a Runner, however, MUST pass `parser/` and `lint/` as well as `runner/`, per §4.1.3.
 
-A case's directory supplies: the SFML file (or, for `parser/`, the raw document) under test, valid
+A case's directory includes the SFML file (or, for `parser/`, the raw document) under test, valid
 or invalid as the case requires, and any prompt files its agent steps name; for a `lint/` case, the diagnostic identifier (§8.7) it MUST raise,
 if any; for a `runner/` case, the `FactoryState` (§9.2) the case MUST produce, and a result file
 stating whether the case is expected to succeed or to raise a named exception (clause 10); and,
