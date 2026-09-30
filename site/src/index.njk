@@ -24,8 +24,8 @@ permalink: index.html
     {% copy "home/example-intro.md" %}
     <div class="example-preview">
       <div class="example-tabs" role="tablist" aria-label="Factory preview">
-        <button class="example-tab" type="button" role="tab" id="example-code-tab" aria-controls="example-code-panel" aria-selected="true" tabindex="0">Code</button>
-        <button class="example-tab" type="button" role="tab" id="example-diagram-tab" aria-controls="example-diagram-panel" aria-selected="false" tabindex="-1">Mermaid diagram</button>
+        <button class="example-tab" type="button" role="tab" id="example-code-tab" data-posthog-event="example_tab_selected" data-posthog-link-location="code" aria-controls="example-code-panel" aria-selected="true" tabindex="0">Code</button>
+        <button class="example-tab" type="button" role="tab" id="example-diagram-tab" data-posthog-event="example_tab_selected" data-posthog-link-location="mermaid_diagram" aria-controls="example-diagram-panel" aria-selected="false" tabindex="-1">Mermaid diagram</button>
       </div>
       <div class="example-panel example-code" role="tabpanel" id="example-code-panel" aria-labelledby="example-code-tab" tabindex="0">
         <pre><code class="language-yaml">{% sourceFile ".sfml/factory.sfml" %}</code></pre>
