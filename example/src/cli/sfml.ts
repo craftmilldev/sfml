@@ -154,6 +154,28 @@ export function payloadHint(entry: BlockedEntry, resultSchema?: JsonSchema): str
   }
 }
 
+/** The `--payload` example to show in a copy-pasteable `sfml resume` command, or `undefined` when
+ * this blocked state accepts a resume with no --payload at all (SPEC §11.4/§11.5) -- in which case
+ * the example command should omit the flag rather than imply an empty object is required. When a
+ * payload IS required, the example uses an obvious placeholder rather than a valid, copy-pasteable
+ * empty object, so it reads as "fill this in" rather than "run me as-is" (issue #38). */
+export function payloadExample(entry: BlockedEntry): string | undefined {
+  if (entry.state === "awaiting_input") return "<json matching result_schema>";
+  switch (entry.exception) {
+    case "iteration_limit":
+      return "<integer: additional iterations>";
+    case "budget_exceeded":
+      return "<USD amount, e.g. 5.00>";
+    case "harness_error":
+    case "schema_violation":
+    case "expression_error":
+    case "routing_error":
+      return undefined;
+    default:
+      return "<json>";
+  }
+}
+
 /** Human-first report of a non-terminal (blocked) observation, per issue #27: what's wrong, what a
  * human step wants, what payload shape a resume accepts, and the exact command to run next. Written
  * to stderr -- stdout stays reserved for the machine-readable JSON of a terminal observation. */
@@ -177,7 +199,14 @@ export function reportBlocked(
       if (entry.message) w(`    context: ${entry.message}\n`);
     }
     w(`    resume payload: ${payloadHint(entry, resultSchema)}\n`);
-    w(`    sfml resume ${factoryPath} ${resumeIdArgs.join(" ")} --step ${entry.step} --payload '{}'\n\n`);
+    const example = payloadExample(entry);
+    const cmd = `sfml resume ${factoryPath} ${resumeIdArgs.join(" ")} --step ${entry.step}`;
+    if (example === undefined) {
+      w(`    ${cmd}\n`);
+      w(`    (--payload is optional here; add --payload '<json>' to supply the result/route directly instead of retrying)\n\n`);
+    } else {
+      w(`    ${cmd} --payload '${example}'\n\n`);
+    }
   }
 }
 
