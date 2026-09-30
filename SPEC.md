@@ -621,8 +621,7 @@ UTF-8, independent of the factory document's own encoding (§5.1), so that the d
 unambiguous.
 
 A placeholder in a prompt template (§3.2.7) is delimited by two consecutive `«` characters
-(U+00AB LEFT-POINTING DOUBLE ANGLE QUOTATION MARK) and closed by two consecutive `»` characters
-(U+00BB RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK) — `««` and `»»`, each doubled, never a
+(U+00AB) and closed by two consecutive `»` characters (U+00BB) — `««` and `»»`, each doubled, never a
 single guillemet. A single `«` or `»`, anywhere it appears, is ordinary literal text and MUST NOT be
 treated as part of a placeholder; only the doubled pair opens or closes one.
 
@@ -1078,7 +1077,7 @@ A run's status is derived, never stored independently of its branches:
 
 1. `running`, if any branch is `running`.
 2. Otherwise `errored`, if any branch has that status.
-3. Otherwise `awaiting_input`, if any branch does.
+3. Otherwise `awaiting_input`, if any branch is waiting on input.
 4. Otherwise terminal, once a `result` step has been reached (§9.10).
 
 ### 11.3 Resume address
