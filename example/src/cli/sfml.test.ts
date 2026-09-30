@@ -173,7 +173,7 @@ test("reportBlocked: routing_error's example command also omits --payload (accep
   };
   const out = captureStderr(() => reportBlocked(observation, factory, "f.sfml", ["--run", "abc-123"]));
   assert.match(out, /sfml resume f\.sfml --run abc-123 --step review\n/);
-  assert.match(out, /\(--payload is optional here; add --payload '<json>' to supply the result\/route directly instead of retrying\)/);
+  assert.match(out, /\(--payload is optional here; add --payload '"stepName"' to route directly instead of retrying\)/);
 });
 
 test("reportBlocked: expression_error on a result step has no result_schema to show", () => {

@@ -161,6 +161,7 @@ export function payloadHint(entry: BlockedEntry, resultSchema?: JsonSchema): str
  * empty object, so it reads as "fill this in" rather than "run me as-is" (issue #38). */
 export function payloadExample(entry: BlockedEntry): string | undefined {
   if (entry.state === "awaiting_input") return "<json matching result_schema>";
+  if (entry.exception === undefined) throw new Error("errored BlockedEntry missing exception");
   switch (entry.exception) {
     case "iteration_limit":
       return "<integer: additional iterations>";
@@ -171,9 +172,22 @@ export function payloadExample(entry: BlockedEntry): string | undefined {
     case "expression_error":
     case "routing_error":
       return undefined;
-    default:
-      return "<json>";
+    default: {
+      const exhaustive: never = entry.exception;
+      throw new Error(`unhandled exception class: ${exhaustive}`);
+    }
   }
+}
+
+/** Note shown under an example command when `payloadExample` returns `undefined` -- i.e. this
+ * blocked state accepts a resume with no --payload. routing_error's accepted payload is a bare
+ * StepName (not JSON), so it needs its own wording rather than the generic '<json>' placeholder
+ * that fits the other optional-payload classes (issue #38 review). */
+function payloadOptionalNote(entry: BlockedEntry): string {
+  if (entry.exception === "routing_error") {
+    return "(--payload is optional here; add --payload '\"stepName\"' to route directly instead of retrying)";
+  }
+  return "(--payload is optional here; add --payload '<json>' to supply the result/route directly instead of retrying)";
 }
 
 /** Human-first report of a non-terminal (blocked) observation, per issue #27: what's wrong, what a
@@ -203,7 +217,7 @@ export function reportBlocked(
     const cmd = `sfml resume ${factoryPath} ${resumeIdArgs.join(" ")} --step ${entry.step}`;
     if (example === undefined) {
       w(`    ${cmd}\n`);
-      w(`    (--payload is optional here; add --payload '<json>' to supply the result/route directly instead of retrying)\n\n`);
+      w(`    ${payloadOptionalNote(entry)}\n\n`);
     } else {
       w(`    ${cmd} --payload '${example}'\n\n`);
     }
