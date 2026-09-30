@@ -10,4 +10,4 @@ SFML should do for your agentic coding processes what Terraform did for your clo
 
 SFML is currently at v0.1 and is looking for collaborators to help improve on the idea.
 
-[Check out the specification](./spec) and [provide feedback](https://github.com/craftmilldev/sfml/issues).
+<a href="/spec/" data-posthog-event="spec_page_visited" data-posthog-link-location="home_intro">Check out the specification</a> and <a href="https://github.com/craftmilldev/sfml/issues" data-posthog-event="github_repository_visited" data-posthog-link-location="feedback_issues">provide feedback</a>.

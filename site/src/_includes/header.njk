@@ -8,8 +8,8 @@
 </header>
 
 <nav class="nav">
-  <a href="/"{% if current == "home" %} class="current"{% endif %}>Home</a>
-  <a href="/spec/"{% if current == "spec" %} class="current"{% endif %}>Spec</a>
+  <a href="/"{% if current == "home" %} class="current"{% endif %} data-posthog-event="home_page_visited" data-posthog-link-location="navigation">Home</a>
+  <a href="/spec/"{% if current == "spec" %} class="current"{% endif %} data-posthog-event="spec_page_visited" data-posthog-link-location="navigation">Spec</a>
   <span class="nav-spacer"></span>
   <a href="https://github.com/craftmilldev/sfml" data-posthog-event="github_repository_visited" data-posthog-link-location="navigation">GitHub</a>
 </nav>

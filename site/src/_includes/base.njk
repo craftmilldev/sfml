@@ -39,8 +39,10 @@
     if (link) {
       posthog.capture(link.dataset.posthogEvent, {
         link_location: link.dataset.posthogLinkLocation,
+        page_path: window.location.pathname,
       });
-      posthogLogs.info("github repository navigation requested", {
+      posthogLogs.info("tracked element clicked", {
+        event: link.dataset.posthogEvent,
         link_location: link.dataset.posthogLinkLocation,
       });
     }
