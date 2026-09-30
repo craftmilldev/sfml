@@ -6,7 +6,6 @@ The bet is that the factory graph will be defined in code and having a shared fo
 
 | Document           | What it is                                                     |
 | ------------------ | -------------------------------------------------------------- |
-| [PRD.md](PRD.md)   | What SFML must do and what has been decided.    |
 | [SPEC.md](SPEC.md) | The specification. |
 | [sfml.schema.json](sfml.schema.json) | JSON Schema (2020-12) for a factory document's surface syntax (SPEC Annex A). |
 | [conformance/](conformance/README.md) | The conformance suite (Annex B) and its file formats. |
