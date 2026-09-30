@@ -1,28 +1,19 @@
 # Software Factory Markup Language (SFML)
 
-**Version:** v0.1 **Status:** Draft **License:** MIT
+**Version:** v0.1 - **Status:** Draft - **License:** MIT
 
 ---
 
-## Foreword
-
-This document has no known essential patent claims against it. "Software Factory Markup Language"
-and "SFML" are used here as descriptive names, not asserted as trade names. This is a draft: clause
-numbering, examples, and normative wording are subject to change before v0.1 is tagged, and any such
-change will be recorded in the repository's history rather than made silently. Feedback on this
-draft should be submitted against the repository that hosts it. No warranty of any kind is made
-about this document or the conformance of any implementation of it; see the accompanying license
-for the applicable disclaimer of liability.
-
 ## Introduction
 
-A software factory is a durable, resumable, mostly-autonomous pipeline that turns an intent, such as
-an issue to implement, into a reviewed artifact. SFML is the file format that describes one: a graph
-of steps connected by routing that an author writes down, a linter can check, and a team can share.
+SFML is an open standard for defining how agents and humans interact. Sometimes we call this
+a software factory. At its core, SFML is a graph of steps where each step is a human or agentic
+process. SFML graphs support loops and deeply constrain branching to ensure input state to any
+step is perceivable via a simple reading of the graph. 
 
-The graph is defined separately from the agent runtime that executes it. A step that calls an agent
-names a harness and hands it configuration, but SFML does not describe what the harness does, how it
-calls a model, or what tools it gives that model.
+Part of the motivation of SFML is to separate orchestration of process from agent runtime while
+also providing organizations a reviewable artifact so that individual, team and company processes
+and be reviewed and improved. 
 
 ---
 
