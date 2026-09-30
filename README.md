@@ -50,4 +50,4 @@ Pre-draft. Nothing here is stable.
 MIT — see [LICENSE](LICENSE).
 
 Specification text is expected to move to the
-[Community Specification License 1.0](https://github.com/CommunitySpecification/1.0) if this project gain traction.
+[Community Specification License 1.0](https://github.com/CommunitySpecification/1.0) if this project gains traction.
