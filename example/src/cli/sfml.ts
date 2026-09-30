@@ -281,7 +281,15 @@ async function main(): Promise<void> {
   const step = flags.get("step")?.[0];
   if (!step) usage();
   const hasPayload = flags.has("payload");
-  const payload = hasPayload ? JSON.parse(flags.get("payload")![0]!) : undefined;
+  let payload: unknown;
+  if (hasPayload) {
+    try {
+      payload = JSON.parse(flags.get("payload")![0]!);
+    } catch {
+      process.stderr.write("the --payload value must be valid JSON -- did you mean to fill in the placeholder shown in the resume hint?\n");
+      process.exit(1);
+    }
+  }
 
   const state = deserializeRunState(JSON.parse(readFileSync(statePath, "utf8")));
   const engine = new Engine(parsed.factory, harnesses, state, logEvent, baseDir);

@@ -165,6 +165,17 @@ test("reportBlocked: errored schema_violation/harness_error include the step's r
   assert.match(out, /\(--payload is optional here; add --payload '<json>' to supply the result\/route directly instead of retrying\)/);
 });
 
+test("reportBlocked: routing_error's example command also omits --payload (accepted payload is a bare StepName, not JSON)", () => {
+  const observation: Observation = {
+    status: "errored",
+    blocked: [{ step: "review", state: "errored", exception: "routing_error", message: "no `next` clause matched" }],
+    state,
+  };
+  const out = captureStderr(() => reportBlocked(observation, factory, "f.sfml", ["--run", "abc-123"]));
+  assert.match(out, /sfml resume f\.sfml --run abc-123 --step review\n/);
+  assert.match(out, /\(--payload is optional here; add --payload '<json>' to supply the result\/route directly instead of retrying\)/);
+});
+
 test("reportBlocked: expression_error on a result step has no result_schema to show", () => {
   const observation: Observation = {
     status: "errored",
@@ -315,6 +326,25 @@ test("integration: resume with a payload that fails validation is rejected and s
     assert.equal(resumeResult.status, 0);
     const printed = JSON.parse(resumeResult.stdout) as Observation;
     assert.equal(printed.status, "terminal");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// Regression for issue #38: a user who copy-pastes the printed example command verbatim, including
+// the deliberately-invalid `<json matching result_schema>` placeholder, must get a clean rejection --
+// not an uncaught JSON.parse SyntaxError with a stack trace dumped to stderr.
+test("integration: resume --payload given the literal placeholder text is a clean error, not an uncaught crash", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sfml-cli-test-"));
+  try {
+    const factoryPath = writeHumanFactory(dir, ["review"]);
+    const statePath = join(dir, "run.json");
+    runThenBlock(factoryPath, dir, statePath);
+
+    const result = runCli(["resume", factoryPath, "--state", statePath, "--step", "review", "--payload", "<json matching result_schema>"], dir);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /--payload value must be valid JSON/);
+    assert.ok(!result.stderr.includes("SyntaxError"), "must not leak a raw JSON.parse stack trace");
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
