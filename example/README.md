@@ -1,4 +1,4 @@
-# SFML worked example (SPEC Annex C)
+# SFML worked example
 
 This is the worked example SPEC.md's Annex C points to, and — since it also implements a Parser,
 Linter, and Runner and passes `conformance/` (Annex B) — a conformance case for this repository's own
