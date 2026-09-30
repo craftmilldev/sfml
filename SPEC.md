@@ -11,7 +11,7 @@ a software factory. At its core, SFML is a graph of steps where each step is a h
 process. SFML graphs support loops and deeply constrain branching to ensure input state to any
 step is perceivable via a simple reading of the graph. 
 
-Part of the motivation of SFML is to separate orchestration of process from agent runtime while
+The motivation behind SFML is to separate orchestration of process from agent runtime while
 also providing organizations a reviewable artifact so that individual, team and company processes
 and be reviewed and improved. 
 
