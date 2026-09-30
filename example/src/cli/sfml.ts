@@ -154,6 +154,42 @@ export function payloadHint(entry: BlockedEntry, resultSchema?: JsonSchema): str
   }
 }
 
+/** The `--payload` example to show in a copy-pasteable `sfml resume` command, or `undefined` when
+ * this blocked state accepts a resume with no --payload at all (SPEC §11.4/§11.5) -- in which case
+ * the example command should omit the flag rather than imply an empty object is required. When a
+ * payload IS required, the example uses an obvious placeholder rather than a valid, copy-pasteable
+ * empty object, so it reads as "fill this in" rather than "run me as-is" (issue #38). */
+export function payloadExample(entry: BlockedEntry): string | undefined {
+  if (entry.state === "awaiting_input") return "<json matching result_schema>";
+  if (entry.exception === undefined) throw new Error("errored BlockedEntry missing exception");
+  switch (entry.exception) {
+    case "iteration_limit":
+      return "<integer: additional iterations>";
+    case "budget_exceeded":
+      return "<USD amount, e.g. 5.00>";
+    case "harness_error":
+    case "schema_violation":
+    case "expression_error":
+    case "routing_error":
+      return undefined;
+    default: {
+      const exhaustive: never = entry.exception;
+      throw new Error(`unhandled exception class: ${exhaustive}`);
+    }
+  }
+}
+
+/** Note shown under an example command when `payloadExample` returns `undefined` -- i.e. this
+ * blocked state accepts a resume with no --payload. routing_error's accepted payload is a bare
+ * StepName (not JSON), so it needs its own wording rather than the generic '<json>' placeholder
+ * that fits the other optional-payload classes (issue #38 review). */
+function payloadOptionalNote(entry: BlockedEntry): string {
+  if (entry.exception === "routing_error") {
+    return "(--payload is optional here; add --payload '\"stepName\"' to route directly instead of retrying)";
+  }
+  return "(--payload is optional here; add --payload '<json>' to supply the result directly instead of retrying)";
+}
+
 /** Human-first report of a non-terminal (blocked) observation, per issue #27: what's wrong, what a
  * human step wants, what payload shape a resume accepts, and the exact command to run next. Written
  * to stderr -- stdout stays reserved for the machine-readable JSON of a terminal observation. */
@@ -177,7 +213,14 @@ export function reportBlocked(
       if (entry.message) w(`    context: ${entry.message}\n`);
     }
     w(`    resume payload: ${payloadHint(entry, resultSchema)}\n`);
-    w(`    sfml resume ${factoryPath} ${resumeIdArgs.join(" ")} --step ${entry.step} --payload '{}'\n\n`);
+    const example = payloadExample(entry);
+    const cmd = `sfml resume ${factoryPath} ${resumeIdArgs.join(" ")} --step ${entry.step}`;
+    if (example === undefined) {
+      w(`    ${cmd}\n`);
+      w(`    ${payloadOptionalNote(entry)}\n\n`);
+    } else {
+      w(`    ${cmd} --payload '${example}'\n\n`);
+    }
   }
 }
 
@@ -252,7 +295,15 @@ async function main(): Promise<void> {
   const step = flags.get("step")?.[0];
   if (!step) usage();
   const hasPayload = flags.has("payload");
-  const payload = hasPayload ? JSON.parse(flags.get("payload")![0]!) : undefined;
+  let payload: unknown;
+  if (hasPayload) {
+    try {
+      payload = JSON.parse(flags.get("payload")![0]!);
+    } catch {
+      process.stderr.write("the --payload value must be valid JSON -- did you mean to fill in the placeholder shown in the resume hint?\n");
+      process.exit(1);
+    }
+  }
 
   const state = deserializeRunState(JSON.parse(readFileSync(statePath, "utf8")));
   const engine = new Engine(parsed.factory, harnesses, state, logEvent, baseDir);

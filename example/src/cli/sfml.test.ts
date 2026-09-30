@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { payloadHint, renderInstruction, reportBlocked } from "./sfml.js";
+import { payloadExample, payloadHint, renderInstruction, reportBlocked } from "./sfml.js";
 import type { BlockedEntry, Observation } from "../engine/runner.js";
 import type { Factory } from "../engine/factory.js";
 import type { ExceptionClass } from "../engine/state.js";
@@ -50,6 +50,26 @@ test("payloadHint: appends the actual result_schema JSON when one is passed", ()
   const schema = { type: "object", required: ["approved"], properties: { approved: { type: "boolean" } } };
   assert.match(payloadHint({ step: "s", state: "awaiting_input" }, schema), /result_schema: \{"type":"object".*"approved"/);
   assert.match(payloadHint({ step: "s", state: "errored", exception: "schema_violation" }, schema), /result_schema to supply the result directly: \{"type":"object"/);
+});
+
+// --- payloadExample: the --payload example shown in the copy-pasteable resume command (issue #38) --
+
+test("payloadExample: awaiting_input uses a result_schema placeholder, not '{}'", () => {
+  assert.match(payloadExample({ step: "s", state: "awaiting_input" })!, /result_schema/);
+});
+
+test("payloadExample: iteration_limit uses an integer placeholder", () => {
+  assert.match(payloadExample({ step: "s", state: "errored", exception: "iteration_limit" })!, /integer/);
+});
+
+test("payloadExample: budget_exceeded uses a USD placeholder", () => {
+  assert.match(payloadExample({ step: "s", state: "errored", exception: "budget_exceeded" })!, /USD/);
+});
+
+test("payloadExample: harness_error, schema_violation, expression_error, routing_error are all undefined (--payload optional)", () => {
+  for (const exception of ["harness_error", "schema_violation", "expression_error", "routing_error"] as const) {
+    assert.equal(payloadExample({ step: "s", state: "errored", exception }), undefined, `for ${exception}`);
+  }
 });
 
 // --- renderInstruction -----------------------------------------------------------------------------
@@ -129,7 +149,7 @@ test("reportBlocked: awaiting_input prints the rendered instruction, not the raw
   const out = captureStderr(() => reportBlocked(observation, factory, "f.sfml", ["--run", "abc-123"]));
   assert.match(out, /instruction: widget/);
   assert.match(out, /resume payload: an object matching the step's result_schema: \{"type":"object"\}/);
-  assert.match(out, /sfml resume f\.sfml --run abc-123 --step review --payload '\{\}'/);
+  assert.match(out, /sfml resume f\.sfml --run abc-123 --step review --payload '<json matching result_schema>'/);
   assert.ok(!out.includes('"parameters"') && !out.includes('"results"'), "must not dump the observed state JSON");
 });
 
@@ -141,6 +161,19 @@ test("reportBlocked: errored schema_violation/harness_error include the step's r
   };
   const out = captureStderr(() => reportBlocked(observation, factory, "f.sfml", ["--run", "abc-123"]));
   assert.match(out, /resume payload: .*result_schema to supply the result directly: \{"type":"object"\}/);
+  assert.match(out, /sfml resume f\.sfml --run abc-123 --step review\n/);
+  assert.match(out, /\(--payload is optional here; add --payload '<json>' to supply the result directly instead of retrying\)/);
+});
+
+test("reportBlocked: routing_error's example command also omits --payload (accepted payload is a bare StepName, not JSON)", () => {
+  const observation: Observation = {
+    status: "errored",
+    blocked: [{ step: "review", state: "errored", exception: "routing_error", message: "no `next` clause matched" }],
+    state,
+  };
+  const out = captureStderr(() => reportBlocked(observation, factory, "f.sfml", ["--run", "abc-123"]));
+  assert.match(out, /sfml resume f\.sfml --run abc-123 --step review\n/);
+  assert.match(out, /\(--payload is optional here; add --payload '"stepName"' to route directly instead of retrying\)/);
 });
 
 test("reportBlocked: expression_error on a result step has no result_schema to show", () => {
@@ -151,6 +184,7 @@ test("reportBlocked: expression_error on a result step has no result_schema to s
   };
   const out = captureStderr(() => reportBlocked(observation, factory, "f.sfml", ["--run", "abc-123"]));
   assert.match(out, /resume payload: omit to re-attempt the step, or an object matching result_schema \(any JSON value for a result step\) to supply the result directly\n/);
+  assert.match(out, /sfml resume f\.sfml --run abc-123 --step done\n/);
 });
 
 test("reportBlocked: a parallel child step resolves its own result_schema", () => {
@@ -192,7 +226,8 @@ test("reportBlocked: a --state-only run prints --state, not --run, in the resume
     state,
   };
   const out = captureStderr(() => reportBlocked(observation, factory, "f.sfml", ["--state", "/tmp/run.json"]));
-  assert.match(out, /sfml resume f\.sfml --state \/tmp\/run\.json --step draft --payload '\{\}'/);
+  assert.match(out, /sfml resume f\.sfml --state \/tmp\/run\.json --step draft\n/);
+  assert.ok(!out.includes("--payload '{}'"));
   assert.ok(!out.includes("--run "));
 });
 
@@ -254,7 +289,7 @@ test("integration: a run that blocks at a human step reports human-readable guid
     // (the default --run <id> path is never written to in that case) -- not --run.
     const escapedFactoryPath = factoryPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const escapedStatePath = statePath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    assert.match(runResult.stderr, new RegExp(`sfml resume ${escapedFactoryPath} --state ${escapedStatePath} --step review --payload '\\{\\}'`));
+    assert.match(runResult.stderr, new RegExp(`sfml resume ${escapedFactoryPath} --state ${escapedStatePath} --step review --payload '<json matching result_schema>'`));
     assert.ok(!runResult.stderr.includes("--run "), "must not suggest --run when the state was written to a custom --state path");
 
     const resumeResult = runCli(["resume", factoryPath, "--state", statePath, "--step", "review", "--payload", '{"approved":true}'], dir);
@@ -296,6 +331,25 @@ test("integration: resume with a payload that fails validation is rejected and s
   }
 });
 
+// Regression for issue #38: a user who copy-pastes the printed example command verbatim, including
+// the deliberately-invalid `<json matching result_schema>` placeholder, must get a clean rejection --
+// not an uncaught JSON.parse SyntaxError with a stack trace dumped to stderr.
+test("integration: resume --payload given the literal placeholder text is a clean error, not an uncaught crash", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sfml-cli-test-"));
+  try {
+    const factoryPath = writeHumanFactory(dir, ["review"]);
+    const statePath = join(dir, "run.json");
+    runThenBlock(factoryPath, dir, statePath);
+
+    const result = runCli(["resume", factoryPath, "--state", statePath, "--step", "review", "--payload", "<json matching result_schema>"], dir);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /--payload value must be valid JSON/);
+    assert.ok(!result.stderr.includes("SyntaxError"), "must not leak a raw JSON.parse stack trace");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("integration: resume that succeeds but blocks again still prints the human report, not raw JSON", () => {
   const dir = mkdtempSync(join(tmpdir(), "sfml-cli-test-"));
   try {
@@ -311,7 +365,7 @@ test("integration: resume that succeeds but blocks again still prints the human 
     assert.match(resumeResult.stderr, /resume payload: an object matching the step's result_schema/);
     const escapedFactoryPath = factoryPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const escapedStatePath = statePath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    assert.match(resumeResult.stderr, new RegExp(`sfml resume ${escapedFactoryPath} --state ${escapedStatePath} --step approve --payload '\\{\\}'`));
+    assert.match(resumeResult.stderr, new RegExp(`sfml resume ${escapedFactoryPath} --state ${escapedStatePath} --step approve --payload '<json matching result_schema>'`));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -402,7 +456,7 @@ test("integration: a run with no --state prints --run (the default path `run` ac
     const runIdMatch = runResult.stderr.match(/^run: (\S+)$/m);
     assert.ok(runIdMatch, "expected `run: <id>` on stderr");
     const escapedFactoryPath = factoryPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    assert.match(runResult.stderr, new RegExp(`sfml resume ${escapedFactoryPath} --run ${runIdMatch![1]} --step review --payload '\\{\\}'`));
+    assert.match(runResult.stderr, new RegExp(`sfml resume ${escapedFactoryPath} --run ${runIdMatch![1]} --step review --payload '<json matching result_schema>'`));
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
