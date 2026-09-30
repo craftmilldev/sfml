@@ -162,7 +162,7 @@ test("reportBlocked: errored schema_violation/harness_error include the step's r
   const out = captureStderr(() => reportBlocked(observation, factory, "f.sfml", ["--run", "abc-123"]));
   assert.match(out, /resume payload: .*result_schema to supply the result directly: \{"type":"object"\}/);
   assert.match(out, /sfml resume f\.sfml --run abc-123 --step review\n/);
-  assert.match(out, /\(--payload is optional here; add --payload '<json>' to supply the result\/route directly instead of retrying\)/);
+  assert.match(out, /\(--payload is optional here; add --payload '<json>' to supply the result directly instead of retrying\)/);
 });
 
 test("reportBlocked: routing_error's example command also omits --payload (accepted payload is a bare StepName, not JSON)", () => {

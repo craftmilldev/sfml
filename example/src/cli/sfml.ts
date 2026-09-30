@@ -187,7 +187,7 @@ function payloadOptionalNote(entry: BlockedEntry): string {
   if (entry.exception === "routing_error") {
     return "(--payload is optional here; add --payload '\"stepName\"' to route directly instead of retrying)";
   }
-  return "(--payload is optional here; add --payload '<json>' to supply the result/route directly instead of retrying)";
+  return "(--payload is optional here; add --payload '<json>' to supply the result directly instead of retrying)";
 }
 
 /** Human-first report of a non-terminal (blocked) observation, per issue #27: what's wrong, what a
