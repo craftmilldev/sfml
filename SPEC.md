@@ -30,8 +30,6 @@ calls a model, or what tools it gives that model.
 
 ### 1.1 What SFML defines
 
-This version defines the following.
-
 - The document format of a factory file, including its encoding, name and identifier rules, and the
   handling of unknown and reserved keys (clause 5).
 - The data model of a factory, comprising its top-level fields, step types, and connections, plus
@@ -50,8 +48,6 @@ This version defines the following.
   (clause 13).
 
 ### 1.2 What SFML does not define
-
-This version leaves the following out of scope.
 
 - An agent framework. Tool definitions, memory, and context management belong to the harness a step
   names, not to this document. A factory file MAY track that a step used one of these, as free text
@@ -133,8 +129,8 @@ The person or persons, or the system, that writes a factory file.
 #### 3.3.2 Caller
 
 The person or system that starts a run, supplying the values bound to `parameters` (§6.3), or that
-resumes a blocked run by supplying a human step's result, granting additional iterations or budget,
-or supplying a caller-authored result in place of a wedged agent step (§11.4). This specification does
+resumes a blocked run by supplying a human step's result, granting additional iterations, budget,
+or by supplying a caller-authored result in place of a wedged agent step (§11.4). This specification does
 not distinguish whoever starts a run from whoever later resumes one; both act through the same
 addressed calls (§9.1, §11.3), and a conforming implementation MAY apply its own access control to
 either without SFML's involvement.
@@ -162,7 +158,7 @@ reader of a binary format rejects a byte sequence that maps to no known structur
 a document whose bytes are not valid UTF-8, whose syntax is not valid YAML, that has a duplicate
 key, that has a field this specification does not define at that position, that lacks a required
 field, or that has a value not of its field's declared type (§4.3). A Parser treats an expression
-and a prompt template as opaque strings: it does not resolve one name in the document against
+and a prompt template as opaque strings. It does not resolve one name in the document against
 another, and it reads only the document itself.
 
 #### 4.1.2 Linter
@@ -412,7 +408,7 @@ A `human` step blocks its branch (§11.1) until a caller supplies a payload vali
   treats an unassigned human step as falling back to the factory-level `assignee` (§6.2, §6.11).
 - `instructions`, where present, is a `FactoryState Expression` evaluated to produce the content
   shown to whoever performs the step.
-- A human step is not subject to a timeout, an escalation, or a failure mode of its own (§11.1). It either
+- A human step has no timeout, escalation, or failure mode of its own (§11.1). It either
   resumes with input that validates against `result_schema`, or it continues to wait; an input that
   does not validate is rejected at the call (§11.5) and the branch remains `awaiting_input`.
 - `max_iterations`, where present, bounds the number of iterations of the step (§9.6); a human
@@ -427,8 +423,7 @@ concurrently, and joins once every child has produced a result.
 | ------- | -------------------- | -------- |
 | `steps` | Record<Name, Step>    | yes      |
 
-- A child MUST be a single `agent` or `human` step. A child MUST NOT declare `next` — a child cannot
-  route, so a region contains no internal edges — and MUST NOT itself be `type: parallel`.
+- A child MUST be a single `agent` or `human` step. A child MUST NOT declare `next` and MUST NOT itself be `type: parallel`.
 - The join is `all`, implicitly, and the join is the `parallel` step itself.
 - Control enters at the `parallel` step and leaves only through its own `next` (§6.9); this is the
   region's single entry and single exit.
@@ -476,7 +471,7 @@ A `Connection` is one entry of a step's `next` list.
   absent or evaluates true is taken.
 - Routing MUST be total: the last connection of every non-`result` step MUST omit `when`, so that
   step always has somewhere to go. A conforming Linter MUST enforce this (§8.3).
-- Every connection is a success edge. There is no `on_error` or `on_timeout` field; a step
+- Every connection is a success edge. There is no routing based on errors as all errors are resumable and retryable; a step
   failure is an exception (clause 10), never a route.
 
 ### 6.10 Retry
@@ -516,7 +511,7 @@ mechanism SFML uses to resolve, notify, or route to anyone.
 `harness`, REQUIRED on an `agent` step, is a String of the form `<name>[@<version>]` naming the
 harness that executes the step. Resolution of `<name>` and `<version>` to an executable harness is
 implementation-defined, except that resolution MUST be deterministic for a given implementation and
-configuration. Where a step's `harness` fails to resolve this way, a run using that
+configuration. Where a step's `harness` fails to resolve, a run using that
 step MUST NOT be started; an implementation MUST reject it at admission (§9.1).
 
 `harness_config` is an OPTIONAL record of harness-defined keys and values, passed through to the
@@ -620,9 +615,7 @@ A prompt template — the content of `prompt`, or of the file `prompt_path` name
 UTF-8, independent of the factory document's own encoding (§5.1), so that the delimiter below is
 unambiguous.
 
-A placeholder in a prompt template (§3.2.7) is delimited by `««` at the open and `»»` at the
-close — each formed by doubling the single guillemet `«` (U+00AB) or `»` (U+00BB) — never by a
-single guillemet alone. A single `«` or `»`, anywhere it appears, is ordinary literal text and MUST NOT be
+A placeholder in a prompt template (§3.2.7) is delimited by double guillemets at the start and end of the expression. For example: `«« expression »»`. A single guillemet is ordinary literal text and MUST NOT be
 treated as part of a placeholder; only the doubled pair opens or closes one.
 
 - The text between a `««` and the next `»»` is a `PromptVars Expression` (§7.5.2). Leading and
