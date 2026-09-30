@@ -620,9 +620,9 @@ A prompt template — the content of `prompt`, or of the file `prompt_path` name
 UTF-8, independent of the factory document's own encoding (§5.1), so that the delimiter below is
 unambiguous.
 
-A placeholder in a prompt template (§3.2.7) is delimited by two consecutive `«` characters
-(U+00AB) and closed by two consecutive `»` characters (U+00BB) — `««` and `»»`, each doubled, never a
-single guillemet. A single `«` or `»`, anywhere it appears, is ordinary literal text and MUST NOT be
+A placeholder in a prompt template (§3.2.7) is delimited by `««` at the open and `»»` at the
+close — each formed by doubling the single guillemet `«` (U+00AB) or `»` (U+00BB) — never by a
+single guillemet alone. A single `«` or `»`, anywhere it appears, is ordinary literal text and MUST NOT be
 treated as part of a placeholder; only the doubled pair opens or closes one.
 
 - The text between a `««` and the next `»»` is a `PromptVars Expression` (§7.5.2). Leading and
