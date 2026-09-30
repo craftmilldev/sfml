@@ -1,6 +1,6 @@
 # Software Factory Markup Language (SFML)
 
-**Version:** v0.1 **Status:** Draft **Copyright:** 2026 Plumbline LLC **License:** MIT
+**Version:** v0.1 **Status:** Draft **License:** MIT
 
 ---
 
