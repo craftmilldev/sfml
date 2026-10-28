@@ -37,3 +37,10 @@ The site builds to a plain static folder (`site/_site/`) with an auto-detectable
 Vercel can build it with zero extra config — same as craftmill.dev itself (no `vercel.json`).
 Wiring up the actual Vercel project and `sfml.craftmill.dev` DNS is a manual infra step, done
 outside this repo.
+
+## Analytics
+
+When `POSTHOG_PROJECT_TOKEN` and `POSTHOG_HOST` are set at build time, the site loads PostHog
+(`site/src/_includes/base.njk`). Every event it sends carries the super property
+`product = sfml`, the same property every Craftmill product sets, so reports can filter by
+product (`properties.product = 'sfml'`). The site has no server-side or CLI PostHog captures.
