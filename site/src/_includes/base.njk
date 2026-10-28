@@ -28,6 +28,7 @@
     logs: {
       serviceName: "sfml-documentation-site",
     },
+    loaded: (ph) => ph.register({ product: "sfml" }),
   });
 
   const posthogLogs = posthog.logger;
