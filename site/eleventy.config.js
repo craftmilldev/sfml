@@ -24,9 +24,22 @@ function escapeHtml(text) {
 
 export default function (eleventyConfig) {
   const posthogProjectToken = process.env.POSTHOG_PROJECT_TOKEN;
+  // All Craftmill products send PostHog traffic through the shared proxy.
+  const posthogHost = process.env.POSTHOG_HOST || "https://a.craftmill.dev/api/ingest";
 
-  // The analytics bundle (build-analytics.mjs) is only loaded when a token is set.
-  eleventyConfig.addGlobalData("posthog", () => Boolean(posthogProjectToken));
+  eleventyConfig.addGlobalData("posthog", () => {
+    if (!posthogProjectToken) {
+      return null;
+    }
+
+    return {
+      scriptSrc: `${posthogHost}/static/array.js`,
+      config: JSON.stringify({
+        projectToken: posthogProjectToken,
+        apiHost: posthogHost,
+      }),
+    };
+  });
 
   eleventyConfig.addPassthroughCopy("src/styles.css");
   eleventyConfig.addPassthroughCopy("src/assets");
