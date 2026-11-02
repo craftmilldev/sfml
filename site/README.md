@@ -40,7 +40,17 @@ outside this repo.
 
 ## Analytics
 
-When `POSTHOG_PROJECT_TOKEN` and `POSTHOG_HOST` are set at build time, the site loads PostHog
-(`site/src/_includes/base.njk`). Every event it sends carries the super property
-`product = sfml`, the same property every Craftmill product sets, so reports can filter by
-product (`properties.product = 'sfml'`). The site has no server-side or CLI PostHog captures.
+The site sends PostHog events through `@craftmilldev/analytics`, Craftmill's shared package, and the
+shared proxy at `https://a.craftmill.dev/api/ingest`. Every event carries `product = sfml` and
+`app = web`. `build-analytics.mjs` bundles `src/analytics.js` into `_site/analytics.js`, and
+`base.njk` loads it only when `POSTHOG_PROJECT_TOKEN` is set at build time (in `.env` or the
+environment). `POSTHOG_PROXY_HOST` overrides the proxy URL. The proxy must list the site's origin in
+its `ALLOWED_ORIGINS`.
+
+The package is private on GitHub Packages, so `npm ci` in `site/` needs a token with `read:packages`
+in `NODE_AUTH_TOKEN` (`site/.npmrc` points the `@craftmilldev` scope at the registry):
+
+- Locally: `export NODE_AUTH_TOKEN=$(gh auth token)`.
+- CI: the workflow passes `secrets.GITHUB_TOKEN`; the package must grant this repo access. Pull
+  requests from forks get no secrets, so their install fails.
+- The deploy: set `NODE_AUTH_TOKEN` (a token with `read:packages`) as a build environment variable.

@@ -21,4 +21,7 @@ jobs:
       - run: npm ci
       - run: npm ci --prefix example
       - run: npm ci --prefix site
+        env:
+          # read:packages for @craftmilldev/analytics on GitHub Packages (see site/README.md)
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm test

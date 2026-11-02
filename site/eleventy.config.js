@@ -24,21 +24,9 @@ function escapeHtml(text) {
 
 export default function (eleventyConfig) {
   const posthogProjectToken = process.env.POSTHOG_PROJECT_TOKEN;
-  const posthogHost = process.env.POSTHOG_HOST;
 
-  eleventyConfig.addGlobalData("posthog", () => {
-    if (!posthogProjectToken || !posthogHost) {
-      return null;
-    }
-
-    return {
-      scriptSrc: `${posthogHost.replace(".i.posthog.com", "-assets.i.posthog.com")}/static/array.js`,
-      config: JSON.stringify({
-        projectToken: posthogProjectToken,
-        apiHost: posthogHost,
-      }),
-    };
-  });
+  // The analytics bundle (build-analytics.mjs) is only loaded when a token is set.
+  eleventyConfig.addGlobalData("posthog", () => Boolean(posthogProjectToken));
 
   eleventyConfig.addPassthroughCopy("src/styles.css");
   eleventyConfig.addPassthroughCopy("src/assets");

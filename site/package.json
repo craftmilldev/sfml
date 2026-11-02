@@ -4,12 +4,16 @@
   "type": "module",
   "description": "The SFML promo/docs site (sfml.craftmill.dev).",
   "scripts": {
-    "build": "node -e \"require('node:fs').rmSync('_site', { recursive: true, force: true })\" && eleventy",
+    "build": "node -e \"require('node:fs').rmSync('_site', { recursive: true, force: true })\" && eleventy && node build-analytics.mjs",
     "start": "eleventy --serve"
   },
   "devDependencies": {
     "@11ty/eleventy": "^3.0.0",
+    "esbuild": "^0.28.2",
     "gray-matter": "^4.0.3",
     "markdown-it": "^14.3.2"
+  },
+  "dependencies": {
+    "@craftmilldev/analytics": "^0.1.0"
   }
 }
