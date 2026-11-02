@@ -19,6 +19,7 @@
   const posthogConfig = {{ posthog.config | safe }};
   posthog.init(posthogConfig.projectToken, {
     api_host: posthogConfig.apiHost,
+    ui_host: "https://us.posthog.com",
     defaults: "2026-05-30",
     capture_exceptions: {
       capture_unhandled_errors: true,
@@ -28,7 +29,7 @@
     logs: {
       serviceName: "sfml-documentation-site",
     },
-    loaded: (ph) => ph.register({ product: "sfml" }),
+    loaded: (ph) => ph.register({ product: "sfml", app: "web" }),
   });
 
   const posthogLogs = posthog.logger;

@@ -34,13 +34,16 @@ suite via `npm run test:example`.
 ## Deployment
 
 The site builds to a plain static folder (`site/_site/`) with an auto-detectable framework, so
-Vercel can build it with zero extra config — same as craftmill.dev itself (no `vercel.json`).
+Vercel can build it with almost no config. `site/vercel.json` skips every build that is not
+for `main`, so pull requests get no preview deployments (the Vercel project's root directory is `site/`).
 Wiring up the actual Vercel project and `sfml.craftmill.dev` DNS is a manual infra step, done
 outside this repo.
 
 ## Analytics
 
-When `POSTHOG_PROJECT_TOKEN` and `POSTHOG_HOST` are set at build time, the site loads PostHog
-(`site/src/_includes/base.njk`). Every event it sends carries the super property
-`product = sfml`, the same property every Craftmill product sets, so reports can filter by
-product (`properties.product = 'sfml'`). The site has no server-side or CLI PostHog captures.
+When `POSTHOG_PROJECT_TOKEN` is set at build time, the site loads PostHog
+(`site/src/_includes/base.njk`) and sends events through the shared Craftmill proxy,
+`https://a.craftmill.dev/api/ingest` (`POSTHOG_HOST` overrides it). Every event carries the super
+properties `product = sfml` and `app = web`, the same two properties every Craftmill product sets, so
+reports can filter by product (`properties.product = 'sfml'`). The proxy must list
+`https://sfml.craftmill.dev` in its `ALLOWED_ORIGINS`. The site has no server-side or CLI PostHog captures.
