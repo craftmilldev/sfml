@@ -34,7 +34,8 @@ suite via `npm run test:example`.
 ## Deployment
 
 The site builds to a plain static folder (`site/_site/`) with an auto-detectable framework, so
-Vercel can build it with zero extra config — same as craftmill.dev itself (no `vercel.json`).
+Vercel can build it with almost no config. `site/vercel.json` skips every build that is not
+for `main`, so pull requests get no preview deployments (the Vercel project's root directory is `site/`).
 Wiring up the actual Vercel project and `sfml.craftmill.dev` DNS is a manual infra step, done
 outside this repo.
 
